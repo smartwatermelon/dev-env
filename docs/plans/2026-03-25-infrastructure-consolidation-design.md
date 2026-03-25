@@ -1,7 +1,7 @@
 # Infrastructure Consolidation & Local Review Enhancement
 
 **Date**: 2026-03-25
-**Status**: Design — approved, decisions resolved
+**Status**: Phase 1 complete (2026-03-25). Validation week in progress.
 **Goal**: One repo, one clone, one install. Replace remote AI review with enhanced local review. Cut CI costs to near-zero.
 
 ---
@@ -21,6 +21,7 @@ smartwatermelon/github-workflows ← reusable CI workflow (separate repo)
 ```
 
 **Problems**:
+
 - No single source of truth
 - 5 identified redundancies (see Section 1)
 - Paying for remote AI review that duplicates local review
@@ -72,6 +73,7 @@ dev-env/
 ```
 
 **Agent dependencies** (external, not bundled):
+
 - `adversarial-reviewer`: `code-critic@smartwatermelon-marketplace` — Andrew's own agent, published separately so others can use it standalone
 - `code-reviewer`: `comprehensive-review@claude-code-workflows` (wshobson/agents) — third-party, installed via Claude Code plugin system
 
@@ -97,6 +99,7 @@ Both are referenced by name in hook invocations but do not live in this repo.
 ### 1C. Merge merge-lock blocking scripts
 
 Three scripts currently:
+
 - `hook-block-merge-lock.sh` (blocks directory references)
 - `hook-block-merge-lock-authorize.sh` (blocks authorize/revoke commands)
 - `hook-block-merge-locks-write.sh` (blocks Write/Edit to directory)
@@ -114,6 +117,7 @@ The git `pre-commit` hook already blocks commits to main. The PreToolUse hook is
 
 **Files removed**: `hook-block-main-commit.sh`
 **Chain updated**: `hook-block-all.sh` drops from 6 hooks to 3:
+
 1. `hook-block-no-verify.sh` (covers `--no-verify`, `-n`)
 2. `hook-block-merge-locks.sh` (covers authorize, directory, write)
 3. `hook-block-api-merge.sh` (covers REST, GraphQL, global-flag)
@@ -143,6 +147,7 @@ The reusable `claude-assistant.yml` workflow moves into `dev-env/ci-workflows/`.
 ### 2A. Adversarial reviewer enhancements (Option 4 from research doc)
 
 **4A — Production failure patterns checklist** added to agent prompt:
+
 - Platform guards without dual-path testing
 - Silent env var failures
 - Test isolation (missing afterEach cleanup)
@@ -152,6 +157,7 @@ The reusable `claude-assistant.yml` workflow moves into `dev-env/ci-workflows/`.
 - RLS policy changes (auto-critical)
 
 **4B — Cross-file awareness prompts** added to agent prompt:
+
 - When diff removes user-facing strings: "Is this feature still discoverable?"
 - When diff adds platform guards: "Is the other platform path tested?"
 - When diff modifies shared state/IDs: "What else uses this identifier?"
@@ -159,10 +165,12 @@ The reusable `claude-assistant.yml` workflow moves into `dev-env/ci-workflows/`.
 - Framed as Questions, not assumptions
 
 **4C — Severity recalibration**:
+
 - Promote to Critical: missing afterEach cleanup, untested platform paths, unguarded env vars
 - Promote to Concern: removed UI entry points, unchecked testID collisions
 
 **4D — Increased diff context**:
+
 - `git diff --cached -U10` in `run-review.sh` (was default -U3)
 
 **Estimated effort**: ~1 hour, prompt edits + one line in run-review.sh
@@ -199,6 +207,7 @@ fi
 ```
 
 `run-review.sh` gains a `--mode=full-diff` flag that:
+
 - Uses the adversarial-reviewer only (not code-reviewer — that already ran per-commit)
 - Passes the full `main..HEAD` diff instead of staged changes
 - Focuses the prompt on cross-file integration issues specifically
@@ -309,6 +318,7 @@ jobs:
 ```
 
 **Key properties**:
+
 - No AI API calls — purely deterministic
 - Fast — lint + test + Semgrep, typically <2 minutes
 - Cheap — minimal Actions minutes, no external API costs
@@ -425,6 +435,7 @@ log "Update all hooks: git -C ${REPO_DIR} pull"
 ```
 
 **Key design choices**:
+
 - **Symlinks, not copies** — `git pull` in the repo updates everything instantly. No re-install needed.
 - **Blue/green settings merge** — never lose a working settings.json. Backup + revert on failure.
 - **Deprecated file cleanup** — removes `~/.local/bin/gh` and other superseded artifacts.
@@ -434,16 +445,22 @@ log "Update all hooks: git -C ${REPO_DIR} pull"
 
 ## Section 5: Migration Path
 
-### Phase 1: Enhance local review (Week 1)
+### Phase 1: Enhance local review (Week 1) — COMPLETE 2026-03-25
 
-No repo changes needed. Edit existing files in place:
+All items implemented and tested:
 
-1. Update adversarial-reviewer agent prompt (4A, 4B, 4C)
-2. Update `run-review.sh` diff context to -U10 (4D)
-3. Install Semgrep, add to pre-commit hook
-4. Add full-diff pre-push review mode
+1. ✅ Update adversarial-reviewer agent prompt (4A, 4B, 4C) — v1.4.0 merged (smartwatermelon-marketplace PR #10)
+2. ✅ Update `run-review.sh` diff context to -U10 (4D) — pre-commit and chunked review paths
+3. ✅ Install Semgrep, add to pre-commit hook — v1.156.0, `--config auto --error --quiet`
+4. ✅ Add full-diff pre-push review mode — `run-review.sh --mode=full-diff`, adversarial-only, cross-file prompt
 
-**Validation**: Run for 1-2 weeks alongside existing remote review. Compare what each catches.
+**Implementation notes**:
+
+- Semgrep `--staged` flag does not exist (was in original plan). Using `semgrep scan --config auto --error --quiet .` instead — scans all tracked files, ~15-20s overhead from rule loading
+- Full-diff pre-push review is non-blocking by default (prompts user, allows override) to avoid frustrating pushes during validation week
+- Semgrep gracefully skips with a message if not installed (`command -v` check)
+
+**Validation**: Running rest of week 1 with both local and remote review active. Compare what each catches to build evidence for Phase 2.
 
 ### Phase 2: Reduce remote review (Week 2-3)
 
