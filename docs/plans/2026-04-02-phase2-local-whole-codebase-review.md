@@ -1,7 +1,7 @@
 # Phase 2: Local Whole-Codebase Review
 
 **Date**: 2026-04-02
-**Status**: Design
+**Status**: Implemented — validation week 2026-04-03 through 2026-04-10
 **Parent**: [Infrastructure Consolidation Design](2026-03-25-infrastructure-consolidation-design.md)
 **Goal**: Replace all remote AI review (Claude CI + Sentry/Seer) with local whole-codebase review that catches the same classes of bugs.
 
@@ -163,17 +163,34 @@ Both must pass for push to proceed. Non-blocking issues from either are filed.
 - Add `--mode=codebase` call in parallel with existing `--mode=full-diff`
 - Both verdicts must pass; non-blocking issues filed from both
 
-### Step 4: Validation (1 week)
+### Step 4: Validation (1 week — 2026-04-03 through 2026-04-10)
 
 - Run with both local whole-codebase review and remote Seer active
 - Compare: does local now catch what Seer catches?
 - Track false positive rate — agent with full codebase access may over-flag
 
-### Step 5: Remove remote AI review
+### Step 5: Remove Seer
 
-- Remove `claude-code-review.yml` from all repos
-- Remove Seer integration (if any remaining)
-- Archive `smartwatermelon/github-workflows` (or reduce to ci-gate only)
+- Remove Seer integration from all repos
+- Keep `claude-blocking-review.yml` as lightweight final gate (belt-and-suspenders)
+- `smartwatermelon/github-workflows` retains the blocking review reusable workflow
+
+---
+
+## Implementation log
+
+Steps 1-3 implemented 2026-04-02, merged 2026-04-03:
+
+- **claude-config#88**: `lib-review-issues.sh` (shared library),
+  `pre-merge-review.sh` (refactored to source library),
+  `run-review.sh` (`--mode=codebase` with adversarial-reviewer + tools)
+- **dotfiles#32**: `pre-push` hook (parallel full-diff + codebase review)
+- **dotfiles#29**: `post-commit` hook (commit hash mismatch fix)
+
+Notable: Seer found a real bug on claude-config#88 — commit-mode size
+threshold was blocking full-diff/codebase modes on large diffs. Fixed
+in the same PR. Codebase review also auto-filed dotfiles#31 (trap scope
+concern) on its first real run.
 
 ---
 
@@ -182,6 +199,7 @@ Both must pass for push to proceed. Non-blocking issues from either are filed.
 | Risk | Mitigation |
 |------|------------|
 | Codebase review is slow (large repos) | Parallel execution; agent explores selectively, not exhaustively |
+| Codebase review times out on slow networks | Configurable: `git config review.codebaseTimeout 600` (default 300s) |
 | Agent over-flags pre-existing issues as BLOCK | Prompt instructs: BLOCK only for issues introduced or worsened by the diff |
 | Non-blocking issue spam | Ralph burndown addresses issues; tune threshold if volume too high |
 | Token usage on Max subscription | Max 200 covers typical usage; monitor for extreme cases |
@@ -199,6 +217,47 @@ Both must pass for push to proceed. Non-blocking issues from either are filed.
 
 ---
 
+## Validation checklist (2026-04-03 through 2026-04-10)
+
+Track these across all repos during the validation week:
+
+**Coverage parity:**
+
+- [ ] Compare local codebase review findings with Seer findings on same PRs
+- [ ] Note any Seer finding that local review missed (category, severity)
+- [ ] Note any local finding that Seer missed
+
+**Quality:**
+
+- [ ] Track false positive rate (BLOCK findings that weren't real bugs)
+- [ ] Track non-blocking issue quality (are auto-filed issues actionable?)
+- [ ] Review Ralph burndown outcomes — are filed issues getting resolved?
+
+**Performance:**
+
+- [ ] Pre-push total time (both reviews parallel) — target under 3 min
+- [ ] Codebase review time alone — track per-push
+- [ ] Any timeouts? On which repos/diff sizes?
+- [ ] TODO: Add intelligent timeout backoff (e.g., double timeout on retry, skip codebase review after N consecutive timeouts)
+
+**Reliability:**
+
+- [ ] Any crashes or unparseable verdicts from codebase review?
+- [ ] Does pre-merge-review.sh still work after the refactor?
+- [ ] Any issues with non-blocking issue creation (gh failures, pending-issues fallback)?
+
+**Decision point (2026-04-10):**
+
+- If local catches everything Seer catches → remove Seer integration (Step 5)
+- Keep `claude-blocking-review.yml` active as belt-and-suspenders final gate
+- If gaps remain → tune prompts or add context, extend validation
+- If false positive rate too high → adjust BLOCK classification rules
+
+---
+
 ## What this replaces in the original roadmap
 
-The original Phase 2 was "reduce remote review" by changing CI triggers. This design replaces that with a more ambitious goal: **eliminate remote AI review entirely** by closing the local coverage gap first. Phases 3-5 (consolidated repo, install.sh, cutover) remain unchanged.
+The original Phase 2 was "reduce remote review" by changing CI triggers.
+This design replaces that with a more ambitious goal: **eliminate remote
+AI review entirely** by closing the local coverage gap first. Phases 3-5
+(consolidated repo, install.sh, cutover) remain unchanged.
