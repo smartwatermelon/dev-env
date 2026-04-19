@@ -155,9 +155,11 @@ All blocked commands are logged to `~/.claude/blocked-commands.log` with timesta
 **Source**: `~/.config/git/hooks/commit-msg`
 
 **Validates**: Conventional commits format
+
 ```
 ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-z0-9-]+\))?: .{1,}
 ```
+
 - Warns (but doesn't block) if subject > 72 chars
 - Skips merge commits
 
@@ -208,6 +210,7 @@ Two layers intercept `gh` commands before they reach the real binary.
 **When**: Non-interactive shells, or shells without the bash function loaded
 
 **Same interception logic** as the bash function, plus:
+
 - Uses `_GH_REVIEW_DONE=1` env var to prevent double-review
 - Finds real `gh` by scanning PATH and excluding itself
 - Routes token via `CLAUDE_GH_TOKEN_ROUTER` if set
@@ -247,12 +250,14 @@ Two layers intercept `gh` commands before they reach the real binary.
 2. `adversarial-reviewer` — Runs on every commit regardless
 
 **Security-critical file detection**:
+
 - Path patterns: auth, oauth, jwt, password, payment, billing, database, crypto, etc.
 - Content patterns: API_KEY, SELECT/INSERT, eval(), fetch(), subprocess, etc.
 - File extensions: .sql, .env, .key, .pem, .crt
 - Logs "elevated scrutiny" for these files
 
 **Review logs**:
+
 - Per-repo: `$(git rev-parse --git-dir)/last-review-result.log`
 - Global pointer: `~/.claude/last-review-result.log`
 - Fields: timestamp, repo, branch, commit, verdict
@@ -267,6 +272,7 @@ Two layers intercept `gh` commands before they reach the real binary.
 **Purpose**: Fetch CI status + bot review comments for a pushed PR
 
 **Output format**:
+
 ```
 CI_STATE=<SUCCESS|PENDING|FAILURE>
 FINDING source=<bot> file="<path>" line=<line> comment=<text>
@@ -310,6 +316,7 @@ FINDING source=<bot> file="<path>" line=<line> comment=<text>
 **Triggers**: `pull_request` — opened, synchronize, ready_for_review, reopened
 
 **Steps**:
+
 1. `actions/checkout@v4` (shallow clone, `fetch-depth: 1`)
 2. `anthropics/claude-code-action@v1` with plugin `code-review@claude-code-plugins`
 
@@ -322,10 +329,12 @@ FINDING source=<bot> file="<path>" line=<line> comment=<text>
 **Triggers**: issue_comment, pull_request_review_comment, issues, pull_request_review
 
 **Security guards** (in `if:` condition):
+
 - Comment/issue must contain `@claude`
 - Author must be OWNER, MEMBER, or COLLABORATOR
 
 **Delegates to reusable workflow**:
+
 ```
 smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 ```
@@ -336,6 +345,7 @@ smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 **Version**: `v1` tag (currently identical to `main`)
 
 **Steps**:
+
 1. `actions/checkout@v4` (pinned SHA: `34e11487...`, `fetch-depth: 1`)
 2. `anthropics/claude-code-action@v1` (pinned SHA: `26ec0412...`)
 
@@ -394,6 +404,7 @@ smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 **Non-interactive enforcement**: When `CLAUDECODE` env var is set, requires `--squash` and `--delete-branch` flags.
 
 **Non-blocking issue creation**:
+
 - Parses `NON_BLOCKING_ISSUE:...END_ISSUE` blocks from Claude output
 - Creates GitHub issues via `gh issue create`
 - Labels: `tech-debt` (yellow), `security` (red) for security-critical files
@@ -636,12 +647,16 @@ Developer writes code in Claude Code
 
 | Gap | Layer | Risk | Mitigation |
 |-----|-------|------|------------|
-| `gh api graphql --input file.json` with `mergePullRequest` mutation | Shell wrapper + PreToolUse | Medium | Protocol 6 (behavioral rule) — Claude must not construct such files |
+| Newline-chained `git diff` + `gh api .../merge` (literal newline statement separator) | PreToolUse | Low | Regex negation treats shell operators (semicolon, ampersand, pipe) as boundaries but not literal newline; `gh pr merge` path still caught separately. Tracked as claude-config#137. |
 | Non-interactive shells that skip both wrappers | Shell layer | Low | PreToolUse hook provides redundant coverage |
-| Review cache allows skipping re-review of identical diff | run-review.sh | Low | Cache is SHA256 of exact diff; any change invalidates |
+| Review cache allows skipping re-review of identical diff | run-review.sh | Low | Cache is SHA256 of (diff + script SHA) — any change to the diff OR the review script invalidates |
 | Merge-lock TTL is clock-based | merge-lock.sh | Low | 30-min window is short; human must re-authorize if expired |
 | pre-commit tool not installed in repo | pre-commit hook | Low | Falls back to global config; warns if neither found |
 | Shellcheck SC2312 excluded | lint-shell.sh | Negligible | Intentional suppression of specific warning |
+
+**Previously listed, now closed:**
+
+- `gh api graphql --input file.json` with `mergePullRequest` mutation — closed 2026-04-18 in Batch D (claude-config#134); extended in Batch H (claude-config#136) to also catch the `-f query=@file` value-from-file convention, the `--field input=@file` long form, and global-flag-prefix bypasses like `gh --repo=o/r api .../merge`. See `hook-block-api-merge.sh` for the current regex set.
 
 ---
 
