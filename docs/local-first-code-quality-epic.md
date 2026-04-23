@@ -821,4 +821,77 @@ Total wall-clock: ~90 minutes for 7 PRs across 7 repos plus the audit. Iteration
 
 ---
 
+## 15. Phase 4 — ralph-burndown pivot to mimolette (2026-04-22)
+
+**Design doc:** [`smartwatermelon/ralph-burndown` — `docs/plans/2026-04-22-local-nightly-runner-design.md`](https://github.com/smartwatermelon/ralph-burndown/blob/main/docs/plans/2026-04-22-local-nightly-runner-design.md)
+**Implementation plan:** [`docs/plans/2026-04-22-local-nightly-runner-impl.md`](https://github.com/smartwatermelon/ralph-burndown/blob/main/docs/plans/2026-04-22-local-nightly-runner-impl.md)
+
+**Goal:** close the last CI-first hold-out in the fleet — ralph-burndown's own scheduled automation.
+
+**Background.** ralph-burndown was built in March before the local-first epic landed, and its install pipeline deployed two scheduled workflows (`night-shift.yml`, `ralph-triage.yml`) into every target repo. Each workflow cloned ralph-burndown onto a GitHub Actions `ubuntu-latest` runner and executed label-audit + night-shift + (monthly) triage there. By 2026-04 this was the only remaining CI-first automation path across the owned fleet. Every minute of Actions billed for scheduled ralph work was already available for free on mimolette.local (24/7, sleep disabled, `claude`/`gh`/`uv` installed, Max-plan OAuth token authenticated).
+
+### What shipped
+
+**CI teardown PRs — removed `night-shift.yml` + `ralph-triage.yml` from every target repo:**
+
+| # | Repo | PR |
+| --- | --- | --- |
+| 1 | [nightowlstudiollc/kebab-tax](https://github.com/nightowlstudiollc/kebab-tax/pull/1189) | #1189 |
+| 2 | [nightowlstudiollc/financial-agent](https://github.com/nightowlstudiollc/financial-agent/pull/81) | #81 |
+| 3 | [nightowlstudiollc/yesteryear](https://github.com/nightowlstudiollc/yesteryear/pull/54) | #54 |
+| 4 | [smartwatermelon/scripts](https://github.com/smartwatermelon/scripts/pull/62) | #62 |
+| 5 | [nightowlstudiollc/kebab-tax-netlify](https://github.com/nightowlstudiollc/kebab-tax-netlify/pull/177) | #177 |
+| 6 | [nightowlstudiollc/night-owl-studio](https://github.com/nightowlstudiollc/night-owl-studio/pull/31) | #31 |
+| 7 | [smartwatermelon/projectinsomnia](https://github.com/smartwatermelon/projectinsomnia/pull/56) | #56 |
+
+**ralph-burndown pivot PR — [smartwatermelon/ralph-burndown#99](https://github.com/smartwatermelon/ralph-burndown/pull/99)** (plus follow-up #102 for path + CDPATH fixes):
+
+- New `ralph-burndown nightly` click subcommand orchestrating label-audit + night-shift (+ monthly triage on the 1st) per configured repo.
+- New module set: `workclone`, `runner`, `summary`, `notify`, `nightly`. TDD throughout; test suite grew from 56 to 95.
+- LaunchAgent `us.nightowlstudio.ralph-nightly` fires at 02:00 PT on mimolette, writing to `/Volumes/extra-vieille/Workspaces/ralph-work/`.
+- Summary issues posted on smartwatermelon/ralph-burndown with label `nightly-report` (GitHub's own notifications email the operator). Failure email via `msmtp` — Gmail app password sourced from a 1Password Automation vault, mirrored into a dedicated never-auto-lock keychain (`~/Library/Keychains/ralph-nightly.keychain-db`) because the login keychain locks outside GUI sessions.
+- Deleted: `workflow_gen.py`, `ci_patch.py`, `permissions.py`, `scripts/tech-debt-loop.sh`, and ralph-burndown's own scheduled workflows. The `install` command no longer emits CI workflows — it just generates config + prompt files.
+
+### Outcome
+
+Every piece of owned-fleet code-quality and ralph-powered work now runs on-laptop (or on mimolette, for scheduled ralph tasks). **Scheduled CI minutes billed for ralph-burndown drop to zero.** Night-shift commits now flow through the same pre-commit + pre-push review stack as human commits — a strict quality uplift beyond the cost shift.
+
+The Phase 3 claim "local review beats CI review with diff-only access" now applies to the autonomous fix path as well as the human PR path. A night-shift commit on mimolette runs through:
+
+1. Global pre-commit framework (black, flake8, shell-lint, yamllint, html-tidy, markdownlint, luacheck, prettier, semgrep)
+2. `run-review.sh` code-reviewer + adversarial-reviewer agents on the staged diff
+3. Pre-push `run-review.sh --mode=full-diff` + `run-review.sh --mode=codebase` — the same Phase 2 whole-codebase review that catches cross-file drift
+
+Any CI-only night-shift pipeline would only get review at the remote summarizer layer. Local is strictly better.
+
+### Non-blocking follow-ups filed during the rollout
+
+Pre-push codebase review and pre-merge analysis flagged several adjacent cleanup candidates while the teardown PRs ran. They were filed as GitHub issues (and thus will be surfaced to the new nightly runner's first few passes):
+
+- [nightowlstudiollc/kebab-tax#1188](https://github.com/nightowlstudiollc/kebab-tax/issues/1188) — orphaned `.ralph/validate` + stale `branches-ignore: tech-debt/night-shift-*` filter in `ci.yml`
+- [nightowlstudiollc/yesteryear#55](https://github.com/nightowlstudiollc/yesteryear/issues/55) — single-point-of-failure risk post-pivot (mimolette becomes critical infra for nightly automation)
+- [nightowlstudiollc/yesteryear#56](https://github.com/nightowlstudiollc/yesteryear/issues/56) — audit / revoke unused `CLAUDE_CODE_OAUTH_TOKEN` repository secrets on repos that no longer need them
+- [smartwatermelon/scripts#61](https://github.com/smartwatermelon/scripts/issues/61) — `.ralph/events-*.jsonl` + `NIGHT_SHIFT_REPORT.md` tracked in git; should be `.gitignore`'d + `git rm`'d
+
+### Lessons from Phase 4
+
+- **CDPATH contamination is real.** The first `scripts/install-launchagent.sh` run failed because the operator's shell sets `CDPATH=.:~/Developer:...`, and `cd <relative>` matching via CDPATH echoes the destination to stdout — contaminating `$(cd ... && pwd)` substitutions. Fix pattern applied to every new install-time shell script: `unset CDPATH` near the top.
+- **Login keychain is useless for unattended agents.** The login keychain locks outside GUI sessions, so the 02:00 LaunchAgent can't back a `passwordeval`. Solution: a dedicated never-auto-lock keychain (`ralph-nightly.keychain-db`) populated from 1Password by an idempotent bootstrap script. Source of truth stays in 1Password; the keychain is a mirror.
+- **`/Volumes/<external>/ is root-owned by default.** When using an external volume, the mount-point root is often`root:wheel 0775`. The Workspaces subdirectory had been created with user ownership, but the new ralph-work sibling of the ralph-burndown checkout couldn't be created without sudo. Moved ralph-work into`Workspaces/` alongside the project checkout.
+- **`pip`-installed black at a different version than the pre-commit black.** Running a naked `uv run --with black black --check` on the tree flagged 3 files that the pre-commit black version didn't touch. Pre-commit's pinned black is the enforcement point; naked-install checks are cosmetic.
+
+### Closing note
+
+The local-first epic is now complete across every owned, non-fork, non-archived repo. There is no scheduled GitHub Actions automation running for code quality or autonomous issue fixing anywhere in the fleet. CI's role is reduced to:
+
+1. Tests that need a clean environment (CI runner exists for this reason and this reason only).
+2. `claude-blocking-review.yml` summarizer (minutes-long, narrow, backed by the reusable workflow in `smartwatermelon/github-workflows`).
+3. `@claude` mention responses.
+4. Dependabot auto-merge.
+5. Deploy / release workflows where applicable.
+
+Everything else happens on a laptop or on mimolette.
+
+---
+
 *This document is the canonical record of the Local-First Code Quality Epic. It complements but does not replace [`WORKFLOW-DEEP-DIVE.md`](./WORKFLOW-DEEP-DIVE.md). For live architecture details, prefer the deep dive. For "what was the journey and why is it the way it is now," prefer this document.*
