@@ -290,11 +290,95 @@ If the methodology needs a change the agent can't make on its own (a new
 attack pattern, a deprecated check), the agent files an issue labeled
 `audit-methodology-update`. Triage those as you would any backlog item.
 
+## Execution environment notes
+
+The recurring agent runs in a sandboxed cloud environment that may not
+have the same tooling assumed by this methodology. The 2026-04-29 Q2
+run surfaced two such constraints — these are environment-level, not
+methodology-level, and the agent is correct to note them as partial
+coverage rather than treat them as findings.
+
+### Constraint 1 — `gh` CLI may be unavailable
+
+When `gh` isn't present, the agent falls back to MCP GitHub tools (read
+via `search_code` and direct file reads). That covers Patterns 1, 2, 3,
+5, 7, 8, and 9 — they're all detectable from workflow file content
+that's reachable via code search. It does NOT cover:
+
+- **Pattern 6** (`default_workflow_permissions`) — the
+  `/repos/{owner}/{repo}/actions/permissions/workflow` endpoint isn't
+  reachable through MCP code search.
+- **Pattern 4** (imposter commits) — requires git reachability analysis
+  the cloud sandbox cannot perform.
+
+When the audit issue marks a pattern as **PARTIAL**, run this locally
+to verify Pattern 6 across all in-scope repos:
+
+```bash
+for repo in $(
+  gh repo list smartwatermelon --limit 200 \
+    --json name,isArchived,isFork \
+    --jq '.[] | select(.isArchived == false and .isFork == false) | "smartwatermelon/" + .name'
+  gh repo list nightowlstudiollc --limit 200 \
+    --json name,isArchived,isFork \
+    --jq '.[] | select(.isArchived == false and .isFork == false) | "nightowlstudiollc/" + .name'
+); do
+  perms=$(gh api "repos/$repo/actions/permissions/workflow" \
+            --jq '.default_workflow_permissions' 2>/dev/null)
+  [[ "$perms" == "write" ]] && echo "WRITE: $repo"
+done
+```
+
+Anything that returns `WRITE` is a real finding; flip via:
+
+```bash
+gh api -X PUT "/repos/<owner>/<repo>/actions/permissions/workflow" \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=true
+```
+
+Pattern 4 has no cheap human substitute; rely on SHA pinning hygiene
+and (eventually) zizmor. See [`dev-env#19`](https://github.com/smartwatermelon/dev-env/issues/19).
+
+### Constraint 2 — MCP write scope may be narrow
+
+Issue creation typically works against `smartwatermelon/dev-env`.
+Cross-repo `gh pr create --draft` may fail. The routine prompt
+instructs the agent to skip cleanly with a `PR creation skipped for
+repo X: <reason>` line in the issue body — not to retry, escalate, or
+abort the audit.
+
+When that line appears, apply the proposed remediation snippets from
+the issue body manually. The audit report contains them inline for
+exactly this purpose; manual application is typically a one-line edit
+plus a regular branch + PR cycle.
+
+### When to upgrade the environment
+
+These constraints are tolerable as long as the audit's NEW-finding
+count stays low. Re-evaluate the `environment_id` (in the routine
+settings, not in this repo) if any of these hold:
+
+- A quarter produces 5+ NEW findings that would have warranted draft
+  PRs, and manual application becomes the bottleneck.
+- Pattern 6 verification keeps reporting PARTIAL, and the local-verify
+  workflow above starts getting skipped.
+- A new pattern emerges that requires API access the MCP scope can't
+  provide.
+
+The full inventory of available environments is in the routine
+configuration UI. `GitHub swm` and `GitHub NOS` are likely scoped to
+their respective orgs; `Default` is org-agnostic but read-leaning.
+Switching environments may require the routine prompt to re-establish
+its legitimacy anchor — the methodology doc reference covers this, but
+test with a one-shot run before relying on a quarterly cron.
+
 ## Audit history
 
 | Date | Repos | Findings (severity) | PRs landed | Issues filed |
 |------|-------|---------------------|------------|--------------|
-| 2026-04-29 | 29 | 0 critical, 4 high, 10 medium | 9 | 5 |
+| 2026-04-29 (Q2 auto, validation run) | 29 | 0 new (1 unchanged Low, tracked) | 0 | 1 ([dev-env#23](https://github.com/smartwatermelon/dev-env/issues/23)) |
+| 2026-04-29 (inaugural manual) | 29 | 0 critical, 4 high, 10 medium | 9 | 5 |
 
 The 2026-04-29 inaugural audit was performed manually. The full report
 lives in the conversation that produced it; key outcomes:
