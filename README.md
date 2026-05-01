@@ -30,6 +30,7 @@ The spec in this repo is implemented across several other repositories. None of 
 | Repo | What it contains |
 | --- | --- |
 | [`smartwatermelon/claude-config`](https://github.com/smartwatermelon/claude-config) | The actual Claude Code hooks: `pre-merge-review.sh`, `run-review.sh`, `merge-lock.sh`, `lib-review-issues.sh`. Symlinked into `~/.claude/` on each machine. |
+| [`smartwatermelon/claude-wrapper`](https://github.com/smartwatermelon/claude-wrapper) | Bash wrapper around the `claude` CLI, symlinked to `~/.local/bin/claude` so it shadows the real binary in `$PATH`. Resolves per-project 1Password secrets via `op inject`, injects `--remote-control` session names for interactive sessions, and validates binary ownership/permissions before `exec`. |
 | [`smartwatermelon/dotfiles`](https://github.com/smartwatermelon/dotfiles) | The global git hooks (`pre-commit`, `pre-push`, `commit-msg`, etc.) at `git/hooks/`, symlinked from `~/.config/git/hooks/`. Also hosts shared shell utilities like `lint-shell.sh`. |
 | [`smartwatermelon/github-workflows`](https://github.com/smartwatermelon/github-workflows) | The reusable GitHub Actions workflows (`claude-blocking-review.yml`, `claude-assistant.yml`) called by every owned repo's `.github/workflows/` caller. Plus `claude-review-audit.sh` for fleet-wide configuration auditing. |
 | [`smartwatermelon/ralph-burndown`](https://github.com/smartwatermelon/ralph-burndown) | The tech-debt burndown tool that picks up non-blocking issues filed by the local Phase 2 review and works through them overnight. |
