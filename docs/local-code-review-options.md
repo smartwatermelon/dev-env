@@ -193,6 +193,72 @@ poc/three-js-demo/
 
 ---
 
+## Adopted: zizmor (GitHub Actions Security Linting)
+
+**Status**: Landed via pre-commit (Tier 3 follow-up to the 2026-04-29 GitHub
+Actions security audit — see
+[smartwatermelon/dev-env#19](https://github.com/smartwatermelon/dev-env/issues/19)).
+
+**What it is**: [`zizmor`](https://github.com/woodruffw/zizmor) is a Rust
+static analyzer purpose-built for GitHub Actions workflows. It catches classes
+of risk that generic linters don't reason about:
+
+- `dangerous-triggers` — insecure trigger patterns (`pull_request_target` with
+  checkout, `issue_comment` combined with untrusted input)
+- `cache-poisoning` — untrusted cache restoration paths
+- `unpinned-uses` — third-party actions pinned to a mutable tag instead of a
+  commit SHA
+- `template-injection` — `${{ github.event.* }}` interpolated directly into a
+  `run:` block
+- `excessive-permissions` — overly broad `permissions:` blocks
+
+**Why adopted**: The 2026-04-29 audit found instances of several of these
+patterns across 31 workflow files in 29 repos (see issue #19 for the full
+list of landed fix PRs). Tier 1 and Tier 2 fixed what the manual scan found;
+this (Tier 3) automates the scan so future drift is caught at commit time
+instead of waiting for the next manual audit.
+
+**How it's wired up**: Added as a `repo: local` hook in the shared
+pre-commit-framework config (`~/.config/pre-commit/config.yaml`, symlinked
+from `dotfiles/pre-commit/config.yaml`), following the same convention as the
+existing `yamllint`/`markdownlint`/`luacheck` entries in that file — shell out
+to a Homebrew-installed binary rather than depend on a hosted pre-commit
+hooks repo. The hook is scoped with `files: ^\.github/workflows/.*\.ya?ml$`
+so it only runs when a commit touches workflow files, not on every commit in
+every repo:
+
+```yaml
+- repo: local
+  hooks:
+    - id: zizmor
+      name: "GitHub Actions Security Lint (zizmor)"
+      entry: zizmor
+      language: system
+      files: ^\.github/workflows/.*\.ya?ml$
+      pass_filenames: true
+      verbose: true
+```
+
+**Prerequisite**: `language: system` hooks expect the binary to already be on
+`PATH`. Run `brew install zizmor` once per machine before this hook can fire;
+it is not installed automatically by the pre-commit-framework itself.
+
+**Scope note — CI-side enforcement is NOT done**: Issue #19 also proposed a
+second integration path — a reusable `zizmor.yml` GitHub Action in
+`smartwatermelon/github-workflows` that repos could call as a second-line CI
+catch on PRs (in addition to, not instead of, the pre-commit hook). **That
+work has not been started.** Only the pre-commit path above has landed. Do
+not treat CI-side zizmor coverage as in progress or partially done — it is a
+distinct, not-yet-scoped follow-up.
+
+**References**:
+
+- <https://github.com/woodruffw/zizmor>
+- <https://docs.zizmor.sh/>
+- <https://docs.zizmor.sh/audits/> (full list of audit rules referenced above)
+
+---
+
 ## Option 4: Enhance the Adversarial Reviewer
 
 **What it is**: Upgrade our existing `adversarial-reviewer` agent with lessons learned
