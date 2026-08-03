@@ -133,10 +133,10 @@ EOF
     printf '%s\tfailed\tgit add failed: %s\n' "${repo}" "${git_err_detail}" >>"${RESULTS_LOG}"
     continue
   fi
-  # A commit failure here may be a pre-commit hook rejecting the change
-  # (see this repo's Protocol 4) rather than a git-mechanics problem —
-  # git_err_detail below carries whatever the hook printed, so check it
-  # for review-hook output before assuming this is a plain git failure.
+  # Note: git hooks are NOT cloned with a repo, so no local pre-commit
+  # review hook runs here regardless of what's installed in a normal
+  # working copy of these repos -- a commit failure below is a plain
+  # git-mechanics problem, not a hook rejection.
   if ! git -C "${clone_dir}" commit -F "${commit_msg_file}" >"${git_err_log}" 2>&1; then
     git_err_detail=$(tr '\n\t' '  ' <"${git_err_log}")
     echo "  git commit failed: ${git_err_detail}"
