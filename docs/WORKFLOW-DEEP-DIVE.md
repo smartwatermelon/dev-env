@@ -57,11 +57,11 @@ Here is the **complete chronological order** of what fires during a typical deve
 
 4. GITHUB ACTIONS (remote, costs $$$)
    ├─ claude-code-review.yml → automated PR code review
-   │   Source: .github/workflows/claude-code-review.yml (this repo)
+   │   Source: .github/workflows/claude-code-review.yml (smartwatermelon/claude-wrapper)
    │   Uses: anthropics/claude-code-action@v1
    │
    └─ claude.yml → @claude mention handler
-       Source: .github/workflows/claude.yml (this repo)
+       Source: .github/workflows/claude.yml (smartwatermelon/claude-wrapper)
        Delegates to: smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 
 5. gh pr merge <number>
@@ -307,7 +307,7 @@ FINDING source=<bot> file="<path>" line=<line> comment=<text>
 
 ## Layer 6: GitHub Actions (Remote CI/CD)
 
-**Source repo**: `smartwatermelon/claude-wrapper` (this repo)
+**Source repo**: `smartwatermelon/claude-wrapper`
 **Cost**: ~$0.008/minute on `ubuntu-latest`
 
 ### claude-code-review.yml — Automated PR Code Review
@@ -483,7 +483,7 @@ Developer writes code in Claude Code
          ▼
 ┌─────────────────────────────────────────────┐
 │  GitHub Actions ($$$)                       │
-│  Source: .github/workflows/ (this repo)     │
+│  Source: .github/workflows/ (claude-wrapper)│
 │  ┌─────────────────────────────────────┐    │
 │  │ claude-code-review.yml              │    │
 │  │  → anthropics/claude-code-action@v1 │    │
@@ -592,7 +592,7 @@ Developer writes code in Claude Code
 |------|-------|---------|
 | `gh` | 69 | Non-interactive shell gh wrapper |
 
-### Source: `.github/workflows/` (this repo)
+### Source: `.github/workflows/` (smartwatermelon/claude-wrapper)
 
 | File | Triggers | Uses |
 |------|----------|------|
