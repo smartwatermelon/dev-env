@@ -221,6 +221,8 @@ concern) on its first real run.
 
 Track these across all repos during the validation week:
 
+_Note: the Reliability item referencing dotfiles#29 was added 2026-08-03, after the 2026-04-10 validation window closed — added for completeness/tracking, not as a live validation task._
+
 **Coverage parity:**
 
 - [ ] Compare local codebase review findings with Seer findings on same PRs
@@ -245,6 +247,7 @@ Track these across all repos during the validation week:
 - [ ] Any crashes or unparseable verdicts from codebase review?
 - [ ] Does pre-merge-review.sh still work after the refactor?
 - [ ] Any issues with non-blocking issue creation (gh failures, pending-issues fallback)?
+- [ ] Does post-commit hook correctly report commit hash? (dotfiles#29 fix)
 
 **Decision point (2026-04-10):**
 
