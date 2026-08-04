@@ -140,9 +140,11 @@ EOF
 for repo in "${REPOS[@]}"; do
   echo "=== ${repo} ==="
   clone_dir="${SCRATCH_ROOT}/${repo//\//-}"
+  clone_err_log="${SCRATCH_ROOT}/clone-err.log"
+  : >"${clone_err_log}"
 
-  if ! git clone --quiet "git@github.com:${repo}.git" "${clone_dir}" 2>"${SCRATCH_ROOT}/clone-err.log"; then
-    clone_err_detail=$(tr '\n\t' '  ' <"${SCRATCH_ROOT}/clone-err.log")
+  if ! git clone --quiet "git@github.com:${repo}.git" "${clone_dir}" 2>"${clone_err_log}"; then
+    clone_err_detail=$(tr '\n\t' '  ' <"${clone_err_log}")
     echo "  clone failed: ${clone_err_detail}"
     printf '%s\tskipped\tclone failed: %s\n' "${repo}" "${clone_err_detail}" >>"${RESULTS_LOG}"
     continue
