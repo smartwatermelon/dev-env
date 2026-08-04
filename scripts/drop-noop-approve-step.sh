@@ -95,8 +95,9 @@ No repo in either org currently requires an approving review
 (`required_approving_review_count` is 0 fleet-wide, confirmed by audit
 in smartwatermelon/dev-env#21), so this step has never done anything —
 `gh pr merge --auto` already merges once required status checks pass.
-Auto-merge behavior is unchanged; this only removes dead weight and
-the associated `pull-requests: write` usage for the approve call.
+Auto-merge behavior is unchanged; this only removes dead weight. The
+`pull-requests: write` permission stays as-is — `gh pr merge --auto`
+also requires it, independent of the removed approve call.
 
 Part of the fleet-wide remediation tracked in smartwatermelon/dev-env#21.
 This PR is not merged automatically — merge requires separate explicit
@@ -152,10 +153,10 @@ for repo in "${REPOS[@]}"; do
     printf '%s\tfailed\tgit add failed: %s\n' "${repo}" "${git_err_detail}" >>"${RESULTS_LOG}"
     continue
   fi
-  # Note: git hooks are NOT cloned with a repo, so no local pre-commit
-  # review hook runs here regardless of what's installed in a normal
-  # working copy of these repos -- a commit failure below is a plain
-  # git-mechanics problem, not a hook rejection.
+  # Note: core.hooksPath is a machine-global git config, so the local
+  # pre-commit hook DOES run here even though hooks aren't cloned with
+  # the repo -- a commit failure below may be a hook rejection (see
+  # retry-noop-approve-zizmor-fixes.sh, written to handle exactly that).
   if ! git -C "${clone_dir}" commit -F "${commit_msg_file}" >"${git_err_log}" 2>&1; then
     git_err_detail=$(tr '\n\t' '  ' <"${git_err_log}")
     echo "  git commit failed: ${git_err_detail}"
