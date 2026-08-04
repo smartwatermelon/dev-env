@@ -184,7 +184,7 @@ for repo in "${REPOS[@]}"; do
     printf '%s\topened\t%s\n' "${repo}" "${pr_url}" >>"${RESULTS_LOG}"
   else
     pr_err_detail=$(tr '\n\t' '  ' <"${SCRATCH_ROOT}/pr-err.log")
-    echo "  gh pr create failed, see log"
+    echo "  gh pr create failed: ${pr_err_detail}"
     printf '%s\tfailed\t%s\n' "${repo}" "${pr_err_detail}" >>"${RESULTS_LOG}"
   fi
 done
