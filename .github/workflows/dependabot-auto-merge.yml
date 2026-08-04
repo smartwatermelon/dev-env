@@ -1,8 +1,16 @@
 name: Dependabot Auto-Merge
 
 # Safely auto-merges Dependabot PRs after CI passes. Scope is narrow:
-#  - Only runs when github.actor == 'dependabot[bot]' (not spoofable;
-#    GitHub sets this from the authenticated user).
+#  - Only runs when github.event.pull_request.user.login ==
+#    'dependabot[bot]' (who opened the PR). github.actor is not used
+#    here: it reflects the last actor to touch the ref, not who opened
+#    the PR, so it's spoofable by pushing a commit that makes Dependabot
+#    the last committer on an attacker-controlled branch (confirmed
+#    against zizmor's bot-conditions audit docs). The user.login check
+#    still means a human pushing to an existing Dependabot PR
+#    (`synchronize`) can trigger this job, but the only action taken is
+#    `gh pr merge --auto`, which requires all status checks to pass
+#    first — see smartwatermelon/dev-env#40.
 #  - Patch/minor: always auto-merged.
 #  - Major: only auto-merged when EVERY listed dependency belongs to a
 #    trusted namespace (dependabot/, actions/, smartwatermelon/). One
@@ -16,15 +24,16 @@ name: Dependabot Auto-Merge
 #    2026-04-28, fetch-metadata@v2 mislabeled a 2.0.1 -> 3.0.0
 #    reusable-workflow bump as semver-patch; trust math, not labels.
 #
-# `gh pr review --approve` satisfies branch-protection rules that
-# require review. `--auto` means the merge only happens after all
-# status checks pass; failing CI leaves the PR open indefinitely.
+# No approving review is required by branch protection on this repo
+# (confirmed via fleet audit, dev-env#21), so the job only enables
+# auto-merge; `--auto` means the merge only happens after all status
+# checks pass, and failing CI leaves the PR open indefinitely.
 #
 # Provisioned 2026-04-18 (v2.0.1 / Phase 5). Hardened 2026-04-28 with
 # the trusted-namespace allowlist + version-comparison defense. See
 # docs/plans/2026-04-28-dependabot-auto-merge-c2.md.
 
-on:
+on: # zizmor: ignore[dangerous-triggers] intentional: dependabot-only via user.login check, minimal permissions, no PR code execution
   pull_request_target:
     types: [opened, synchronize, reopened]
 
@@ -34,12 +43,12 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
 
       - name: Decide if PR is auto-mergeable
         id: policy
@@ -71,10 +80,17 @@ jobs:
             echo "::notice::Major bump v$prev_major -> v$new_major with empty dependency-names; leaving for manual review"
             exit 0
           fi
-          remainder=$(printf '%s' "$DEP_NAMES" \
+          all_names=$(printf '%s' "$DEP_NAMES" \
             | tr ',' '\n' \
             | sed -E 's@^[[:space:]]+|[[:space:]]+$@@g' \
             | grep -v '^$' \
+            || true)
+          if [ -z "$all_names" ]; then
+            echo "decision=skip" >> "$GITHUB_OUTPUT"
+            echo "::notice::Major bump v$prev_major -> v$new_major with no parseable dependency names; leaving for manual review"
+            exit 0
+          fi
+          remainder=$(printf '%s' "$all_names" \
             | grep -vE '^(dependabot|actions|smartwatermelon)/' \
             || true)
           if [ -z "$remainder" ]; then
@@ -85,11 +101,10 @@ jobs:
             echo "::notice::Major bump v$prev_major -> v$new_major; non-allowlisted deps present: $remainder"
           fi
 
-      - name: Approve and enable auto-merge
+      - name: Enable auto-merge
         if: steps.policy.outputs.decision == 'merge'
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr review --approve "$PR_URL"
           gh pr merge --auto --squash --delete-branch "$PR_URL"

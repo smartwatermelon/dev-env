@@ -74,13 +74,45 @@ printf 'repo\tstatus\tdetail\n' >"${RESULTS_LOG}"
 
 trap 'cp "${RESULTS_LOG}" "${FINAL_LOG}" 2>/dev/null || true; rm -rf "${SCRATCH_ROOT}"' EXIT
 
+commit_msg_file="${SCRATCH_ROOT}/commit-msg.txt"
+cat >"${commit_msg_file}" <<'EOF'
+chore(ci): drop no-op gh pr review --approve step
+
+No repo in either org currently requires an approving review
+(required_approving_review_count is 0 fleet-wide), so this step never
+did anything -- gh pr merge --auto already proceeds once required
+status checks pass. Removing the dead step; auto-merge behavior is
+unchanged.
+
+Ref: smartwatermelon/dev-env#21
+EOF
+
+pr_body_file="${SCRATCH_ROOT}/pr-body.txt"
+cat >"${pr_body_file}" <<'EOF'
+Removes the `gh pr review --approve` line from `dependabot-auto-merge.yml`.
+
+No repo in either org currently requires an approving review
+(`required_approving_review_count` is 0 fleet-wide, confirmed by audit
+in smartwatermelon/dev-env#21), so this step has never done anything —
+`gh pr merge --auto` already merges once required status checks pass.
+Auto-merge behavior is unchanged; this only removes dead weight and
+the associated `pull-requests: write` usage for the approve call.
+
+Part of the fleet-wide remediation tracked in smartwatermelon/dev-env#21.
+This PR is not merged automatically — merge requires separate explicit
+authorization, same as any other PR.
+EOF
+
 for repo in "${REPOS[@]}"; do
   echo "=== ${repo} ==="
   clone_dir="${SCRATCH_ROOT}/${repo//\//-}"
+  clone_err_log="${SCRATCH_ROOT}/clone-err.log"
+  : >"${clone_err_log}"
 
-  if ! git clone --quiet "git@github.com:${repo}.git" "${clone_dir}" 2>"${SCRATCH_ROOT}/clone-err.log"; then
-    echo "  clone failed, skipping"
-    printf '%s\tskipped\tclone failed\n' "${repo}" >>"${RESULTS_LOG}"
+  if ! git clone --quiet "git@github.com:${repo}.git" "${clone_dir}" 2>"${clone_err_log}"; then
+    clone_err_detail=$(tr '\n\t' '  ' <"${clone_err_log}")
+    echo "  clone failed: ${clone_err_detail}"
+    printf '%s\tskipped\tclone failed: %s\n' "${repo}" "${clone_err_detail}" >>"${RESULTS_LOG}"
     continue
   fi
 
@@ -104,19 +136,6 @@ for repo in "${REPOS[@]}"; do
     printf '%s\tfailed\tsed did not remove approve line\n' "${repo}" >>"${RESULTS_LOG}"
     continue
   fi
-
-  commit_msg_file="${SCRATCH_ROOT}/commit-msg.txt"
-  cat >"${commit_msg_file}" <<'EOF'
-chore(ci): drop no-op gh pr review --approve step
-
-No repo in either org currently requires an approving review
-(required_approving_review_count is 0 fleet-wide), so this step never
-did anything -- gh pr merge --auto already proceeds once required
-status checks pass. Removing the dead step; auto-merge behavior is
-unchanged.
-
-Ref: smartwatermelon/dev-env#21
-EOF
 
   git_err_log="${SCRATCH_ROOT}/git-err.log"
   git_err_detail=""
@@ -154,22 +173,6 @@ EOF
     fi
     continue
   fi
-
-  pr_body_file="${SCRATCH_ROOT}/pr-body.txt"
-  cat >"${pr_body_file}" <<'EOF'
-Removes the `gh pr review --approve` line from `dependabot-auto-merge.yml`.
-
-No repo in either org currently requires an approving review
-(`required_approving_review_count` is 0 fleet-wide, confirmed by audit
-in smartwatermelon/dev-env#21), so this step has never done anything —
-`gh pr merge --auto` already merges once required status checks pass.
-Auto-merge behavior is unchanged; this only removes dead weight and
-the associated `pull-requests: write` usage for the approve call.
-
-Part of the fleet-wide remediation tracked in smartwatermelon/dev-env#21.
-This PR is not merged automatically — merge requires separate explicit
-authorization, same as any other PR.
-EOF
 
   if pr_url=$(gh pr create --repo "${repo}" \
     --head "${BRANCH_NAME}" \
