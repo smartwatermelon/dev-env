@@ -99,25 +99,25 @@ Here is the **complete chronological order** of what fires during a typical deve
 
 Master wrapper that chains 6 independent checks. Reads stdin once, pipes to each sub-hook, exits on first failure.
 
-| # | Script | Source | What It Blocks | Exit |
-|---|--------|--------|----------------|------|
-| 1 | `hook-block-no-verify.sh` | `~/.claude/scripts/` | `--no-verify` on any command | 2 |
-| 2 | `hook-block-short-no-verify.sh` | `~/.claude/scripts/` | `-n` on `git commit` / `git push` | 2 |
-| 3 | `hook-block-main-commit.sh` | `~/.claude/scripts/` | `git commit` on main/master | 2 |
-| 4 | `hook-block-merge-lock-authorize.sh` | `~/.claude/scripts/` | `merge-lock.sh authorize` | 2 |
-| 5 | `hook-block-api-merge.sh` | `~/.claude/scripts/` | REST/GraphQL/global-flag merge bypasses | 2 |
-| 6 | `hook-block-git-worktree.sh` | `~/.claude/scripts/` | `git worktree` commands | 2 |
+| #   | Script                               | Source               | What It Blocks                          | Exit |
+| --- | ------------------------------------ | -------------------- | --------------------------------------- | ---- |
+| 1   | `hook-block-no-verify.sh`            | `~/.claude/scripts/` | `--no-verify` on any command            | 2    |
+| 2   | `hook-block-short-no-verify.sh`      | `~/.claude/scripts/` | `-n` on `git commit` / `git push`       | 2    |
+| 3   | `hook-block-main-commit.sh`          | `~/.claude/scripts/` | `git commit` on main/master             | 2    |
+| 4   | `hook-block-merge-lock-authorize.sh` | `~/.claude/scripts/` | `merge-lock.sh authorize`               | 2    |
+| 5   | `hook-block-api-merge.sh`            | `~/.claude/scripts/` | REST/GraphQL/global-flag merge bypasses | 2    |
+| 6   | `hook-block-git-worktree.sh`         | `~/.claude/scripts/` | `git worktree` commands                 | 2    |
 
 ### Write/Edit Tool — `hook-block-merge-locks-write.sh`
 
-| Script | Source | What It Blocks |
-|--------|--------|----------------|
+| Script                            | Source               | What It Blocks                        |
+| --------------------------------- | -------------------- | ------------------------------------- |
 | `hook-block-merge-locks-write.sh` | `~/.claude/scripts/` | Any write to `merge-locks/` directory |
 
 ### EnterWorktree Tool — `hook-block-enter-worktree.sh`
 
-| Script | Source | What It Blocks |
-|--------|--------|----------------|
+| Script                         | Source               | What It Blocks                                    |
+| ------------------------------ | -------------------- | ------------------------------------------------- |
 | `hook-block-enter-worktree.sh` | `~/.claude/scripts/` | The `EnterWorktree` built-in tool (unconditional) |
 
 ### SessionStart — `hook-session-start.sh`
@@ -176,6 +176,24 @@ All blocked commands are logged to `~/.claude/blocked-commands.log` with timesta
    - If issues found + interactive terminal: prompts "Local review clean? (y/N)"
    - Bypass: `POSTPUSH_LOOP=1` skips the interactive prompt
 
+**Not currently enforced — rebase-before-push (soft recommendation)**: the
+hook does not check whether the branch is up to date with its base. Before
+pushing a feature branch (or updating an open PR), consider rebasing onto
+the latest base branch to avoid GitHub's "This branch is out-of-date with
+the base branch" banner:
+
+```sh
+git fetch origin
+git rebase origin/main   # or origin/<default-branch>
+```
+
+This is a habit, not a gate — don't add a blocking pre-push check for it.
+Skip it when the branch is already current, or when rebasing would be
+disruptive (a shared/collaborative branch, or a branch already under active
+review where rebasing would invalidate in-progress review comments). See
+the "branch out of date" row in
+[Known Gaps & Limitations](#known-gaps--limitations).
+
 ### lint-shell.sh (supplementary)
 
 **Source**: `~/.config/git/hooks/lint-shell.sh`
@@ -195,14 +213,14 @@ Two layers intercept `gh` commands before they reach the real binary.
 
 **Intercepts**:
 
-| Pattern | Action |
-|---------|--------|
-| `gh api ...pulls/NNN/merge` | BLOCKED (REST API bypass) |
-| `gh api graphql...mergePullRequest` | BLOCKED (GraphQL bypass) |
-| `gh -R owner/repo pr merge` | BLOCKED (global flag prefix bypass) |
-| `gh pr merge <number>` | Routes through `~/.claude/hooks/pre-merge-review.sh` |
-| `gh ... --help` | Passes through (documented bypass) |
-| All other `gh` commands | Pass through unchanged |
+| Pattern                             | Action                                               |
+| ----------------------------------- | ---------------------------------------------------- |
+| `gh api ...pulls/NNN/merge`         | BLOCKED (REST API bypass)                            |
+| `gh api graphql...mergePullRequest` | BLOCKED (GraphQL bypass)                             |
+| `gh -R owner/repo pr merge`         | BLOCKED (global flag prefix bypass)                  |
+| `gh pr merge <number>`              | Routes through `~/.claude/hooks/pre-merge-review.sh` |
+| `gh ... --help`                     | Passes through (documented bypass)                   |
+| All other `gh` commands             | Pass through unchanged                               |
 
 ### ~/.local/bin/gh Wrapper Script
 
@@ -217,11 +235,11 @@ Two layers intercept `gh` commands before they reach the real binary.
 
 ### Why Two Layers?
 
-| Context | Which fires |
-|---------|-------------|
-| Interactive bash session | `gh()` function (higher priority than PATH) |
-| Non-interactive shell, zsh without functions | `~/.local/bin/gh` wrapper |
-| Claude Code Bash tool | Both (PreToolUse hook + whichever shell wrapper) |
+| Context                                      | Which fires                                      |
+| -------------------------------------------- | ------------------------------------------------ |
+| Interactive bash session                     | `gh()` function (higher priority than PATH)      |
+| Non-interactive shell, zsh without functions | `~/.local/bin/gh` wrapper                        |
+| Claude Code Bash tool                        | Both (PreToolUse hook + whichever shell wrapper) |
 
 ---
 
@@ -235,14 +253,14 @@ Two layers intercept `gh` commands before they reach the real binary.
 
 **Strategy by diff size**:
 
-| Diff Size | Strategy |
-|-----------|----------|
-| 0 lines | Skip (no changes) |
-| Markdown/lockfile only | Skip |
-| Cached identical diff | Skip (SHA256 cache in `.git/claude-review-cache/`) |
-| <= 1000 lines | Full review (both agents) |
-| 1000-2500 lines | Chunked file-by-file review |
-| > 2500 lines | **BLOCKED** — must split commits |
+| Diff Size              | Strategy                                           |
+| ---------------------- | -------------------------------------------------- |
+| 0 lines                | Skip (no changes)                                  |
+| Markdown/lockfile only | Skip                                               |
+| Cached identical diff  | Skip (SHA256 cache in `.git/claude-review-cache/`) |
+| <= 1000 lines          | Full review (both agents)                          |
+| 1000-2500 lines        | Chunked file-by-file review                        |
+| > 2500 lines           | **BLOCKED** — must split commits                   |
 
 **Agent invocations** (always both, sequentially):
 
@@ -290,12 +308,12 @@ FINDING source=<bot> file="<path>" line=<line> comment=<text>
 
 **Commands**:
 
-| Command | Who Can Run | Purpose |
-|---------|-------------|---------|
-| `authorize <pr> [reason]` | Human only (blocked from Claude Code) | Create time-limited merge authorization |
-| `check <pr>` | Any process | Check if PR is authorized (exit 0/1) |
-| `status <pr>` | Any process | Show detailed status with time remaining |
-| `list` | Any process | List all active authorizations |
+| Command                   | Who Can Run                           | Purpose                                  |
+| ------------------------- | ------------------------------------- | ---------------------------------------- |
+| `authorize <pr> [reason]` | Human only (blocked from Claude Code) | Create time-limited merge authorization  |
+| `check <pr>`              | Any process                           | Check if PR is authorized (exit 0/1)     |
+| `status <pr>`             | Any process                           | Show detailed status with time remaining |
+| `list`                    | Any process                           | List all active authorizations           |
 
 **Protection layers preventing Claude from self-authorizing**:
 
@@ -354,12 +372,12 @@ smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 
 ### External Dependencies
 
-| Dependency | Version | Source |
-|------------|---------|--------|
-| `actions/checkout` | v4 (pinned SHA) | github.com/actions/checkout |
-| `anthropics/claude-code-action` | v1 (pinned SHA) | github.com/anthropics/claude-code-action |
-| `code-review@claude-code-plugins` | latest | Anthropics plugin marketplace |
-| `smartwatermelon/github-workflows` | v1 tag | Private org reusable workflows |
+| Dependency                         | Version         | Source                                   |
+| ---------------------------------- | --------------- | ---------------------------------------- |
+| `actions/checkout`                 | v4 (pinned SHA) | github.com/actions/checkout              |
+| `anthropics/claude-code-action`    | v1 (pinned SHA) | github.com/anthropics/claude-code-action |
+| `code-review@claude-code-plugins`  | latest          | Anthropics plugin marketplace            |
+| `smartwatermelon/github-workflows` | v1 tag          | Private org reusable workflows           |
 
 ---
 
@@ -545,114 +563,115 @@ Developer writes code in Claude Code
 
 ### Source: `~/.claude/scripts/` (Claude Code hooks)
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `hook-block-all.sh` | ~30 | Master chain for all Bash blocking hooks |
-| `hook-block-no-verify.sh` | ~30 | Blocks `--no-verify` |
-| `hook-block-short-no-verify.sh` | ~20 | Blocks `-n` on git commit/push |
-| `hook-block-main-commit.sh` | ~35 | Blocks commits on main/master |
-| `hook-block-merge-lock-authorize.sh` | ~35 | Blocks `merge-lock.sh authorize` |
-| `hook-block-merge-lock.sh` | ~20 | Blocks merge-lock directory references |
-| `hook-block-api-merge.sh` | 84 | Blocks REST/GraphQL/global-flag merge bypasses |
-| `hook-block-git-worktree.sh` | ~40 | Blocks `git worktree` |
-| `hook-block-enter-worktree.sh` | ~30 | Blocks EnterWorktree tool |
-| `hook-block-merge-locks-write.sh` | ~25 | Blocks Write/Edit to merge-locks/ |
-| `hook-session-start.sh` | 10 | No-op session start placeholder |
-| `status-line.sh` | 35 | Terminal status line (branch + status) |
-| `blocked-audit.sh` | 35 | View blocked command log |
-| `post-push-status.sh` | 134 | Fetch CI status + bot comments for PR |
-| `update-tools.sh` | 55 | Update git-sourced Claude Code components |
+| File                                 | Lines | Purpose                                        |
+| ------------------------------------ | ----- | ---------------------------------------------- |
+| `hook-block-all.sh`                  | ~30   | Master chain for all Bash blocking hooks       |
+| `hook-block-no-verify.sh`            | ~30   | Blocks `--no-verify`                           |
+| `hook-block-short-no-verify.sh`      | ~20   | Blocks `-n` on git commit/push                 |
+| `hook-block-main-commit.sh`          | ~35   | Blocks commits on main/master                  |
+| `hook-block-merge-lock-authorize.sh` | ~35   | Blocks `merge-lock.sh authorize`               |
+| `hook-block-merge-lock.sh`           | ~20   | Blocks merge-lock directory references         |
+| `hook-block-api-merge.sh`            | 84    | Blocks REST/GraphQL/global-flag merge bypasses |
+| `hook-block-git-worktree.sh`         | ~40   | Blocks `git worktree`                          |
+| `hook-block-enter-worktree.sh`       | ~30   | Blocks EnterWorktree tool                      |
+| `hook-block-merge-locks-write.sh`    | ~25   | Blocks Write/Edit to merge-locks/              |
+| `hook-session-start.sh`              | 10    | No-op session start placeholder                |
+| `status-line.sh`                     | 35    | Terminal status line (branch + status)         |
+| `blocked-audit.sh`                   | 35    | View blocked command log                       |
+| `post-push-status.sh`                | 134   | Fetch CI status + bot comments for PR          |
+| `update-tools.sh`                    | 55    | Update git-sourced Claude Code components      |
 
 ### Source: `~/.config/git/hooks/` (Git hooks)
 
-| File | Purpose |
-|------|---------|
-| `pre-commit` | Branch protection + pre-commit tool + code review |
-| `commit-msg` | Conventional commits format validation |
-| `pre-push` | Branch protection + PR review iteration check |
+| File            | Purpose                                               |
+| --------------- | ----------------------------------------------------- |
+| `pre-commit`    | Branch protection + pre-commit tool + code review     |
+| `commit-msg`    | Conventional commits format validation                |
+| `pre-push`      | Branch protection + PR review iteration check         |
 | `lint-shell.sh` | Supplementary shellcheck + shfmt (not auto-triggered) |
 
 ### Source: `~/.claude/hooks/` (Review infrastructure)
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `run-review.sh` | 736 | Pre-commit code review (two agents) |
-| `pre-merge-review.sh` | 959 | Pre-merge analysis (Claude CLI) |
-| `merge-lock.sh` | 150 | Merge authorization management |
+| File                  | Lines | Purpose                             |
+| --------------------- | ----- | ----------------------------------- |
+| `run-review.sh`       | 736   | Pre-commit code review (two agents) |
+| `pre-merge-review.sh` | 959   | Pre-merge analysis (Claude CLI)     |
+| `merge-lock.sh`       | 150   | Merge authorization management      |
 
 ### Source: `~/.config/bash/` (Shell configuration)
 
-| File | Relevant Content |
-|------|-----------------|
+| File           | Relevant Content                        |
+| -------------- | --------------------------------------- |
 | `functions.sh` | `gh()` wrapper function (lines 799-878) |
 
 ### Source: `~/.local/bin/` (PATH wrappers)
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `gh` | 69 | Non-interactive shell gh wrapper |
+| File | Lines | Purpose                          |
+| ---- | ----- | -------------------------------- |
+| `gh` | 69    | Non-interactive shell gh wrapper |
 
 ### Source: `.github/workflows/` (smartwatermelon/claude-wrapper)
 
-| File | Triggers | Uses |
-|------|----------|------|
-| `claude-code-review.yml` | PR opened/sync/reopen | `anthropics/claude-code-action@v1` |
-| `claude.yml` | @claude mentions | `smartwatermelon/github-workflows/claude-assistant.yml@v1` |
+| File                     | Triggers              | Uses                                                       |
+| ------------------------ | --------------------- | ---------------------------------------------------------- |
+| `claude-code-review.yml` | PR opened/sync/reopen | `anthropics/claude-code-action@v1`                         |
+| `claude.yml`             | @claude mentions      | `smartwatermelon/github-workflows/claude-assistant.yml@v1` |
 
 ### Source: `smartwatermelon/github-workflows` (external repo)
 
-| File | Purpose |
-|------|---------|
+| File                                     | Purpose                                |
+| ---------------------------------------- | -------------------------------------- |
 | `.github/workflows/claude-assistant.yml` | Reusable Claude Code Action invocation |
 
 ### Source: `~/.config/git/config` (Git configuration)
 
-| Setting | Value | Effect |
-|---------|-------|--------|
-| `core.hooksPath` | `~/.config/git/hooks` | All repos use global hooks |
-| `core.fsmonitor` | true | File system monitoring |
-| `push.autoSetupRemote` | true | Auto-setup remote tracking |
-| `pull.rebase` | true | Rebase on pull |
-| `diff.algorithm` | histogram | Better rename detection |
-| `rerere.enabled` | true | Reuse recorded resolutions |
+| Setting                | Value                 | Effect                     |
+| ---------------------- | --------------------- | -------------------------- |
+| `core.hooksPath`       | `~/.config/git/hooks` | All repos use global hooks |
+| `core.fsmonitor`       | true                  | File system monitoring     |
+| `push.autoSetupRemote` | true                  | Auto-setup remote tracking |
+| `pull.rebase`          | true                  | Rebase on pull             |
+| `diff.algorithm`       | histogram             | Better rename detection    |
+| `rerere.enabled`       | true                  | Reuse recorded resolutions |
 
 ### Source: `~/.claude/settings.json` (Claude Code settings)
 
-| Setting | Value | Effect |
-|---------|-------|--------|
-| `BASH_ENV` | `~/.config/bash/functions.sh` | Loads gh() wrapper in all shells |
-| `CLAUDE_CODE_SHELL` | `/opt/homebrew/bin/bash` | Uses Homebrew bash (5.x) |
-| `includeCoAuthoredBy` | true | Adds co-author to commits |
-| `alwaysThinkingEnabled` | true | Extended thinking for analysis |
+| Setting                 | Value                         | Effect                           |
+| ----------------------- | ----------------------------- | -------------------------------- |
+| `BASH_ENV`              | `~/.config/bash/functions.sh` | Loads gh() wrapper in all shells |
+| `CLAUDE_CODE_SHELL`     | `/opt/homebrew/bin/bash`      | Uses Homebrew bash (5.x)         |
+| `includeCoAuthoredBy`   | true                          | Adds co-author to commits        |
+| `alwaysThinkingEnabled` | true                          | Extended thinking for analysis   |
 
 ---
 
 ## Environment Variables
 
-| Variable | Set By | Checked By | Purpose |
-|----------|--------|------------|---------|
-| `CLAUDECODE` | Claude Code runtime | pre-merge-review.sh, run-review.sh | Detect Claude Code context |
-| `POSTPUSH_LOOP` | Post-push automation | pre-push hook | Skip interactive Protocol 4 prompt |
-| `BASH_ENV` | settings.json | Bash | Load shell functions in non-interactive shells |
-| `CLAUDE_CODE_SHELL` | settings.json | Claude Code | Use Homebrew bash 5.x |
-| `CLAUDE_CLI` | (optional) | run-review.sh, pre-merge-review.sh | Override Claude CLI path (default: ~/.local/bin/claude) |
-| `_GH_REVIEW_DONE` | ~/.local/bin/gh wrapper | Same wrapper | Prevent double pre-merge review |
-| `CLAUDE_GH_TOKEN_ROUTER` | (optional) | ~/.local/bin/gh | Token routing for multi-account setups |
-| `REVIEW_LOG` | (optional) | run-review.sh | Override review log location |
-| `PENDING_ISSUES_DIR` | (optional) | pre-merge-review.sh | Override pending issues fallback dir |
+| Variable                 | Set By                  | Checked By                         | Purpose                                                 |
+| ------------------------ | ----------------------- | ---------------------------------- | ------------------------------------------------------- |
+| `CLAUDECODE`             | Claude Code runtime     | pre-merge-review.sh, run-review.sh | Detect Claude Code context                              |
+| `POSTPUSH_LOOP`          | Post-push automation    | pre-push hook                      | Skip interactive Protocol 4 prompt                      |
+| `BASH_ENV`               | settings.json           | Bash                               | Load shell functions in non-interactive shells          |
+| `CLAUDE_CODE_SHELL`      | settings.json           | Claude Code                        | Use Homebrew bash 5.x                                   |
+| `CLAUDE_CLI`             | (optional)              | run-review.sh, pre-merge-review.sh | Override Claude CLI path (default: ~/.local/bin/claude) |
+| `_GH_REVIEW_DONE`        | ~/.local/bin/gh wrapper | Same wrapper                       | Prevent double pre-merge review                         |
+| `CLAUDE_GH_TOKEN_ROUTER` | (optional)              | ~/.local/bin/gh                    | Token routing for multi-account setups                  |
+| `REVIEW_LOG`             | (optional)              | run-review.sh                      | Override review log location                            |
+| `PENDING_ISSUES_DIR`     | (optional)              | pre-merge-review.sh                | Override pending issues fallback dir                    |
 
 ---
 
 ## Known Gaps & Limitations
 
-| Gap | Layer | Risk | Mitigation |
-|-----|-------|------|------------|
-| Newline-chained `git diff` + `gh api .../merge` (literal newline statement separator) | PreToolUse | Low | Regex negation treats shell operators (semicolon, ampersand, pipe) as boundaries but not literal newline; `gh pr merge` path still caught separately. Tracked as claude-config#137. |
-| Non-interactive shells that skip both wrappers | Shell layer | Low | PreToolUse hook provides redundant coverage |
-| Review cache allows skipping re-review of identical diff | run-review.sh | Low | Cache is SHA256 of (diff + script SHA) — any change to the diff OR the review script invalidates |
-| Merge-lock TTL is clock-based | merge-lock.sh | Low | 30-min window is short; human must re-authorize if expired |
-| pre-commit tool not installed in repo | pre-commit hook | Low | Falls back to global config; warns if neither found |
-| Shellcheck SC2312 excluded | lint-shell.sh | Negligible | Intentional suppression of specific warning |
+| Gap                                                                                   | Layer           | Risk                                              | Mitigation                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Newline-chained `git diff` + `gh api .../merge` (literal newline statement separator) | PreToolUse      | Low                                               | Regex negation treats shell operators (semicolon, ampersand, pipe) as boundaries but not literal newline; `gh pr merge` path still caught separately. Tracked as claude-config#137.                                               |
+| Non-interactive shells that skip both wrappers                                        | Shell layer     | Low                                               | PreToolUse hook provides redundant coverage                                                                                                                                                                                       |
+| Review cache allows skipping re-review of identical diff                              | run-review.sh   | Low                                               | Cache is SHA256 of (diff + script SHA) — any change to the diff OR the review script invalidates                                                                                                                                  |
+| Merge-lock TTL is clock-based                                                         | merge-lock.sh   | Low                                               | 30-min window is short; human must re-authorize if expired                                                                                                                                                                        |
+| pre-commit tool not installed in repo                                                 | pre-commit hook | Low                                               | Falls back to global config; warns if neither found                                                                                                                                                                               |
+| Shellcheck SC2312 excluded                                                            | lint-shell.sh   | Negligible                                        | Intentional suppression of specific warning                                                                                                                                                                                       |
+| Branches pushed without rebasing onto latest base show GitHub's "out-of-date" banner  | pre-push hook   | Negligible (branches still merge fine via squash) | Not enforced. Soft recommendation: `git fetch origin && git rebase origin/main` before pushing/updating a PR, when it's not disruptive (skip on shared branches or branches under active review). See smartwatermelon/dev-env#48. |
 
 **Previously listed, now closed:**
 
@@ -662,15 +681,15 @@ Developer writes code in Claude Code
 
 ## Cost Model
 
-| Stage | Where | Cost | Frequency |
-|-------|-------|------|-----------|
-| PreToolUse hooks | Local | FREE | Every tool call |
-| pre-commit (lint + review) | Local | FREE | Every commit |
-| commit-msg validation | Local | FREE | Every commit |
-| pre-push checks | Local | FREE | Every push |
-| claude-code-review.yml | GitHub Actions | ~$0.01-0.03/run | Every PR event |
-| claude.yml | GitHub Actions | ~$0.004-0.01/run | Every @claude mention |
-| pre-merge-review.sh | Local | FREE | Every merge attempt |
-| merge-lock.sh | Local | FREE | Every merge authorization |
+| Stage                      | Where          | Cost             | Frequency                 |
+| -------------------------- | -------------- | ---------------- | ------------------------- |
+| PreToolUse hooks           | Local          | FREE             | Every tool call           |
+| pre-commit (lint + review) | Local          | FREE             | Every commit              |
+| commit-msg validation      | Local          | FREE             | Every commit              |
+| pre-push checks            | Local          | FREE             | Every push                |
+| claude-code-review.yml     | GitHub Actions | ~$0.01-0.03/run  | Every PR event            |
+| claude.yml                 | GitHub Actions | ~$0.004-0.01/run | Every @claude mention     |
+| pre-merge-review.sh        | Local          | FREE             | Every merge attempt       |
+| merge-lock.sh              | Local          | FREE             | Every merge authorization |
 
 **Design principle**: Maximize free local checks to minimize expensive remote CI iterations.
