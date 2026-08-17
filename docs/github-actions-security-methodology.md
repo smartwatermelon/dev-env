@@ -64,6 +64,13 @@ out the PR.
 
 ### Pattern 2 — Mutable action references (git tags)
 
+**Scope:** This pattern applies to actions whose repo we do NOT control.
+First-party reusable workflows in an org we own are deliberately excluded
+— see [First-party carve-out](#first-party-carve-out) below. Applying the
+rule uniformly inverts it: an immutable pin on a first-party workflow
+freezes consumers on whatever that tag contained, including its
+vulnerabilities.
+
 **Danger:** Tags like `@v3` are mutable; an attacker who compromises the
 action repo can move the tag to a malicious commit, and 23,000+ repos
 auto-pull on next run (tj-actions). Trivy had 76 of 77 historical tags
@@ -88,6 +95,69 @@ uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
 Resolve the tag with: `gh api /repos/<owner>/<repo>/git/refs/tags/<tag>
 --jq '.object.sha'` (and dereference if `.object.type == "tag"`).
+
+#### First-party carve-out
+
+Two classes of `uses:` reference, two deliberately different policies:
+
+| Class | Policy | Rationale |
+|-------|--------|-----------|
+| **Third-party actions** (`actions/checkout`, `anthropics/claude-code-action`, …) | SHA-pin + Dependabot | We don't control upstream; a repointed tag runs arbitrary code on our runners at the next trigger. This is Pattern 2's actual target. |
+| **First-party reusable workflows** (`smartwatermelon/github-workflows/…`) | Floating major tag (`@v3`) | We control the repo, its branch protection, and who moves the tag. Floating refs are what make coordinated fleet remediation possible. |
+
+A finding of "first-party workflow referenced by floating major tag" is
+NOT a Pattern 2 finding. Do not open a PR to SHA-pin or exact-version-pin
+it; that is a regression, not a fix.
+
+**Why floating wins here.** An exact pin like `@v3.1.0` is immutable, so a
+consumer sitting on it never receives a fix landed after that tag was cut.
+Remediating GHSA-8q5r-mmjf-575q showed this concretely — `@v3.1.0`
+predates the fix and carries the vulnerable `claude-code-action` v1.0.70,
+while `@v3` resolves to the patched v1.0.193:
+
+```bash
+for ref in v3.1.0 v3; do
+  gh api "repos/smartwatermelon/github-workflows/contents/.github/workflows/claude-blocking-review.yml?ref=$ref" \
+    --jq .content | base64 -d | grep -oE 'claude-code-action@[a-f0-9]{8}'
+done
+# v3.1.0 -> claude-code-action@26ec0412   (v1.0.70, vulnerable)
+# v3     -> claude-code-action@9d7150bc   (v1.0.193, patched)
+```
+
+`@v3` is also a strict superset of `@v3.1.0`, not a rollback — verify
+before assuming a floating tag has lost behavior:
+
+```bash
+gh api repos/smartwatermelon/github-workflows/compare/v3.1.0...v3 \
+  --jq '{status, ahead: .ahead_by, behind: .behind_by}'
+# {"status":"ahead","ahead":19,"behind":0}
+```
+
+Nineteen consumer repos sat on exact pins and never received the
+fleet-wide remediation. Pattern 2 applied uniformly is what kept them
+there.
+
+**The carve-out is narrow, not a general relaxation.** It covers exactly
+one hop: our own reusable workflow. `smartwatermelon/github-workflows`
+SHA-pins every third-party action it consumes — enforced by a `zizmor`
+`unpinned-uses` audit in CI — and carries a `dependabot.yml` keeping those
+pins current. The transitive supply chain stays immutable; only the
+first-party hop floats.
+
+**Residual risk, stated honestly.** A compromised first-party tag would
+reach every consumer at once — the same blast radius that makes tj-actions
+severe. What bounds it:
+
+- Branch protection on `smartwatermelon/github-workflows`, with a required
+  blocking review, so no code reaches `main` unreviewed.
+- Tag moves are manual and human-authorized. No automation repoints a
+  floating tag.
+- Transitive third-party deps are SHA-pinned, so a compromise must go
+  through that repo's own review path rather than arriving sideways from
+  upstream.
+
+That risk is accepted in exchange for the ability to patch the fleet in
+one tag move. If any of the three bounds lapses, revisit the carve-out.
 
 ### Pattern 3 — Cache poisoning across trust boundaries
 
@@ -199,7 +269,9 @@ if: |
 This is Pattern 2 stated as a coverage rule rather than a one-off
 incident. The article's data: 91% of PyPI packages using third-party
 actions reference at least one by mutable tag. The remediation and
-detection are identical to Pattern 2.
+detection are identical to Pattern 2 — including its
+[first-party carve-out](#first-party-carve-out), which this pattern's
+"third-party" wording already implies.
 
 ### Pattern 9 — Missing workflow `permissions:` block
 
@@ -233,6 +305,7 @@ A finding's severity is `(blast radius) × (exploitability)`:
 | **High** | Pattern 6 (default=write) on a repo with non-trivial workflows; Pattern 2 on a third-party action with cross-repo secrets |
 | **Medium** | Pattern 2 on a low-reputation third-party action; Pattern 9 on a workflow that touches secrets |
 | **Low** | Pattern 9 on a read-only test workflow; Pattern 2 on a GitHub-owned action |
+| **Not a finding** | Pattern 2 on a first-party reusable workflow referenced by floating major tag (see [First-party carve-out](#first-party-carve-out)) |
 
 ## Mitigation framework
 
