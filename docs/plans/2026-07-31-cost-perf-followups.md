@@ -9,6 +9,7 @@ decision, a cross-repo workflow edit, or new functionality in `claude-wrapper`.
 
 Two related quick wins were already applied directly (see `claude-config` branch
 `claude/cost-perf-tuning-6c1fb7d3`):
+
 - `pre-merge-review.sh` now documents its intentional model inheritance and exposes a
   `review.mergeModel` override, instead of silently riding the caller's model by omission.
 - `alwaysThinkingEnabled` flipped from a global `true` to `false` in `settings.json`, so
@@ -69,6 +70,7 @@ Claude blocking review and target Seer for removal instead. This item is scoped 
 advisory workflow's trigger frequency and model, not re-litigating that decision.
 
 **Proposed fix** (pick one, or both):
+
 - Drop `synchronize` from the advisory workflow's `on.pull_request.types`, keeping only
   `opened`/`ready_for_review`/`reopened` — matches the intent of "review once per PR
   lifecycle event that actually changes reviewer scope," not every incremental push.
