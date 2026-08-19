@@ -17,6 +17,7 @@ Your infrastructure has **four major cost centers** for Anthropic usage:
 | 4 | **Local Git Hooks** (pre-commit + pre-push) | OAuth via CLI | Every commit/push | ~300-600/month |
 
 Plus two minor cost centers:
+
 - **Pre-merge review**: ~30/month (manual merge gating)
 - **Headroom-learn-all**: Monthly (1st), ~20 sub-agent invocations
 
@@ -36,7 +37,8 @@ Plus two minor cost centers:
 
 **Does it need AI?** The blocking review duplicates local pre-push review (`run-review.sh --mode=full-diff`). The rationale was "belt and suspenders" — CI catches anything local review missed. In practice, the local review is already blocking; CI just adds latency and cost.
 
-**Recommendation**: 
+**Recommendation**:
+
 - **ELIMINATE** for repos where the only committer is you/Ralph (all smartwatermelon repos)
 - **KEEP** only for repos with external collaborators (if any)
 - This is pure duplication of local review
@@ -50,6 +52,7 @@ Plus two minor cost centers:
 **Measured**: 375+ runs across just 4 repos in 48 days — likely 500+ across all repos
 
 **The cascade**:
+
 ```
 Ralph nightly runs locally (mimolette)
   → creates "Label Audit Report" issue on GitHub
@@ -60,6 +63,7 @@ Ralph nightly runs locally (mimolette)
 **Does it need AI?** **No.** Ralph's Label Audit Reports and nightly reports are informational issues. They don't need Claude to comment on them. This is an unintentional trigger — the `issues` event in `claude.yml` was meant for when a human mentions `@claude` in an issue, but it fires on ALL issue events.
 
 **Recommendation**:
+
 - **FIX IMMEDIATELY**: Add `if: contains(github.event.comment.body, '@claude') || ...` guard to the `issues` trigger in `claude.yml`, or remove the `issues` event type entirely (keep only `issue_comment` for @-mention handling)
 - This is free savings — purely unintentional cascading
 
@@ -68,10 +72,12 @@ Ralph nightly runs locally (mimolette)
 ### 3. Ralph Night-Shift (Largest Single Consumer)
 
 **What**: Runs nightly at 23:00 on `mimolette.local`. For each of 8 repos:
+
 - Label Audit: 2 Claude calls per repo (issues in batches of 25)
 - Night-Shift: Up to 5 issues per repo, up to 15 iterations each via `ralph run --autonomous --backend claude`
 
 **Estimated nightly**:
+
 - Label audit: 8 repos x 2 batches = 16 invocations
 - Night-shift: 8 repos x 5 issues x ~5 avg iterations = ~200 invocations
 - **Total: ~216 invocations per night = ~6,500/month**
@@ -79,11 +85,13 @@ Ralph nightly runs locally (mimolette)
 **Auth**: Uses `CLAUDE_CODE_OAUTH_TOKEN` (OAuth subscription, NOT API key). The script explicitly strips `ANTHROPIC_API_KEY` to prevent accidental API billing.
 
 **Does it need AI?**
+
 - **Night-shift issue fixes**: Yes — autonomous code changes require LLM reasoning
 - **Label audit classification**: Partially — could use a cheaper model or local LLM for label taxonomy matching
 - **Triage (monthly)**: Partially — semantic classification could use a cheaper model
 
 **Recommendation**:
+
 - **REDUCE night-shift scope**: 5 issues x 8 repos = 40 issues/night is aggressive. Most nights probably have fewer than 40 actionable tech-debt issues. Consider: only process repos with recent activity, or cap at 2-3 issues/repo
 - **DOWNGRADE label audit model**: Label taxonomy matching is a structured classification task. Could use Haiku or even a local LLM (Llama 3.2 via Ollama)
 - **DOWNGRADE triage model**: Similar — Haiku should handle 6-bucket classification
@@ -104,11 +112,13 @@ Ralph nightly runs locally (mimolette)
 **Auth**: Claude CLI (OAuth subscription via logged-in session)
 
 **Does it need AI?**
+
 - **Per-commit review**: Debatable. Catches issues early but runs on every single commit including WIP commits. High frequency, often redundant with the pre-push review that runs on the full branch.
 - **Pre-push review**: More defensible — reviews the full branch diff before it goes remote.
 - **Codebase review**: Expensive (300s timeout, full Read/Grep/Glob access). Checks for systemic issues.
 
 **Recommendation**:
+
 - **ELIMINATE per-commit review for WIP commits**: Add a `--wip` or `fixup!` prefix check — skip review for WIP commits
 - **KEEP pre-push full-diff**: This is the primary quality gate
 - **MAKE codebase review opt-in**: Only run on pushes to PRs, not on every force-push during development. Or gate it to "first push of a branch" only
