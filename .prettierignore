@@ -1,0 +1,8 @@
+# Recovered historical source used as regression-test evidence (docs/data/corpus-440).
+# These files are deliberately-defective snapshots of code as it existed when a
+# review finding was filed. They are data, not maintained source: reformatting
+# them would invalidate the line numbers the corpus indexes and the measurement
+# that depends on them.
+docs/data/corpus-440/files/
+docs/data/corpus-440/results/
+docs/data/corpus-440/files.tar.gz

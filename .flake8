@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 120
+# See .prettierignore for why docs/data/corpus-440/files is excluded: those are
+# immutable recovered snapshots of historically-buggy code, kept as measurement
+# evidence rather than as maintained source.
+exclude = .git,__pycache__,docs/data/corpus-440/files

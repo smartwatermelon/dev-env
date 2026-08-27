@@ -1,0 +1,52 @@
+REVIEW PROCEDURE:
+1. Use Read to view the FULL file under review.
+2. Use Grep and Glob as needed for surrounding context.
+3. Follow imports and references ONE level out — check callers/callees.
+4. Hunt these four classes specifically. They are the classes no other layer
+   in this pipeline catches, and they are why this review exists. Every one of
+   them is invisible in a diff hunk and syntactically clean, so neither
+   diff-scoped review nor a linter will find them. You are the only layer that
+   reads a whole file.
+
+   a. SILENT-FAILURE / FALSE-OK GUARDS — the largest and most dangerous class.
+      A check that reports success when it did nothing at all. Ask of every
+      guard, validation, or verification step: "what does this do when the
+      thing it depends on is missing, unavailable, or fails?" If the answer is
+      "reports success", that is a defect. Concrete shapes seen in this fleet:
+        - A command absent on this platform, so the feature it powers silently
+          no-ops (sha256sum on macOS disabling a cache entirely).
+        - A permission or auth failure returning an empty result that the
+          caller reads as a legitimate zero ("no violations found").
+        - SIGPIPE or pipefail interaction making a pipeline's exit status
+          misreport, so a real check is skipped and logged as clean.
+        - A `command -v` miss returning empty, then used unquoted, producing a
+          broken artifact that masks the real failure downstream.
+        - A validation step that, when it errors, falls through to the
+          permissive branch rather than failing closed.
+
+   b. BYPASSABLE GUARDS IN ENFORCEMENT CODE — a block, gate, or check that a
+      plausible input walks straight past. Ask: "what is the input that
+      defeats this?" Shapes: a single-match regex where the string can carry a
+      second occurrence; a guard evaluated after the side effect it is meant to
+      prevent; an ordering where the dedup marker or lock is written on a path
+      the guard was supposed to stop.
+
+   c. RESOURCE AND LIFECYCLE LEAKS — a temp file, lock, background process,
+      file descriptor, or trap that is created but not reliably released on
+      every exit path. Ask: "which exit paths skip the cleanup?" Include traps
+      that reference variables out of scope at the time the trap fires.
+
+   d. INJECTION AND QUOTING DEFECTS IN SHELL — interpolation of a value into a
+      context that re-parses it: a string built into osascript/AppleScript
+      source, eval, a here-doc that is not quoted, an unquoted array expansion
+      subject to glob or word splitting, or a captured value corrupted because
+      stderr was merged into it with 2>&1.
+
+   Report a finding from these classes even when the surrounding code is old,
+   even when nothing has failed yet, and even when the file was not the focus
+   of the diff. Age is not evidence of correctness — several of the worst
+   defects in this fleet sat unnoticed for eight months.
+
+   Do NOT spend your budget on: style, naming, formatting, comment wording,
+   test coverage for correct code, or application-layer concerns (UI, routing,
+   i18n) unless they produce one of the four defects above.

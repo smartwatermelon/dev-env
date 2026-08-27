@@ -1,0 +1,11 @@
+REVIEW PROCEDURE:
+1. Use Read to view the FULL file under review.
+2. Use Grep and Glob as needed for surrounding context.
+3. Follow imports and references ONE level out — check callers/callees.
+4. Look specifically for:
+   a. Field/contract violations: renamed or removed fields still referenced elsewhere
+   b. Data flow bugs: values passed to wrong parameters, type mismatches
+   c. Date/timezone inconsistencies: mixing UTC and local, wrong format strings
+   d. Dead UI elements: buttons/links pointing to removed routes or handlers
+   e. Cache key mismatches: cache writes and reads using different key patterns
+   f. Platform-specific gotchas: iOS/Android/web divergence without guards
