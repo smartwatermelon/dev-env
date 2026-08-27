@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Unpack the recovered corpus source used by measure.sh.
+# Unpack the recovered corpus source and the raw measurement results.
 #
-# The recovered files are stored as an archive rather than as loose files on
-# purpose. They are immutable snapshots of historically-buggy code, and the
+# Both are stored as archives rather than as loose files on purpose. The
+# recovered files are immutable snapshots of historically-buggy code, and the
 # measurement indexes them BY LINE NUMBER. The repo's shared pre-commit hooks
 # (shfmt via lint-shell.sh, prettier) auto-format staged source in place, and
 # on the first commit attempt they silently reformatted six of them — shifting
 # the lines the corpus points at and breaking the evidence round-trip. An
 # archive is opaque to a formatter that selects files by type.
 #
-# Usage: ./unpack-corpus.sh   (then run ./measure.sh)
+# results.tar.gz holds the 141 raw reviewer outputs (47 members x 3 variants).
+# score-pooled.py reads results/<variant>/*.json, so unpack before scoring.
+#
+# Usage: ./unpack-corpus.sh   (then run ./measure.sh or ./score-pooled.py)
 
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,6 +25,14 @@ fi
 tar -xzf "${HERE}/files.tar.gz" -C "${HERE}"
 n_files=$(find "${HERE}/files" -type f | wc -l)
 printf 'unpacked %s recovered files\n' "${n_files// /}"
+
+if [[ -d "${HERE}/results" ]]; then
+  printf 'results/ already present — left as-is\n' >&2
+elif [[ -f "${HERE}/results.tar.gz" ]]; then
+  tar -xzf "${HERE}/results.tar.gz" -C "${HERE}"
+  n_results=$(find "${HERE}/results" -name '*.json' | wc -l)
+  printf 'unpacked %s raw reviewer results\n' "${n_results// /}"
+fi
 
 # Validate: every corpus member must contain its evidence at its recorded line.
 python3 - "${HERE}" <<'PYEOF'

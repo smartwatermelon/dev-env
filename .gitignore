@@ -4,3 +4,4 @@ scripts/settings-plan.sh
 # Loose files are excluded because pre-commit formatters (shfmt, prettier) rewrite
 # them, shifting the line numbers the measurement indexes.
 docs/data/corpus-440/files/
+docs/data/corpus-440/results/
