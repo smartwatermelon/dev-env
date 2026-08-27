@@ -1,7 +1,10 @@
 # Review Pipeline Redesign — Design
 
-**Status:** Approved design, not yet implemented
-**Date:** 2026-08-26 (revised same day — see Revision history)
+**Status:** In implementation. Item 1 shipped (dotfiles#283), item 3 shipped
+(claude-config#442), items 2 and 4 in flight, item 5 dropped. The severity
+transport was additionally reworked to a schema-constrained boolean
+(claude-config#443, phase 1 in #444) — see Revision history.
+**Date:** 2026-08-26 (revised 2026-08-27 — see Revision history)
 **Scope:** `claude-config/hooks/run-review.sh`, `claude-config/hooks/lib-review-issues.sh`,
 `dotfiles/git/hooks/pre-push`, `dotfiles/git/hooks/commit-msg`
 
@@ -22,7 +25,8 @@ reviewer almost always finds something new.
 3. **Fix the blocking gate**, which currently leaks on three of four plausible
    reviewer output formats.
 4. **Port anti-noise language** to the four prompts that lack it.
-5. **Cache FAIL verdicts**, so an iterating commit stops paying full price.
+5. ~~**Cache FAIL verdicts**~~ — **dropped 2026-08-27**; it collides with
+   claude-config#246 and the cache key defeats its cost premise. See §5.
 
 ## Diagnosis
 
@@ -293,11 +297,42 @@ Pin this with a test so a later noise-reduction pass does not quietly delete it:
 a diff containing a comment that restates its line must produce a `FIX_NOW` entry,
 exit 0, and no filing call.
 
-### 5. Cache FAIL verdicts
+### 5. Cache FAIL verdicts — DROPPED
 
-The cache is PASS-only, keyed on `(SCRIPT_SHA, diff)`. A FAIL always re-runs, so
-an iterating commit pays full price on every attempt — a direct cause of the
-slowness. Cache FAIL under the same key.
+**Status: dropped 2026-08-27.** Retained here because the reasoning matters and
+the idea is otherwise easy to re-propose.
+
+The original proposal: the cache is PASS-only, keyed on `(SCRIPT_SHA, diff)`. A
+FAIL always re-runs, so an iterating commit pays full price on every attempt.
+Cache FAIL under the same key.
+
+**Why it was dropped.** It collides with the claude-config#246 fix, and its cost
+premise does not survive contact with the cache key.
+
+*The collision.* Today a code-reviewer FAIL is the one verdict guaranteed to be
+re-derived live on every retry. That property is load-bearing. In the #246
+incident, code-reviewer FAILed an identical diff three times running on a
+**fabricated** claim — that `clear_round_feedback` was "not defined", when it was
+defined in the same file and already called twice. Attempt 4 passed clean, first
+try, with no change other than `rm -rf .git/claude-review-cache/` forcing a live
+call. Caching FAIL would freeze that fabricated finding and replay it on every
+subsequent attempt at the same diff.
+
+The two changes also interact badly. #246's fix (`run-review.sh` ~L1795) forces
+adversarial-reviewer **live** during a retry-after-FAIL, precisely so the arbiter
+gets fresh evidence. Caching FAIL would make code-reviewer **stale** on that same
+path — reinstating the provenance asymmetry #246 fixed, with the sides swapped.
+
+*The cost premise.* The cache key includes the diff. Fix the code and the key
+changes, so the review re-runs regardless; caching FAIL saves nothing there. It
+helps only on a retry with a **byte-identical** diff — which is exactly the #246
+scenario, the one case where re-running is the desired behaviour. The savings
+land almost entirely on the case where staleness does harm.
+
+*What remains true.* The underlying complaint — an iterating commit is slow — is
+real and unaddressed. If it is worth fixing, it needs a different mechanism (for
+example, avoiding the second reviewer when the first passes clean) and its own
+design work. Do not reach for FAIL caching again without first re-reading #246.
 
 ## Cost
 
@@ -308,7 +343,7 @@ calls, not from downgrading models.
 |---|---|---|
 | Sonnet calls per push | 2 (identical diff) | 1 |
 | LLM calls per full cycle | 6–7 | 5–6 |
-| Commit retry with unchanged diff | full re-review | cache hit |
+| Commit retry, unchanged diff | full re-review | unchanged — item 5 dropped |
 | Auto-filed issues per push | 1 batched issue, 1–3 findings | 0 |
 | Whole-codebase scans | ~420 runs (per push) | ~1/week + on demand |
 
@@ -494,6 +529,23 @@ Still open:
 ## Revision history
 
 - **2026-08-26 (initial):** delete `--mode=codebase` outright.
+- **2026-08-27:** the severity transport was reworked beyond what §3 specified.
+  §3 made the five prose matchers tolerant (claude-config#442, which found six
+  leaking variants where this doc listed three). That treats the symptom: a
+  binary decision was being transported as prose and re-derived by grep at five
+  sites. The CLI's `--json-schema` was verified to work in both production
+  invocation shapes, so the decision is now a schema-constrained boolean
+  (claude-config#443; phase 1 merged as #444). #442's matcher survives as the
+  fail-closed fallback. Measured trap worth recording: a naive
+  `jq -e '.structured_output.blocking'` exits 1 for `false`, for a missing key,
+  AND for `null` — collapsing "reviewer said fine" into "reviewer never
+  answered", which is the same false-OK guard pattern this doc's own corpus
+  identifies as the most dangerous class.
+- **2026-08-27:** dropped item 5 (cache FAIL verdicts). It collides with the
+  claude-config#246 fix — a cached FAIL would freeze a fabricated finding and
+  replay it on every retry of the same diff — and the cache key already includes
+  the diff, so it saves nothing once the code is actually fixed. Reasoning kept
+  in §5 rather than deleted.
 - **2026-08-26 (revised):** coverage measurement showed 55% of genuine findings
   have no successor layer. Changed to moving the mode off the push path — weekly
   plus `/audit` — rather than deleting it. Also reversed the proposed removal of
