@@ -1,0 +1,47 @@
+{
+  "scores": {
+    "baseline": 29,
+    "narrowed": 27,
+    "control": 1
+  },
+  "n": 47,
+  "only_baseline": [
+    "claude-config#127",
+    "claude-config#166",
+    "claude-config#364",
+    "github-workflows#150",
+    "github-workflows#40",
+    "mac-server-setup#124",
+    "scripts#30"
+  ],
+  "only_narrowed": [
+    "claude-config#267",
+    "claude-config#340",
+    "claude-config#383",
+    "claude-config#90",
+    "dotfiles#42"
+  ],
+  "neither": [
+    "claude-config#130",
+    "claude-config#131",
+    "claude-config#148",
+    "claude-config#330",
+    "claude-wrapper#96",
+    "dev-env#41",
+    "dotfiles#119",
+    "dotfiles#140",
+    "dotfiles#72",
+    "financial-agent#83",
+    "qwen-sidebar#21",
+    "scripts#154",
+    "scripts#21"
+  ],
+  "union": 34,
+  "p": 0.774,
+  "findings_emitted": {
+    "narrowed": 158,
+    "baseline": 168,
+    "control": 2
+  },
+  "note": "baseline claude-wrapper#96 re-run 2026-08-27 after an errored run was found scored as a phantom hit; it is a MISS."
+}
