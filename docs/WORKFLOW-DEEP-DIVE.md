@@ -370,6 +370,59 @@ smartwatermelon/github-workflows/.github/workflows/claude-assistant.yml@v1
 **Permissions**: contents:read, pull-requests:read, issues:read, id-token:write
 **Additional permissions**: actions:read (for reading CI results on PRs)
 
+### Reusable Workflow: dependabot-auto-merge.yml
+
+**Called by**: each consumer repo's `.github/workflows/dependabot-auto-merge.yml`
+**Trigger**: `pull_request_target` (base-branch context; never checks out PR code)
+
+Auto-merge is enabled at the repo level (`allow_auto_merge=true`), but the
+workflow only approves a subset of Dependabot PRs. Two paths:
+
+1. **Single-dependency, same major** — auto-merges. The major is computed from
+   `previous-version`/`new-version` by the workflow itself, not read from
+   `steps.metadata.outputs.update-type`.
+2. **Everything else** — majors, and *any* grouped PR — falls through to a
+   trusted-namespace allowlist, matched as `^(dependabot|actions|<caller's
+   trusted_namespaces>)/`.
+
+#### Why npm bumps rarely auto-merge
+
+The allowlist pattern ends in `/`, so it only matches namespaced refs such as
+`actions/checkout`. Bare npm package names (`eslint`, `globals`, `astro`) have
+no namespace and can never match it; a scoped package matches only if its scope
+is itself allowlisted. **This is intended, not a misconfiguration**: an npm
+major bump reaching the allowlist path has already failed the version check, and
+the allowlist exists to admit trusted *infrastructure* refs, not arbitrary
+packages.
+
+Net effect: npm major bumps and every grouped PR need a human merge. Routine
+single-package patch/minor bumps still merge unattended.
+
+#### Why grouped PRs are not auto-merged, even when labelled patch/minor
+
+This was reconsidered on 2026-08-29 and deliberately left as-is.
+
+`fetch-metadata`'s `previous-version`/`new-version` describe one dependency, so
+they cannot validate a group. The per-dependency data that *is* available (the
+`updated-dependencies` commit trailer, surfaced as `updated-dependencies-json`)
+carries `dependency-version` and `update-type` but **not** the previous version
+— so a group rule cannot do version math and would have to trust `update-type`.
+That is precisely the signal this workflow refuses to trust: `fetch-metadata@v2`
+once labelled a `2.0.1 -> 3.0.0` bump as `semver-patch`.
+
+A concrete case from the same day: `nightowlstudiollc/amelia-boone#63` was a
+group of three, every entry labelled `semver-minor` or `semver-patch`. One of
+them was `satori 0.18.4 -> 0.33.4` — fifteen minor releases under a `0.x`
+version, where minor bumps are breaking by semver, including a switch to
+HarfBuzz text shaping. On a site that renders OG images with Satori, that is
+exactly the change that ships silently wrong output. A "grouped patch/minor
+auto-merges" rule would have merged it unreviewed.
+
+If this is revisited, the only safe form found so far is to derive real previous
+versions from the lockfile diff rather than trusting labels — which means
+parsing PR-controlled files inside a `pull_request_target` workflow, and that
+needs its own threat review before anyone writes it.
+
 ### External Dependencies
 
 | Dependency                         | Version         | Source                                   |
