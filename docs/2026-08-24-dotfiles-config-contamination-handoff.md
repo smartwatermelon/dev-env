@@ -1,5 +1,15 @@
 # Handoff: dotfiles `.git/config` contamination (smartwatermelon/dotfiles#239)
 
+> **⚠️ Superseded in part — read
+> [`2026-08-25-dotfiles-config-contamination-response.md`](2026-08-25-dotfiles-config-contamination-response.md)
+> alongside this document.** That analysis assesses six claims below as False,
+> Incomplete, Insufficient, Misleading, or Unsupported — see its "Corrections to
+> the handoff" section. Most importantly, the `git -C "${dir}"` remediation
+> proposed here does **not** override an inherited `GIT_DIR`, so applying it as
+> written will not fix the contamination. The worktree timeline here is also
+> corrected there. This document is kept for the investigation record; the
+> response doc carries the current conclusions.
+
 **Status as of 2026-08-24 19:25 PDT:** config cleaned, tripwire armed, root
 cause **still unidentified**. Issue #239 reopened.
 
