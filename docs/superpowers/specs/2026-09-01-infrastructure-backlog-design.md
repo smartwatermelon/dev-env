@@ -284,7 +284,11 @@ Six phases, not started. Phase 4 blocked by F4.
 
 The migration rewrites `smartwatermelon/*` references in `zizmor.yml:49`,
 every caller stub across ~35 repos, the owner table at `gh-wrapper.sh:216`,
-and the `nightowlstudiollc → smartwatermelon` mapping. Running an org rename
+and the `nightowlstudiollc → smartwatermelon` mapping. It also rewrites
+`repo-template`: all three of its workflow callers carry `smartwatermelon/*`
+refs, and its README hardcodes
+`gh api repos/smartwatermelon/<name>/actions/permissions/workflow`. Miss the
+template and every repo created after the rename points at the old org. Running an org rename
 through 35 repos while separately rewriting workflows in those same repos
 makes every conflict ambiguous — a rename artifact is indistinguishable from a
 workflow bug. Doing it first means the refs written by the fleet pass are the
@@ -375,6 +379,16 @@ Per decision 2026-09-01, one pass per repo delivers all of:
    hand-rolled inline job; the rest of the fleet migrated to the
    `claude-assistant.yml@v3` caller stub. Convert rather than SHA-pin.
 
+5. **`repo-template` update.** The template seeds every new repo with
+   `.github/workflows/claude-blocking-review.yml`, `claude.yml`,
+   `dependabot-auto-merge.yml`, `dependabot.yml`, and `CLAUDE.md`. Whatever
+   the fleet pass changes must change here too, or every repo created
+   afterward is seeded with the old configuration. Its README also documents
+   branch protection as "optional but recommended" (step 3) — which is how
+   the fleet arrived at 6 repos with no protection and 5 with `strict: true`
+   gating nothing. Make it non-optional, set by
+   `new-smartwatermelon-repo.sh` at creation time.
+
 New-repo creation is handled separately by extending
 `new-smartwatermelon-repo.sh`, per the 2026-08-31 settings-app evaluation
 (Option 3). That evaluation's recommendation stands: do not install
@@ -385,6 +399,11 @@ pain point.
 
 Only after W2 covers the 27 repos where blocking review is required. This is
 the item the sequencing exists to make safe.
+
+`repo-template` ships `claude-blocking-review.yml` as one of its five tracked
+files, so it is a *source* of the workflow being retired. W3 must update the
+template in the same change, or every repo created after the retirement is
+seeded with a dead caller.
 
 ### Deliberately not folded in
 
