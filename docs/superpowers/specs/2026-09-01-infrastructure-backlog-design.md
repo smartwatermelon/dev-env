@@ -379,11 +379,33 @@ Per decision 2026-09-01, one pass per repo delivers all of:
    hand-rolled inline job; the rest of the fleet migrated to the
    `claude-assistant.yml@v3` caller stub. Convert rather than SHA-pin.
 
-5. **`repo-template` update.** The template seeds every new repo with
+5. **`repo-template` pin correction — highest priority of the fold-ins.**
+   The template pins its first-party callers exactly:
+   `claude-blocking-review.yml@v3.2.1` and `claude-assistant.yml@v3.1.1`.
+   This contradicts the settled policy (`zizmor.yml:49`,
+   `smartwatermelon/github-workflows/*: ref-pin`), which is floating `@v3`
+   precisely so a security fix reaches consumers by repointing one tag —
+   the mechanism by which GHSA-8q5r-mmjf-575q reached consumers while ~19
+   repos pinned to exact `@v3.1.0` received nothing. The fleet already
+   migrated: `claude-wrapper` in #112/#116/#118, `scripts` in #119/#121,
+   with the docs corrected in github-workflows#138. The template was missed,
+   so every repo created from it is seeded with the pin shape the fleet
+   moved away from — at two different stale versions, so a first-party fix
+   reaches neither. Float both to `@v3`.
+
+6. **`repo-template` self-linting.** The template has no `zizmor.yml` and no
+   `.pre-commit-config.yaml`. Once `standards-check.yml` is the fleet's
+   required check, the template must seed it and its config, or every new
+   repo starts out failing the check it was born with.
+
+7. **`repo-template` update.** The template seeds every new repo with
    `.github/workflows/claude-blocking-review.yml`, `claude.yml`,
    `dependabot-auto-merge.yml`, `dependabot.yml`, and `CLAUDE.md`. Whatever
    the fleet pass changes must change here too, or every repo created
-   afterward is seeded with the old configuration. Its README also documents
+   afterward is seeded with the old configuration. (`CLAUDE.md` is an
+   11-line scaffold with fill-in prompts — a genuine starting point,
+   needing no change. It is unrelated to the 0-byte
+   `github-workflows/CLAUDE.md` in L4.) Its README also documents
    branch protection as "optional but recommended" (step 3) — which is how
    the fleet arrived at 6 repos with no protection and 5 with `strict: true`
    gating nothing. Make it non-optional, set by
