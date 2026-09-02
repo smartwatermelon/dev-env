@@ -362,6 +362,14 @@ final ones.
 
 Cost: #54's phases are the long pole of the entire plan.
 
+**Additional benefit, identified 2026-09-02:** the migration is also the only
+way three private user-owned repos (`scripts`, `claude-config-backup`,
+`cleanroom`) can ever carry branch protection — GitHub does not offer it for
+private repos under a personal account at this tier. Moving them into the org
+converts them from "cannot be protected" to ordinary fleet repos, with no
+separate remediation. That is a real argument for the migrate-early decision
+above, beyond the conflict-ambiguity reasoning already recorded.
+
 Three approaches already ruled out and recorded in the issue: `grll/claude-
 code-login` (Anthropic returns 429 to third parties), Workload Identity
 Federation (moves billing off the Max flat rate), and the undocumented token
@@ -388,9 +396,14 @@ safety benefit. Six have no protection at all, including `scripts`,
 
 > **Superseded by the 2026-09-02 verification audit.** Re-measured: **44**
 > non-archived repos, **26** with exactly one required check, **8** with no
-> protection (404), and **3** Pro-gated (403) whose protection cannot be read
-> — `scripts` is in the 403 group, *not* the unprotected group. The
-> `strict: true`-gating-nothing count of 5 holds. Use the audit's numbers.
+> protection (404), and **3** returning 403 — `scripts` is in the 403 group,
+> *not* the unprotected group. The `strict: true`-gating-nothing count of 5
+> holds. Use the audit's numbers.
+>
+> The 3 in the 403 group are private repos owned by the **user account**, not
+> an org, which is why protection cannot be set on them at all. **I3 resolves
+> that category by moving them into the org** — they are not a gap to close
+> separately. See "The 403 group is an org-migration artifact" in the audit.
 
 A separate measurement (2026-08-19, github-workflows#154): 35 non-archived
 repos carry a `claude-blocking-review.yml` caller; 27 have it as a required
@@ -420,9 +433,16 @@ answered first.
 
 Pilots, named in #154: `dumbify`, `x-thread-reader`, `networth-agent`,
 `claude-code-workflows-agents`, `pr-review`, `repo-template`,
-`nightowlstudiollc/.github`, `scripts`. Start with `scripts` — its
-`claude-review` check is Pro-gated and therefore not enforced, so a mistake
-breaks nothing.
+`nightowlstudiollc/.github`, `scripts`. The original rationale was to start
+with `scripts`, because its `claude-review` check is not enforced so a
+mistake breaks nothing.
+
+**That rationale expires at I3** (corrected 2026-09-02). `scripts` is
+unenforced because it is a *private repo under a user account*, where branch
+protection cannot be set — not because of a check-level gate. W2 runs after
+I3, by which point `scripts` is org-owned and its checks enforce normally.
+Re-pick a genuinely low-stakes pilot at that point instead of inheriting this
+one.
 
 Existing tooling does the fan-out: `claude-review-audit.sh` (read-only, walks
 both orgs, classifies workflow files per repo) and
@@ -749,10 +769,41 @@ work machine.
    `claude-code-workflows-agents`, `superpowers-marketplace`,
    `Instapaper-MCP`, `superpowers`, `homebrew-brew`,
    `nightowlstudiollc/.github`. `scripts` is **not** among them — it returns
-   403 (Pro-gated), meaning its protection is *unreadable*, not absent. Three
-   repos are in that 403 state: `claude-config-backup`, `cleanroom`,
+   403. Three repos are in that state: `claude-config-backup`, `cleanroom`,
    `scripts`. Conflating "no protection" with "protection I cannot see" is the
    same label-matching error as the rest of this section.
+
+### The 403 group is an org-migration artifact, not a gap to fix
+
+Established 2026-09-02 (Andrew), verified the same day. The 403 is not a
+generic "Pro-gated" limit — it is specifically **private repos owned by a
+user account** rather than an organization. Measured:
+
+| Repo | visibility | owner type | protection |
+| --- | --- | --- | --- |
+| `scripts` | private | **User** | 403 |
+| `claude-config-backup` | private | **User** | 403 |
+| `cleanroom` | private | **User** | 403 |
+| `nightowlstudiollc/kebab-tax` | private | Organization | readable |
+| `nightowlstudiollc/financial-agent` | private | Organization | readable |
+
+All three 403s share `private=true` + `owner.type=User`; the private repos
+that *do* carry protection are org-owned. GitHub does not offer branch
+protection on private repos under a personal account at this tier.
+
+**Consequence for the plan: I3 dissolves this category.** Once these repos
+move to the new org, protection becomes settable on them and they join the
+normal fleet. So the 403 group needs no remediation of its own — it needs
+I3, which is already the critical path. Do not file work against it, and do
+not treat the three as a branch-protection gap in the W2 pass; they will be
+ordinary org repos by the time W2 runs.
+
+This also revises the W2 pilot rationale below, which picks `scripts` on the
+grounds that its `claude-review` check is "Pro-gated and therefore not
+enforced." That reasoning is right about the effect and wrong about the
+cause, and it expires at I3 — after migration `scripts` is a normal
+org-owned repo whose checks do enforce. Re-pick the safe pilot then rather
+than inheriting this one.
 
 **Also resolved:** the L5 open question "check whether they are tracked" —
 all five junk files are **untracked**. Safe to delete.
