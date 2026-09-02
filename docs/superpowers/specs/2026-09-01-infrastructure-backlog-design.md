@@ -68,21 +68,58 @@ Seven closed dotfiles issues (#131, #135, #138, #140, #151, #159, #205)
 address `_gh_wrapper_sync_identity` correctness. Every one reasons about the
 `hosts.yml` switch in isolation; none mentions `GH_TOKEN` precedence.
 
-### A cross-org identity leak that was never filed
+### A latent cross-org identity hazard — **NOT an active leak**
 
-`claude-wrapper/lib/git-identity.sh:12-15` exports `GIT_AUTHOR_NAME`,
-`GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and `GIT_COMMITTER_EMAIL` as
-`Claude Code Bot <claude-code@smartwatermelon.github>` — unconditionally,
-with no repo or owner awareness. Git environment variables outrank all
-gitconfig, including `includeIf`.
+**Corrected 2026-09-02.** This section previously claimed that "every commit
+made in a `beacon-biosignals` repo through Claude Code is authored at a
+`smartwatermelon` address" and that the `includeIf` block is dead. **Both
+claims are false.** They are recorded here rather than deleted because the way
+they were reached is the exact failure this document warns about.
 
-Consequence: every commit made in a `beacon-biosignals` repo through Claude
-Code is authored at a `smartwatermelon` address, and the
-`includeIf gitdir:.../beacon-biosignals/` block in `dotfiles/git/config:55-56`
-is dead. The file has not changed since the original modularization commit
-(`1d081f6`, #16); it predates the entire beacon-identity effort and was never
-revisited. Verified: both `dev-env` and `tensegrity` commit as
-`676392+smartwatermelon@users.noreply.github.com`.
+**What is true.** `claude-wrapper/lib/git-identity.sh:12-15` exports
+`GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and
+`GIT_COMMITTER_EMAIL` as `Claude Code Bot
+<claude-code@smartwatermelon.github>`, unconditionally, sourced from
+`bin/claude-wrapper:26`. Git environment variables do outrank all gitconfig,
+including `includeIf`. Measured on a scratch repo with
+`user.email=arich@beacon.bio` configured: with the wrapper's variables set the
+commit authors as `Claude Code Bot`; with them unset, `Andrew Rich
+<arich@beacon.bio>`. The precedence is real.
+
+**Why it harms nothing today.** Verified on `arich-mac.local` 2026-09-02:
+
+- `claude-wrapper` is **not installed** there — no
+  `~/Developer/claude-wrapper/lib/git-identity.sh`, and no wrapper on `PATH`.
+  The code that exports the bot identity does not exist on the machine that
+  has beacon checkouts.
+- `~/.gitconfig-beacon` exists and sets `andrew.rich@beacon.bio`.
+  `git config user.email` in `beacon-biosignals/infra` resolves to it. The
+  `includeIf` block works.
+- Bot-authored commits across all five beacon repos (`beabot`, `infra`,
+  `knowledge-base`, `platform-datastore`, `platform-production`): **zero.**
+
+**How the false claim was reached.** The original "Verified:" line cited
+`dev-env` and `tensegrity` committing as
+`676392+smartwatermelon@users.noreply.github.com`. Those are personal repos on
+the personal machine — they confirm the bot identity applies where it is
+*supposed* to. The beacon consequence was inferred from that and written up as
+though measured. Neither `~/Developer/beacon-biosignals/` nor
+`~/.gitconfig-beacon` exists on the personal machine, so the beacon half could
+not have been checked from where it was written.
+
+This is the "resolve the thing; don't match its label" failure applied to a
+consequence rather than a state check, and it is the same shape as
+claude-config#465 (asserting behavior in prose without opening the code).
+
+**What remains.** A latent hazard, conditional on installing `claude-wrapper`
+on the work machine — at which point beacon commits would silently author at a
+`smartwatermelon` address. Worth fixing before that happens, not urgent now.
+Removed from the starter set on that basis.
+
+The fix, if taken: export the bot identity only where the repo configures no
+`user.email`, deferring to gitconfig where it has an answer. Note
+`claude-wrapper/README.md:299` documents the current unconditional behavior as
+correct; it would change with the fix.
 
 ### The active token lacks `admin:org`, which blocks the org migration
 
@@ -107,7 +144,7 @@ success while the thing it checks is not happening.**
 | dotfiles config contamination | hooks configured | `core.hooksPath` blanked |
 | `--repair` (#439) | healthy | guards down |
 | chunked review (#451) | PASS | skipped the files that mattered |
-| `claude-config` pre-commit | configured | `repos: []`, nothing runs |
+| ~~`claude-config` pre-commit~~ | ~~configured~~ | **FIXED 2026-08-26** — see the verification audit |
 | `tolerate_upgrade_failure` (dotfiles#247) | upgrade succeeded | failure swallowed |
 
 This is the backlog's defining pattern, and it has a direct methodological
@@ -349,6 +386,12 @@ Five repos force a rebase and then gate on nothing — Dependabot churn with no
 safety benefit. Six have no protection at all, including `scripts`,
 `repo-template`, `pr-review`, and both `.github` repos.
 
+> **Superseded by the 2026-09-02 verification audit.** Re-measured: **44**
+> non-archived repos, **26** with exactly one required check, **8** with no
+> protection (404), and **3** Pro-gated (403) whose protection cannot be read
+> — `scripts` is in the 403 group, *not* the unprotected group. The
+> `strict: true`-gating-nothing count of 5 holds. Use the audit's numbers.
+
 A separate measurement (2026-08-19, github-workflows#154): 35 non-archived
 repos carry a `claude-blocking-review.yml` caller; 27 have it as a required
 check; **26 of those 27 have it as their only required check.**
@@ -533,12 +576,12 @@ pattern. Sequence it before the rest of the cluster.
 - **`--repair` reports healthy while guards are down** (#439).
 - **Chunked review reports PASS while skipping the files that mattered**
   (#451). `review.skipThreshold` 2500, `review.chunkSize` 800.
-- **shellcheck does not run in `claude-config`** — `.pre-commit-config.yaml`
-  is `repos: []`. The repo containing the review infrastructure is the one
-  repo not linting its own shell.
+- ~~**shellcheck does not run in `claude-config`**~~ — **no longer true.**
+  `.pre-commit-config.yaml` was fixed 2026-08-26 and now runs `shell-lint-fix`
+  (shellcheck + shfmt). Verified 2026-09-02.
 
-Treat as one project, not three bugs. Each fix validated against a known-bad
-case.
+Treat as one project, **two bugs** (was three). Each fix validated against a
+known-bad case.
 
 ### L4 — Doc hygiene
 
@@ -640,9 +683,13 @@ the assertion is a later addition.
 These are verified defects with no issue filed:
 
 1. `GH_TOKEN` precedence defeats `_gh_wrapper_sync_identity` (F3).
-2. `git-identity.sh` org-blindness / cross-org identity leak (F2).
+2. ~~`git-identity.sh` org-blindness / cross-org identity leak (F2).~~
+   **Do not file as a defect** — disproven 2026-09-02. If filed at all, it is
+   a latent-hazard note conditional on installing `claude-wrapper` on the work
+   machine.
 3. Missing `admin:org` scope blocking org secret management (F4).
-4. dotfiles root-directory junk files (L5).
+4. dotfiles root-directory junk files (L5). Confirmed **untracked**; safe to
+   delete.
 5. Empty `github-workflows/CLAUDE.md` (L4).
 6. Unpinned actions in `scripts/.github/workflows/claude.yml` (folded into W2).
 
@@ -660,6 +707,66 @@ Standing constraint, recorded so it is not revisited: repointing
 `com.andrewrich.updates` off `/bin/bash` 3.2 was **abandoned by design** —
 `/bin/bash` is the only SIP-protected, stably-FDA-grantable interpreter. Do
 not revisit without an FDA-stability plan.
+
+## Verification audit (2026-09-02)
+
+Prompted by the F2 correction above: if one "Verified:" claim was an inference
+written as a measurement, the others needed re-testing before anything was
+built on them. Every such claim in this document was re-checked against live
+state, including over SSH to `arich-mac.local` where the claim concerned the
+work machine.
+
+**Claims that HOLD, re-measured:**
+
+| Claim | Evidence |
+| --- | --- |
+| `GH_TOKEN` active, lacks `admin:org` | `gh auth status`: active `GH_TOKEN` account, scopes list has no `admin:org` |
+| keyring account has `admin:org`, inactive | same output: `admin:org`, `admin:public_key`, `repo`, `workflow`, Active: false |
+| `admin:org` 403 blocks org secrets | `gh api orgs/nightowlstudiollc/actions/secrets` → HTTP 403, verbatim message |
+| `credentials.sh` exports `GH_TOKEN` unconditionally | `credentials.sh:111` (spec said :112 — trivial drift) |
+| env vars outrank `includeIf` | measured on a scratch repo; see the F2 section |
+| `CLAUDE_GH_TOKEN_ROUTER` is dead | only `gh-wrapper.sh:488-490`, standalone branch, defined nowhere |
+| 5 repos `strict: true` gating nothing | `huddle-transcribe`, `dumbify`, `x-thread-reader`, `smartwatermelon/.github`, `networth-agent` |
+| `scripts` unpinned actions | `claude.yml:25` `actions/checkout@v7`, `:31` `anthropics/claude-code-action@v1` |
+| `github-workflows/CLAUDE.md` is 0 bytes | confirmed |
+| `install.sh` symlinks into the working tree | 37 symlinks under `~/.claude` resolve into `~/Developer/claude-config` |
+| dotfiles root junk exists | `08:57:30`, `31`, `Aug`, `PDT`, `2026.log` all present |
+
+**Claims that are now FALSE:**
+
+1. **The cross-org identity leak.** See the corrected section above. No beacon
+   repo is affected; `claude-wrapper` is not installed on the work machine.
+
+2. **`claude-config`'s `.pre-commit-config.yaml` is `repos: []`.** It is not,
+   and has not been since **2026-08-26**. The file now runs `shell-lint-fix`
+   (shellcheck + shfmt) among other hooks, and its header documents the empty
+   version as a mistake in the exact terms the spec uses against it. This
+   appears **twice** in the spec — in the false-OK table and as the third item
+   of L3 — and both are stale. **L3 is two bugs, not three.**
+
+3. **"6 repos with no protection at all," including `scripts`.** The real
+   count is 8 (404 Branch-not-protected): `repo-template`, `pr-review`,
+   `claude-code-workflows-agents`, `superpowers-marketplace`,
+   `Instapaper-MCP`, `superpowers`, `homebrew-brew`,
+   `nightowlstudiollc/.github`. `scripts` is **not** among them — it returns
+   403 (Pro-gated), meaning its protection is *unreadable*, not absent. Three
+   repos are in that 403 state: `claude-config-backup`, `cleanroom`,
+   `scripts`. Conflating "no protection" with "protection I cannot see" is the
+   same label-matching error as the rest of this section.
+
+**Also resolved:** the L5 open question "check whether they are tracked" —
+all five junk files are **untracked**. Safe to delete.
+
+**Fleet totals have drifted** from the 2026-08-29 audit: 44 non-archived repos
+now (spec says 39), 26 with exactly one required check (spec says 27). The
+standing instruction to re-run `claude-review-audit.sh` before acting is
+correct and now has numbers behind it.
+
+**Method note.** The correct required-check context is
+`claude-review / run-review`, not `claude-review`. A first pass of this audit
+matched the bare name, returned "0 repos require claude-review," and would
+have read as a catastrophic fleet regression. The spec already records this
+gotcha in the ruleset section; it caught the auditor anyway.
 
 ## Issue delta since this design was written
 

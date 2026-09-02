@@ -2,14 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the four unblocked, independent items the backlog design names
-as "start with" — remove an unpatched Node runtime from daily use, stop the
-cross-org git identity leak, make wrong-identity `gh` operations visible
-instead of silent, and retire the manual `uchg` tripwire guarding local review.
+**Goal:** Close the unblocked, independent items the backlog design names as
+"start with" — remove an unpatched Node runtime from daily use, make
+wrong-identity `gh` operations visible instead of silent, and retire the
+manual `uchg` tripwire guarding local review.
 
-**Architecture:** Four independent tracks, no shared state, executable in any
-order or in parallel. Each lands in a different repo (`dotfiles`,
-`claude-wrapper`, `claude-code-workflows-agents`), so tasks do not contend.
+**Architecture:** Three independent tracks, no shared state, executable in any
+order or in parallel. They land in two repos (`dotfiles`,
+`claude-code-workflows-agents`), so tasks do not contend.
 Every behavioral change is validated against a known-bad case before its fix
 is accepted — the backlog's defining defect is checks that report success
 while doing nothing.
@@ -22,10 +22,18 @@ Actions, nvm.
 
 ## Scope
 
-This plan covers **only** the starter set: N1a, F2, F3, and the remainder of
-L1. Chosen 2026-09-02 because these four are the only items with no unresolved
-upstream decision, so every task below can be written with real code rather
-than placeholders.
+This plan covers **only** the starter set: N1a, F3, and the remainder of L1.
+Chosen 2026-09-02 because these are the items with no unresolved upstream
+decision, so every task below can be written with real code rather than
+placeholders.
+
+**F2 was in this plan and has been withdrawn** — see Task 3. The identity
+leak it fixed does not exist; the claim was an inference presented as a
+measurement. A verification audit of every other "Verified:" claim in the
+design followed, and is recorded there. Two further claims were found false
+(the `claude-config` empty pre-commit, and the no-protection repo count).
+**Read the design's "Verification audit (2026-09-02)" section before
+executing anything here.**
 
 Explicitly **not** in this plan, and why:
 
@@ -66,7 +74,8 @@ off, then remove the flag.
 `which node` is v20.20.2 with v22.23.2 and v24.19.0 installed and idle;
 `code-quality.yml:80` and `validate.yml:233` both read `node-version: '20'`;
 `git-identity.sh:12-15` exports all four git identity variables
-unconditionally; `CLAUDE_GH_TOKEN_ROUTER` appears only at
+unconditionally (true, but harmless — see Task 3);
+`CLAUDE_GH_TOKEN_ROUTER` appears only at
 `gh-wrapper.sh:488-490`, in the standalone-executable branch, defined nowhere.
 
 ## Global Constraints
@@ -269,225 +278,29 @@ sufficient evidence; read the version out of the log.
 
 ---
 
-## Task 3: Make `git-identity.sh` owner-aware (F2)
+## Task 3: WITHDRAWN — F2 was not an active defect
 
-Stops a cross-org identity leak. `claude-wrapper/lib/git-identity.sh:12-15`
-exports `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, and
-`GIT_COMMITTER_EMAIL` unconditionally, with no repo or owner awareness. Git
-environment variables outrank all gitconfig, **including `includeIf`** — so
-the `includeIf gitdir:.../beacon-biosignals/` block at
-`dotfiles/git/config:55-56` is dead, and every commit made in a
-`beacon-biosignals` repo through Claude Code is authored at a
-`smartwatermelon` address.
+**Removed 2026-09-02 after the claim was disproven.**
 
-**Approach (from the spec, second of two shapes):** read `git config
-user.email` *after* `includeIf` resolution and override only when it is
-unset. This is smaller than owner-resolution and defers to gitconfig, which
-is where per-repo identity is already correctly expressed.
+This task implemented a conditional export in
+`claude-wrapper/lib/git-identity.sh` to stop what the design called a
+cross-org identity leak. The leak does not exist.
 
-**Files:**
+Measured on `arich-mac.local`: `claude-wrapper` is **not installed** there —
+no `lib/git-identity.sh`, no wrapper on `PATH`. Bot-authored commits across
+all five `beacon-biosignals` repos: **zero**. `~/.gitconfig-beacon` exists,
+the `includeIf` block resolves, and `git config user.email` in
+`beacon-biosignals/infra` returns `andrew.rich@beacon.bio`.
 
-- Modify: `claude-wrapper/lib/git-identity.sh:11-17`
-- Create: `claude-wrapper/tests/test-git-identity-owner-aware.sh`
-- Modify: `claude-wrapper/README.md:299`
+The underlying precedence fact is real and was measured: with the wrapper's
+`GIT_AUTHOR_*` variables set, a commit in a repo configured as
+`arich@beacon.bio` authors as `Claude Code Bot`; with them unset it authors
+correctly. But nothing is exposed to it, because the code that sets those
+variables is absent from the only machine with beacon checkouts.
 
-**Interfaces:**
-
-- Consumes: `debug_log` from `lib/logging.sh` (already required by this file).
-- Produces: nothing consumed by later tasks. Task 4 is independent.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `claude-wrapper/tests/test-git-identity-owner-aware.sh`:
-
-```bash
-#!/usr/bin/env bash
-# Regression test: git-identity.sh must not override a repo's configured
-# identity. smartwatermelon/claude-wrapper — cross-org identity leak.
-#
-# KNOWN-BAD CASE: the second assertion below fails against the current
-# unconditional export. It is the reason this test exists; if it ever passes
-# without the fix, the test is not measuring what it claims to.
-set -uo pipefail
-unset CDPATH
-
-WORKDIR="/tmp/git-identity-test-$$"
-mkdir -p "${WORKDIR}"
-trap 'rm -rf "${WORKDIR}"' EXIT
-
-GIT=/usr/bin/git
-LIB_DIR="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
-
-fail=0
-_pass() { echo "  PASS: $1"; }
-_fail() {
-  echo "  FAIL: $1" >&2
-  fail=1
-}
-
-debug_log() { :; }
-export -f debug_log
-
-# Case 1: repo with NO configured identity -> bot identity applies.
-"${GIT}" init -q "${WORKDIR}/no-identity"
-(
-  cd "${WORKDIR}/no-identity" || exit 1
-  # shellcheck source=/dev/null
-  source "${LIB_DIR}/git-identity.sh"
-  if [[ "${GIT_AUTHOR_EMAIL:-}" == "claude-code@smartwatermelon.github" ]]; then
-    exit 0
-  fi
-  exit 1
-)
-if [[ $? -eq 0 ]]; then
-  _pass "unconfigured repo gets the bot identity"
-else
-  _fail "unconfigured repo should get the bot identity"
-fi
-
-# Case 2: repo WITH a configured identity -> that identity is preserved.
-"${GIT}" init -q "${WORKDIR}/has-identity"
-"${GIT}" -C "${WORKDIR}/has-identity" config user.name "Andrew Rich"
-"${GIT}" -C "${WORKDIR}/has-identity" config user.email "arich@beacon.bio"
-(
-  cd "${WORKDIR}/has-identity" || exit 1
-  # shellcheck source=/dev/null
-  source "${LIB_DIR}/git-identity.sh"
-  if [[ -z "${GIT_AUTHOR_EMAIL:-}" ]]; then
-    exit 0
-  fi
-  if [[ "${GIT_AUTHOR_EMAIL}" == "arich@beacon.bio" ]]; then
-    exit 0
-  fi
-  exit 1
-)
-if [[ $? -eq 0 ]]; then
-  _pass "configured repo keeps its own identity"
-else
-  _fail "configured identity was overridden by the bot identity"
-fi
-
-if [[ ${fail} -eq 0 ]]; then
-  echo "test-git-identity-owner-aware.sh: all assertions passed"
-  exit 0
-fi
-exit 1
-```
-
-- [ ] **Step 2: Run the test and confirm case 2 fails**
-
-```bash
-chmod +x ~/Developer/claude-wrapper/tests/test-git-identity-owner-aware.sh
-bash ~/Developer/claude-wrapper/tests/test-git-identity-owner-aware.sh
-```
-
-Expected: case 1 PASSes, case 2 **FAILs** with "configured identity was
-overridden by the bot identity". If case 2 passes here, stop — either the
-leak is already fixed or the test is not exercising the export path, and
-either way the rest of this task is built on a false premise.
-
-- [ ] **Step 3: Make the export conditional**
-
-Replace `claude-wrapper/lib/git-identity.sh:11-17` with:
-
-```bash
-# Set Git author/committer identity — only when the repository does not
-# already express one.
-#
-# Git's GIT_AUTHOR_*/GIT_COMMITTER_* environment variables outrank ALL
-# gitconfig, including `includeIf`. Exporting them unconditionally made
-# every commit in a beacon-biosignals repo author as a smartwatermelon
-# address and rendered the includeIf block in dotfiles/git/config dead.
-# Defer to gitconfig where it has an answer; supply the bot identity only
-# where it does not.
-_claude_git_configured_email="$(git config --get user.email 2>/dev/null)"
-
-if [[ -z "${_claude_git_configured_email}" ]]; then
-  export GIT_AUTHOR_NAME="${CLAUDE_GIT_NAME}"
-  export GIT_AUTHOR_EMAIL="${CLAUDE_GIT_EMAIL}"
-  export GIT_COMMITTER_NAME="${CLAUDE_GIT_NAME}"
-  export GIT_COMMITTER_EMAIL="${CLAUDE_GIT_EMAIL}"
-  debug_log "Git identity: ${CLAUDE_GIT_NAME} <${CLAUDE_GIT_EMAIL}> (repo had none)"
-else
-  debug_log "Git identity: deferring to repo config <${_claude_git_configured_email}>"
-fi
-
-unset _claude_git_configured_email
-```
-
-- [ ] **Step 4: Run the test and confirm both cases pass**
-
-```bash
-bash ~/Developer/claude-wrapper/tests/test-git-identity-owner-aware.sh
-```
-
-Expected: both PASS, exit 0.
-
-- [ ] **Step 5: Run the full claude-wrapper suite**
-
-```bash
-cd ~/Developer/claude-wrapper
-for t in tests/test-*.sh; do echo "=== ${t} ==="; bash "${t}" || echo "FAILED: ${t}"; done
-```
-
-Expected: no `FAILED:` lines. `test-credentials.sh` and
-`test-gh-token-permissions.sh` are the ones most likely to touch identity —
-read their output rather than only their exit codes.
-
-- [ ] **Step 6: shellcheck**
-
-```bash
-shellcheck -S info ~/Developer/claude-wrapper/lib/git-identity.sh \
-                   ~/Developer/claude-wrapper/tests/test-git-identity-owner-aware.sh
-```
-
-Expected: clean. Fix anything reported; do not add a disable directive.
-
-- [ ] **Step 7: Verify the real-world behavior changed**
-
-```bash
-cd ~/Developer/dev-env && git config --get user.email
-cd ~/Developer/claude-wrapper && git log -1 --format='%an <%ae>'
-```
-
-Then confirm a commit made in a `beacon-biosignals` checkout would now use
-the beacon identity. If no such checkout is available on this machine, say
-so in the task report rather than asserting the fix works there.
-
-- [ ] **Step 8: Correct the README**
-
-`claude-wrapper/README.md:299` documents the current wrong behavior as
-correct ("`git config user.name` should show `Claude Code Bot`"). Replace
-that expectation with: the bot identity appears only in repositories that do
-not configure their own `user.email`; repositories with a configured
-identity — including those set via `includeIf` — keep it.
-
-- [ ] **Step 9: Commit**
-
-```bash
-cd ~/Developer/claude-wrapper
-git switch -c claude/fix-git-identity-org-blind-$(date +%s)
-git add lib/git-identity.sh tests/test-git-identity-owner-aware.sh README.md
-git commit -m "$(cat <<'EOF'
-fix(identity): defer to repo gitconfig instead of forcing the bot identity
-
-GIT_AUTHOR_*/GIT_COMMITTER_* outrank all gitconfig including includeIf, so
-exporting them unconditionally authored every beacon-biosignals commit at a
-smartwatermelon address and made the includeIf block in dotfiles/git/config
-dead. Export the bot identity only where the repo configures none.
-
-Adds a regression test whose second case fails against the previous
-unconditional export.
-
-Claude-Session: https://claude.ai/code/session_012yVgeNiQARufjPhKnFZUVZ
-EOF
-)"
-```
-
-**Open question deferred to implementation, per the spec:** whether a distinct
-bot identity is wanted at all now that sessions are attributed via
-`Claude-Session:` trailers. This task keeps it for unconfigured repos and does
-not settle that question. Raise it in the task report; do not decide it here.
+Reclassified in the design as a **latent hazard**, conditional on ever
+installing `claude-wrapper` on the work machine. Fix it before that happens,
+not now.
 
 ---
 
@@ -906,20 +719,23 @@ documented product decision in `claude-wrapper/README.md:75` and
 
 ## Verification
 
-After all five tasks, confirm the starter set as a whole:
+After Tasks 1, 2, 4, and 5 (Task 3 is withdrawn), confirm the starter set as
+a whole:
 
 - [ ] `which node` reports v24.19.0 in a fresh login shell
 - [ ] `claude-code-workflows-agents` CI green, with v24.x read out of the
       setup-node log — not merely a green check
-- [ ] `claude-wrapper` suite green; a repo with a configured `user.email`
-      keeps it
 - [ ] `dotfiles` suite green at 24 tests, from both the main checkout and a
       linked worktree; `core.hooksPath` non-empty afterward
 - [ ] `uchg` removed from `dotfiles/.git/config`, or restored with a
       contamination report explaining why
 - [ ] Every new test was observed failing before its fix
 
-Then update the spec's status line to record which starter-set items landed,
-and open issues for the three spec items still unfiled that this plan
-touches: `GH_TOKEN` precedence (Task 5), `git-identity.sh` org-blindness
-(Task 3). The spec lists both under "Items needing GitHub issues".
+Then update the design's status line to record which starter-set items
+landed, and open an issue for the one unfiled defect this plan actually
+fixes: **`GH_TOKEN` precedence** (Task 5). The design lists it under "Items
+needing GitHub issues".
+
+Do **not** file the `git-identity.sh` org-blindness issue that list also
+names — the 2026-09-02 audit disproved it as an active defect. If it is filed
+at all, it is a latent-hazard note, not a bug report.
