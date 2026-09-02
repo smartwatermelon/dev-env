@@ -1,6 +1,8 @@
 # Design: Infrastructure Backlog Consolidation
 
-Status: DESIGN — approved in session 2026-09-01. No implementation started.
+Status: DESIGN — approved 2026-09-01; re-confirmed 2026-09-02 after folding in
+the issue delta below. No implementation started. Next step is the
+implementation plan.
 
 ## Purpose
 
@@ -16,6 +18,13 @@ environments. Product-level work (Personify features, Kebab, new
 applications) is explicitly out of scope. Product repos surveyed and excluded:
 `cleanroom` (7 issues), `projectinsomnia` (7), `tensegrity` (3),
 `financial-agent` (5), `amelia-boone` (2), `kebab-tax` (200).
+
+**One deliberate exception to that boundary (decided 2026-09-02):** the Node
+EOL remediation (N1) covers product repos as well as infrastructure repos.
+Runtime EOL is a security-patch property of the whole fleet, not of a repo's
+category, and splitting the audit by category would leave the larger half of
+the exposure untracked. The exclusion above still governs every other item —
+N1 does not open product repos to unrelated work.
 
 Sources: open issues across 8 infrastructure repos; `docs/plans/` in
 `dotfiles`, `claude-wrapper`, `github-workflows`, `scripts`, `claude-config`,
@@ -137,18 +146,25 @@ LOCAL REVIEW (independent; parallel with everything)
   L2  Deploy/edit separation (claude-config#453)
        └──> L3  False-OK cluster (#439, #451, empty pre-commit)
   L4  Doc hygiene  [no dependencies]
+
+RUNTIME EOL (independent; parallel with everything)
+  N1  Node EOL migration (dev-env#78)
+       ├──> N1a  local nvm default + infra-repo CI pins   [no dependencies]
+       └──> N1b  product-repo CI, Dockerfiles, manifests  [no dependencies]
+       └──> (feeds W1: Node-version assertion in standards-check)
 ```
 
 ## Foundation layer
 
-### F1 — Extract a shared owner-resolver
+### F1 — Extract a shared owner-resolver — **DONE (verified 2026-09-02)**
 
-`gh-wrapper.sh:60-96` already parses the repo owner out of
-`remote.origin.url`, handling both `git@host:` and `https://` forms. Three
-pending changes need exactly this logic: F2, F3, and I1. Extract it once.
+`_gh_wrapper_resolve_owner()` exists at `dotfiles/bash/gh-wrapper.sh:61-96`.
+It handles both `git@host:` and `scheme://host/` remote forms plus
+`-R`/`--repo`/`--repo=`/`-R<value>` parsing, and is already shared by
+`_gh_wrapper_sync_identity` and `_gh_wrapper_force_draft_for_off_org`. Its
+header comment states the anti-drift purpose this item was written to serve.
 
-No behavior change. Testable in isolation against fake git remotes, mirroring
-the existing style in `claude-wrapper/tests/test-wrapper.sh`.
+No work remains. F2, F3, and I1 consume it as-is.
 
 ### F2 — Make `git-identity.sh` owner-aware
 
@@ -190,6 +206,19 @@ perform per-org routing."
 Resolve the missing `admin:org` scope, either by adding it to the CCCLI PAT or
 by routing org-level operations to the keyring identity. The choice is forced
 by F3's design, so treat them as one decision.
+
+**Decision (2026-09-02): route org-level operations to the keyring identity.**
+Widening the CCCLI PAT was rejected: that token is exported into every session
+unconditionally (`credentials.sh:112`), so adding `admin:org` to it widens the
+blast radius of precisely the credential whose over-reach is the F3 defect.
+Routing keeps the session token narrow.
+
+Consequence to carry into implementation: this couples F4 to the router work
+F3 deliberately deferred. F3's cheap tier does not route — it only fails
+closed. So F4 needs either the full `CLAUDE_GH_TOKEN_ROUTER` (both wrapper
+branches, plus a second PAT) or a narrower escape hatch that unsets `GH_TOKEN`
+for org-scoped calls only. Decide that shape when I3 is planned; it is not
+settled here.
 
 Blocks I3 Phase 4.
 
@@ -463,8 +492,16 @@ Independent of everything above; can run in parallel.
 
 An inherited `GIT_DIR` from an agent worktree makes fixture tests write to the
 real `.git/config`, blanking `core.hooksPath`. That silently disables every
-local review hook — **including the detector that would notice.** Analysis
-complete; remediation untouched.
+local review hook — **including the detector that would notice.**
+
+**Remediation has landed (verified 2026-09-02).** `bash/tests/lib/git-env-
+isolation.sh` exists and is used by 9 fixture tests.
+`test-git-env-isolation.sh` validates it the right way: it injects the
+condition (a throwaway repo with a linked worktree and an exported `GIT_DIR`,
+because git exports `GIT_DIR` to a hook only from a linked worktree — which is
+why three prior investigations found nothing) and includes a control case
+requiring the *unguarded* operation to contaminate. Suite: 23 passed, 0
+failed. Only the `uchg` removal below is outstanding.
 
 Currently held closed by a `chflags uchg` tripwire on
 `dotfiles/.git/config` — verified still engaged 2026-09-01. `core.hooksPath`
@@ -517,10 +554,70 @@ Stale status markers, each currently reading as unstarted work:
 | `dev-env/docs/plans/2026-08-27-workflow-sha-pinning.md` | proposed, not started | Phase 1 + Task 2.2 shipped; supersede with #77 |
 | `dev-env/CLAUDE.md:24` | March plan is "the active roadmap" | Phases 3-5 abandoned; contradicts `README.md:7` |
 
+Also folded in (claude-config#465, filed 2026-09-02): a `CLAUDE.md` section
+covering factual claims in prose drafted for the user to publish under their
+own identity. The existing "Verifying agent claims" rule scopes to "I did X"
+statements and "resolve the thing; don't match its label" reads as being
+about state checks, so neither fires while writing prose — which is the
+highest-stakes output, since it carries the user's name in front of senior
+reviewers. Doc-only change; it belongs in this layer rather than as its own
+track.
+
 Also: `docs/data/corpus-440/RESULTS.md` already answered the narrowed-prompt
 question (baseline 29/47, narrowed 27/47, blind control 1/47 — keep the
 unscoped prompt), but `docs/plans/2026-08-26-review-pipeline-redesign-design.md`
 still lists it open. And `github-workflows/CLAUDE.md` is a 0-byte file.
+
+## Runtime EOL layer
+
+### N1 — Node EOL migration (dev-env#78)
+
+Filed 2026-09-01, after the rest of this design was written. Independent of
+every other track; nothing here blocks it and it blocks nothing except a W1
+detail.
+
+Node 20 reached EOL 2026-04-30 and receives no security patches. It is pinned
+across CI workflows, Dockerfiles, and manifests fleet-wide. One repo is still
+on Node 18 (EOL 2025-04-30) and one manifest floor admits Node 14 (EOL
+2023-04-30). EOL dates in #78 are from `nodejs/Release` `schedule.json`,
+fetched 2026-09-01.
+
+**Scope decision (2026-09-02): all repos, product included.** See the
+exception recorded under Purpose.
+
+**N1a — local default and infrastructure repos.**
+`~/.nvm/alias/default` holds `20`, and nvm prepends its version at `PATH`
+position 1, ahead of Homebrew at position 6 — so v20.20.2 shadows the v22,
+v24, and Homebrew v26 installs that are all present and idle. Nothing is
+missing; the pin is the cause. Low-risk: all three nvm versions carry only
+`corepack` and `npm` globally, so nothing needs reinstalling.
+`nvm alias default lts/krypton` (v24.19.0), then `hash -r`.
+
+Verify with `which node`, **not** `command -v node` or `type node` — those
+read bash's hash table and will report the stale path. This is the standing
+PATH-shim gotcha; it applies here exactly.
+
+Infrastructure-repo CI pins: `claude-code-workflows-agents`
+(`code-quality.yml:80`, `validate.yml:233`).
+
+**N1b — product repos.** `tensegrity` (`ci.yml:18`, Node 18);
+`kebab-tax` (`deploy-workers.yml:37,68,139`, `release-gate.yml:47`,
+`ci.yml:65,149`, `mobile/Dockerfile.test:2`, `.nvmrc` at `20.19.4` — also
+consumed by `publish-changelog.yml:27` via `node-version-file`);
+`Gmail-MCP-Server` (`ci.yml:171`, `Dockerfile:1`, `engines.node: >=14.0.0`;
+note `publish.yml:34,66` is already on 22, so CI and publish disagree);
+`reliquarist` (`ci.yml:31`, `engines.node: >=20.0.0`).
+
+**Known-bad validation:** a version bump is exactly the kind of change that
+reports success while proving nothing — a workflow can pass because its Node
+step was never reached. Before each bump, confirm the job actually executes
+the Node step and that the pre-bump version is what it reports. Line numbers
+above are from #78 as of 2026-09-01; re-resolve them before editing.
+
+**Feeds W1:** once `standards-check.yml` exists, it should assert a
+supported Node line, and `repo-template` should seed one — otherwise the
+fleet drifts back. Do not block N1 on W1; the audit is worth doing now and
+the assertion is a later addition.
 
 ### L5 — Small unfiled items
 
@@ -564,16 +661,33 @@ Standing constraint, recorded so it is not revisited: repointing
 `/bin/bash` is the only SIP-protected, stably-FDA-grantable interpreter. Do
 not revisit without an FDA-stability plan.
 
+## Issue delta since this design was written
+
+Swept 2026-09-02 across both orgs for issues opened after 2026-09-01. Six
+found; the sweep is recorded so the next reader knows the window that was
+checked rather than re-deriving it.
+
+| Issue | Disposition |
+| --- | --- |
+| dev-env#78 — Node 20 past EOL | **New scope.** Became N1; product repos included by decision. |
+| dev-env#77 — SHA-pinning plan stale | Already cited (L4, and the `--fix=all` section). No change. |
+| claude-config#465 — verify claims in published drafts | Folded into L4 as a `CLAUDE.md` change. |
+| claude-config#458 — non-blocking findings from PR #457 | Routine review-findings batch. Not this backlog's throughline. |
+| dotfiles#298, #296 — non-blocking findings from PRs #297/#295 | Finicky PWA config. Unrelated to this plan; left to their own issues. |
+
+Nothing in the delta reverses a decision or changes the critical path.
+
 ## Execution notes
 
-**Three tracks run in parallel.** Foundation + identity (F, I) and local
-review (L) are independent. Fleet (W) waits on I3.
+**Four tracks run in parallel.** Foundation + identity (F, I), local
+review (L), and runtime EOL (N) are independent. Fleet (W) waits on I3.
 
 **Critical path** is I3 → W1 → W2 → W3. Everything else fits around it.
 
 **Start with:** L1 (gates whether local review is real), F1 → F2/F3 (stops
-wrong-identity actions), I0 (unblocks the billing control). These three are
-independent of each other and of the critical path.
+wrong-identity actions), I0 (unblocks the billing control), and N1a (one
+command plus two CI pins; removes an unpatched runtime from daily use). All
+four are independent of each other and of the critical path.
 
 **Validate every fix against a known-bad case.** Six of the defects here
 report success while doing nothing. A clean result from an unvalidated check
