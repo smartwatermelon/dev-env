@@ -1,8 +1,36 @@
 # Design: Infrastructure Backlog Consolidation
 
-Status: DESIGN — approved 2026-09-01; re-confirmed 2026-09-02 after folding in
-the issue delta below. No implementation started. Next step is the
-implementation plan.
+Status: STARTER SET LANDED — design approved 2026-09-01; re-confirmed
+2026-09-02 after folding in the issue delta below. The starter set executed
+2026-09-02/03; the rest of the backlog below is not started.
+
+Starter set outcome (see `docs/superpowers/plans/2026-09-02-infrastructure-backlog-starter-set.md`):
+
+| Task | Item | Outcome |
+| --- | --- | --- |
+| 1 | nvm default off EOL Node 20 | Done — `lts/krypton` (v24.19.0). Local change, no commit. |
+| 2 | `claude-code-workflows-agents` CI off Node 20 | Merged — `smartwatermelon/claude-code-workflows-agents#16`. |
+| 3 | — | Withdrawn before execution. |
+| 4 | Retire the `.git/config` `uchg` tripwire | Done — flag removed on validated known-bad-case evidence. No commit (chflags on an untracked file). Follow-up: `smartwatermelon/dotfiles#304`. |
+| 5 | Fail closed when `GH_TOKEN` overrides the resolved identity | Merged — `smartwatermelon/dotfiles#302`. Follow-up: `smartwatermelon/dotfiles#303`. |
+
+Two findings from the execution are worth carrying forward, because both are
+instances of the false-OK pattern this design exists to attack — and both
+appeared *inside* the work meant to fix it:
+
+- Task 4's first proof was vacuous. It ran the suite from a linked worktree
+  by direct `bash` invocation, which never receives the `GIT_DIR` git exports
+  only when dispatching a hook. The run would have passed identically with
+  the guard deleted. Caught in review, confirmed by measurement, and redone
+  with an injected `GIT_DIR` plus a negative control.
+- Task 5's regression test had never been observed failing before its fix was
+  written. Proven retroactively against a pristine pre-fix copy. Its guard
+  also exposed a real gap in `test-gh-wrapper-identity.sh`, which sandboxed
+  `HOME` but inherited the developer's ambient `GH_TOKEN`.
+
+The `git-identity.sh` org-blindness item named under "Items needing GitHub
+issues" was **not** filed: the 2026-09-02 audit disproved it as an active
+defect.
 
 ## Purpose
 
