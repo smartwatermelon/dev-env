@@ -1,6 +1,8 @@
 # repo<TAB>target-org — reviewed by hand in the PR that added it.
 # Source of truth for transfer.sh; never derived at run time.
-# github-workflows goes first, alone (design Step 3); transfer.sh --only.
+# Rows are alphabetical; order carries no meaning. github-workflows is
+# transferred first and alone via `transfer.sh --only github-workflows`
+# (design Step 3).
 # cleanroom is the one repo that targets nightowlstudiollc.
 .github	smartwatermelon
 archive-resolver	smartwatermelon
