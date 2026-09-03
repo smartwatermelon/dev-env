@@ -1,0 +1,35 @@
+# repo<TAB>target-org — reviewed by hand in the PR that added it.
+# Source of truth for transfer.sh; never derived at run time.
+# github-workflows goes first, alone (design Step 3); transfer.sh --only.
+# cleanroom is the one repo that targets nightowlstudiollc.
+.github	smartwatermelon
+archive-resolver	smartwatermelon
+claude-code-workflows-agents	smartwatermelon
+claude-config	smartwatermelon
+claude-config-backup	smartwatermelon
+claude-wrapper	smartwatermelon
+cleanroom	nightowlstudiollc
+crazy-larry	smartwatermelon
+dev-env	smartwatermelon
+dotfiles	smartwatermelon
+dumbify	smartwatermelon
+github-workflows	smartwatermelon
+gmail-newsletter-filter	smartwatermelon
+homebrew-tap	smartwatermelon
+huddle-transcribe	smartwatermelon
+lock-sync	smartwatermelon
+mac-dev-server-setup	smartwatermelon
+mac-server-setup	smartwatermelon
+personify	smartwatermelon
+pr-review	smartwatermelon
+projectinsomnia	smartwatermelon
+qwen-sidebar	smartwatermelon
+repo-template	smartwatermelon
+scripts	smartwatermelon
+slack-mcp	smartwatermelon
+smartwatermelon-marketplace	smartwatermelon
+spokane-snow	smartwatermelon
+superpowers	smartwatermelon
+superpowers-marketplace	smartwatermelon
+swift-progress-indicator	smartwatermelon
+x-thread-reader	smartwatermelon
