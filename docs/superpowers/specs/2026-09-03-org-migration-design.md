@@ -166,8 +166,9 @@ present (the `claude-code-action` step authenticated rather than skipped).
 - Delete the archived `smartwatermelon.github.io` repo (unused, `has_pages`
   false; Andrew's decision 2026-09-03).
 - Write `dev-env/docs/token-rotation.md` (see "Token tracking").
-- Create two Google Calendar events, one per org, two weeks before each
-  token's expiry, description pointing at the rotation runbook.
+- Create three Google Calendar events (one per org, one for `scripts`),
+  two weeks before each token's expiry, description pointing at the
+  rotation runbook. `scripts` is re-minted in Step 5 so its expiry is known.
 - File the `scripts`-goes-public issue: secret audit, history rewrite,
   then flip visibility and add branch protection.
 - Remove the temporary `smartwatermelon` login alias from the wrapper (see
@@ -216,8 +217,10 @@ the design tolerates two answers, and it has a removal step.
 
 ### F4 scope-error hint
 
-After `command gh "$@"` returns non-zero, if stderr matched
-`needs the '([a-z:_]+)' scope`, print to stderr:
+After the real `gh` returns non-zero, if stderr matched
+`needs the ["']([A-Za-z0-9:_]+)["'] scope` (gh's `ScopesSuggestion` prints
+the scope with `%q`, so double quotes; the pattern accepts both), print to
+stderr:
 
 ```text
 [gh] GH_TOKEN is set and lacks the 'admin:org' scope. The keyring identity
