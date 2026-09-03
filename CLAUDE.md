@@ -12,6 +12,9 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/plans/` — Implementation plans (e.g., infrastructure consolidation)
   - `docs/WORKFLOW-DEEP-DIVE.md` — Comprehensive reference for all enforcement layers (hooks, wrappers, CI/CD)
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
+  - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
+  - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
+- `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `.claude/` — Project-specific Claude Code configuration templates
   - `.claude/config.sh.template` — Template for project configuration (Node version, required tools, deployment secrets, build/deploy hooks)
   - `.claude/hooks/extensions/` — Project-specific git hook extensions (discovered and run by global hooks at `~/.config/git/hooks/`)
