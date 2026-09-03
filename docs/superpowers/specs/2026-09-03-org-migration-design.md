@@ -10,7 +10,8 @@ implementation plan. Executes items I3 and F4 of
 Move the active `smartwatermelon/*` repositories from a personal account
 into a GitHub organization **named `smartwatermelon`**, so that
 `CLAUDE_CODE_OAUTH_TOKEN` is set once at org level instead of once per repo.
-Annual token mints drop from ~30 to 2 (one per org).
+Annual token mints drop from ~30 to 3 (one per org, plus `scripts` until it
+goes public).
 
 Do it without changing a single repository URL. Every `uses:` reference,
 Dependabot target, Homebrew tap name, plugin-marketplace name, local remote,
@@ -26,6 +27,7 @@ before, during, and after the migration.
 | Rename-then-create, not a new org under a different name. | A different name means rewriting `uses:` refs across ~35 repos, `zizmor.yml`, every `dependabot.yml`, `repo-template`, docs, and the blog. That was the entire Phase 3 of #54. It disappears. |
 | Free plan for the org. | Every active repo is public except three. Free covers public-repo branch protection and org-level secrets. Team ($4/month) would only buy protection on private repos that take almost no PR traffic. |
 | `scripts` moves, stays private, stays unprotected; going public is a follow-up issue. | Andrew wants it public, but it needs a secret audit and a history rewrite first. Not this migration's work. |
+| `scripts` keeps its repo-level `CLAUDE_CODE_OAUTH_TOKEN`. | GitHub: "Organization-level secrets and variables are not accessible by private repositories for GitHub Free." It is the one private repo in the org that runs Claude workflows, so it stays on a per-repo token until it goes public. Annual mints become 3, not 2, until then. |
 | `claude-config-backup` moves, stays private, no protection. | Fully automated backup target. Protection would break the automation and guards nothing. |
 | `cleanroom` transfers to `nightowlstudiollc`, not to the new org. | Commercial product repo; that org is on Team and already gives it private-repo protection. |
 | Archived repos (27) and active forks (2) stay under `twistedmelonman`. | Archived repos cannot run CI, so they need no org secret. Their old URLs redirect indefinitely because the org will never reuse those names. Forks stay attached to the person. |
@@ -56,6 +58,16 @@ repositories only. The backlog design's claim that moving `scripts`,
 cannot-be-protected to ordinary fleet repos" is **false on Free** and is
 struck. The migrate-early decision stands on its remaining reasoning.
 
+**Free-plan org secrets skip private repos.** Verified in GitHub's secrets
+docs 2026-09-03. Of the three private repos: `scripts` runs
+`claude-blocking-review.yml` and `claude.yml` and keeps its repo token;
+`claude-config-backup` has no workflows and no secrets; `cleanroom` moves to
+the Team-plan org and uses that org's secret.
+
+**`projectinsomnia` is not GitHub Pages.** `gh api
+repos/smartwatermelon/projectinsomnia/pages` returns 404. No Pages host is
+affected by the rename.
+
 **Inventory (2026-09-03, `gh repo list smartwatermelon`).** 60 repos: 31
 active non-fork, 2 active forks (`homebrew-brew`, `Instapaper-MCP`), 27
 archived. Move list is the 31, with `cleanroom` targeting
@@ -64,10 +76,7 @@ archived. Move list is the 31, with `cleanroom` targeting
 **Name-bound repos that the rename approach keeps intact:** `homebrew-tap`
 (tap name `smartwatermelon/tap`), `smartwatermelon-marketplace` and
 `superpowers-marketplace` (referenced by owner in Claude settings), `.github`
-(becomes the org's community-health and profile repo), `projectinsomnia`
-(Pages site; its `smartwatermelon.github.io` Pages *host* becomes the org's
-Pages host with the same name. The archived *repo* of that name is
-unrelated and is deleted in Step 6).
+(becomes the org's community-health and profile repo).
 
 ## Sequence
 
@@ -139,9 +148,11 @@ env -u GH_TOKEN gh secret set CLAUDE_CODE_OAUTH_TOKEN \
   --org smartwatermelon --visibility all
 ```
 
-Then delete every repo-level `CLAUDE_CODE_OAUTH_TOKEN` in the org (they
-shadow the org secret). On `nightowlstudiollc`, delete the shadowing copies
-on `networth-agent` and `photo-game-poc`.
+Then delete every repo-level `CLAUDE_CODE_OAUTH_TOKEN` in the org **except
+`scripts`** (private; Free-plan org secrets do not reach it). The others
+shadow the org secret. On `nightowlstudiollc`, delete the shadowing copies
+on `networth-agent`, `photo-game-poc`, and the newly transferred
+`cleanroom`.
 
 **Verified when:** `gh secret list` on a moved repo shows no repo-level
 `CLAUDE_CODE_OAUTH_TOKEN`; one workflow on a moved repo and one on
@@ -152,9 +163,8 @@ present (the `claude-code-action` step authenticated rather than skipped).
 
 - Delete `KEBAB_TAX_GITHUB_TOKEN` from `twistedmelonman/ralph-burndown`.
 - Delete the `claude-code-login` fork (dead end, 429 from Anthropic).
-- Delete the archived `smartwatermelon.github.io` repo (unused; Andrew's
-  decision 2026-09-03). Confirm it is not `projectinsomnia`'s Pages source
-  first: `gh api repos/smartwatermelon/projectinsomnia/pages`.
+- Delete the archived `smartwatermelon.github.io` repo (unused, `has_pages`
+  false; Andrew's decision 2026-09-03).
 - Write `dev-env/docs/token-rotation.md` (see "Token tracking").
 - Create two Google Calendar events, one per org, two weeks before each
   token's expiry, description pointing at the rotation runbook.
@@ -256,8 +266,11 @@ All three scripts: Bash 5, `shellcheck -S info` clean, use the wrapped
 
 `dev-env/docs/token-rotation.md`:
 
-| Org | Minted | Expires | Minted on |
+| Scope | Minted | Expires | Minted on |
 | --- | --- | --- | --- |
+
+Three rows: org `smartwatermelon`, org `nightowlstudiollc`, repo
+`smartwatermelon/scripts`.
 
 plus the rotation runbook: mint, `env -u GH_TOKEN gh secret set --org`,
 re-run one workflow, update the table, move the calendar event.
