@@ -48,20 +48,27 @@ while read -r repo _target; do
     continue
   fi
   default_branch="$(jq -r '.default_branch' <<<"${core}")"
-  topics="$(gh api "${base}/topics" --jq '.names' 2>/dev/null || echo '[]')"
-  secrets="$(gh api "${base}/actions/secrets" --jq '[.secrets[].name] | sort' 2>/dev/null || echo '[]')"
-  if ! protection="$(_optional "${base}/branches/${default_branch}/protection")" ||
+  # topics and secrets go through _optional too: a 403 on secrets is a
+  # permission problem, not an empty secret list, and recording [] would make
+  # verify.sh read the failure as the expected state. Project the payload
+  # afterwards so a non-404 failure still fails the repo.
+  if ! topics_raw="$(_optional "${base}/topics")" ||
+    ! secrets_raw="$(_optional "${base}/actions/secrets")" ||
+    ! protection="$(_optional "${base}/branches/${default_branch}/protection")" ||
     ! rulesets="$(_optional "${base}/rulesets")" ||
     ! pages="$(_optional "${base}/pages")"; then
     echo "snapshot: FAILED to read ${repo}" >&2
     failed=$((failed + 1))
     continue
   fi
-  jq -n \
+  # The final assembly can still fail on a body that parsed as an argument but
+  # is not the shape we project. An unchecked jq here wrote an empty file and
+  # printed the success line anyway.
+  if ! jq -n \
     --arg repo "${repo}" \
     --argjson core "${core}" \
-    --argjson topics "${topics}" \
-    --argjson secrets "${secrets}" \
+    --argjson topics_raw "${topics_raw}" \
+    --argjson secrets_raw "${secrets_raw}" \
     --argjson protection "${protection}" \
     --argjson rulesets "${rulesets}" \
     --argjson pages "${pages}" \
@@ -70,8 +77,15 @@ while read -r repo _target; do
       default_branch: $core.default_branch,
       visibility: $core.visibility,
       archived: $core.archived,
-      topics: $topics, pages: $pages, secrets: $secrets,
-      protection: $protection, rulesets: $rulesets}' >"${outdir}/${repo}.json"
+      topics: ($topics_raw.names // []),
+      pages: $pages,
+      secrets: ([($secrets_raw.secrets // [])[].name] | sort),
+      protection: $protection, rulesets: $rulesets}' >"${outdir}/${repo}.json"; then
+    rm -f "${outdir}/${repo}.json"
+    echo "snapshot: FAILED to assemble ${repo}" >&2
+    failed=$((failed + 1))
+    continue
+  fi
   echo "snapshot: ${repo} -> ${outdir}/${repo}.json"
 done <<<"${pairs}"
 

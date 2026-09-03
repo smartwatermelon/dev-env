@@ -48,6 +48,22 @@ case "${path}" in
   repos/smartwatermelon/flaky/rulesets) echo '[]' | emit ;;
   repos/smartwatermelon/flaky/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/flaky/branches/main/protection) echo 'gh: Bad credentials (HTTP 401)' >&2; exit 1 ;;
+  # garbage: every sub-resource answers, but topics returns a body that is not
+  # JSON, so the final jq -n assembly cannot run.
+  repos/smartwatermelon/garbage) echo '{"name":"garbage","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"public","archived":false}' | emit ;;
+  repos/smartwatermelon/garbage/topics) echo '<html>502 Bad Gateway</html>' ;;
+  repos/smartwatermelon/garbage/actions/secrets) echo '{"secrets":[]}' | emit ;;
+  repos/smartwatermelon/garbage/rulesets) echo '[]' | emit ;;
+  repos/smartwatermelon/garbage/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  repos/smartwatermelon/garbage/branches/main/protection) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  # forbidden: the secrets endpoint fails with a 403, not a 404. That is a
+  # permission problem, not "this repo has no secrets".
+  repos/smartwatermelon/forbidden) echo '{"name":"forbidden","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"public","archived":false}' | emit ;;
+  repos/smartwatermelon/forbidden/topics) echo '{"names":[]}' | emit ;;
+  repos/smartwatermelon/forbidden/actions/secrets) echo 'gh: Resource not accessible by integration (HTTP 403)' >&2; exit 1 ;;
+  repos/smartwatermelon/forbidden/rulesets) echo '[]' | emit ;;
+  repos/smartwatermelon/forbidden/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  repos/smartwatermelon/forbidden/branches/main/protection) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/ghost*) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   *) echo "stub: unexpected path ${path}" >&2; exit 2 ;;
 esac
@@ -106,7 +122,50 @@ else
   _fail "non-404 sub-resource failure: wrote a snapshot anyway: ${wrote}"
 fi
 
-# Case 4: malformed line rejected before any API call.
+# Case 4: when the final jq assembly cannot run, no partial file may be left
+# behind and the run must fail. Unchecked, jq wrote an empty <repo>.json and
+# the script still printed the success line.
+rm -rf "${WORK}/out" && mkdir -p "${WORK}/out"
+printf 'garbage\tsmartwatermelon\n' >"${WORK}/list-garbage"
+out="$(PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-garbage" "${WORK}/out" 2>&1)"
+rc=$?
+if [[ "${rc}" -ne 0 && "${out}" == *"FAILED to assemble garbage"* ]]; then
+  _pass "unassemblable snapshot: non-zero, names garbage"
+else
+  _fail "unassemblable snapshot: expected non-zero naming garbage, got rc=${rc} out=${out}"
+fi
+if [[ ! -e "${WORK}/out/garbage.json" ]]; then
+  _pass "unassemblable snapshot: no partial file left"
+else
+  wrote="$(cat "${WORK}/out/garbage.json" || true)"
+  _fail "unassemblable snapshot: left a file: '${wrote}'"
+fi
+if [[ "${out}" != *"snapshot: garbage -> "* ]]; then
+  _pass "unassemblable snapshot: no success line"
+else
+  _fail "unassemblable snapshot: printed a success line: ${out}"
+fi
+
+# Case 5: a 403 on secrets is a permission failure, not an empty secret list.
+# `2>/dev/null || echo '[]'` recorded [] and verify.sh would read that as the
+# expected state.
+rm -rf "${WORK}/out" && mkdir -p "${WORK}/out"
+printf 'forbidden\tsmartwatermelon\n' >"${WORK}/list-forbidden"
+out="$(PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-forbidden" "${WORK}/out" 2>&1)"
+rc=$?
+if [[ "${rc}" -ne 0 && "${out}" == *forbidden* ]]; then
+  _pass "403 on secrets: non-zero, names forbidden"
+else
+  _fail "403 on secrets: expected non-zero naming forbidden, got rc=${rc} out=${out}"
+fi
+if [[ ! -e "${WORK}/out/forbidden.json" ]]; then
+  _pass "403 on secrets: no snapshot written"
+else
+  wrote="$(cat "${WORK}/out/forbidden.json" || true)"
+  _fail "403 on secrets: wrote a snapshot anyway: ${wrote}"
+fi
+
+# Case 6: malformed line rejected before any API call.
 printf 'dotfiles smartwatermelon\n' >"${WORK}/list-malformed"
 if PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-malformed" "${WORK}/out" 2>/dev/null; then
   _fail "malformed line: should fail"

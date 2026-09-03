@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Transfer every repo on the move list to its target org. Idempotent: a repo
-# already owned by its target is skipped. A failed transfer is reported and
-# the loop continues; exit 1 at the end if any failed.
+# Transfer every repo on the move list to its target org. A pre-flight checks
+# that every distinct target is a real organization before any POST.
+# Idempotent: a repo already owned by its target is skipped. A failed transfer
+# is reported and the loop continues; exit 1 at the end if any failed.
 # Usage: transfer.sh <move-list> [--only <repo>] [--dry-run]
 # Design: docs/superpowers/specs/2026-09-03-org-migration-design.md, Steps 3-4.
 set -uo pipefail
@@ -43,6 +44,30 @@ if [[ -z "${list}" ]]; then
 fi
 
 pairs="$(om_read_move_list "${list}")" || exit 1
+
+# Pre-flight: every distinct target must already be a real organization.
+# During the rename window the name `smartwatermelon` is claimable, and a
+# transfer to a *user* is an invitation sent to whoever holds the name — not a
+# move we could take back. Read-only and cheap, so --dry-run runs it too.
+preflight_failed=0
+targets="$(awk '{print $2}' <<<"${pairs}")" || exit 1
+targets="$(sort -u <<<"${targets}")" || exit 1
+while read -r target; do
+  [[ -n "${target}" ]] || continue
+  if ! target_type="$(gh api "orgs/${target}" --jq '.type' 2>/dev/null)"; then
+    echo "transfer: target ${target} does not resolve as an organization; aborting" >&2
+    preflight_failed=1
+    continue
+  fi
+  if [[ "${target_type}" != "Organization" ]]; then
+    echo "transfer: target ${target} is a ${target_type}, not an Organization; aborting" >&2
+    preflight_failed=1
+  fi
+done <<<"${targets}"
+if [[ "${preflight_failed}" -ne 0 ]]; then
+  exit 1
+fi
+
 failed=0
 seen_only=0
 while read -r repo target; do

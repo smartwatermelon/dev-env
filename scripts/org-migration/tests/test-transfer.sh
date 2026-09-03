@@ -48,6 +48,20 @@ if [[ "${method}" == "POST" && "${path}" == */transfer ]]; then
   echo '{}'
   exit 0
 fi
+# orgs/<name>: an entry in ${STATE}/orgs names one account type per line as
+# "<name> <type>". A name absent from that file 404s, as GitHub does.
+if [[ "${path}" == orgs/* ]]; then
+  want="${path#orgs/}"
+  while read -r oname otype; do
+    if [[ "${oname}" == "${want}" ]]; then
+      json="$(printf '{"login":"%s","type":"%s"}' "${oname}" "${otype}")"
+      if [[ -n "${jqexpr}" ]]; then jq -r "${jqexpr}" <<<"${json}"; else echo "${json}"; fi
+      exit 0
+    fi
+  done <"${STATE}/orgs" 2>/dev/null
+  echo "gh: Not Found (HTTP 404)" >&2
+  exit 1
+fi
 repo="${path#repos/*/}"
 # "malformed" answers a lookup with a single field, standing in for any
 # unexpected gh output (an empty owner, a truncated body).
@@ -72,6 +86,8 @@ STUB
 chmod +x "${WORK}/bin/gh"
 
 export OM_TEST_STATE="${WORK}/state"
+# Both transfer targets exist as real organizations.
+printf 'smartwatermelon Organization\nnightowlstudiollc Organization\n' >"${WORK}/state/orgs"
 echo "twistedmelonman User" >"${WORK}/state/alpha"
 echo "twistedmelonman User" >"${WORK}/state/beta"
 echo "nightowlstudiollc Organization" >"${WORK}/state/done"
@@ -139,6 +155,60 @@ if [[ "${log}" == "POST repos/twistedmelonman/beta/transfer new_owner=smartwater
   _pass "--only: exactly beta POSTed"
 else
   _fail "--only: got ${log}"
+fi
+
+# Case 7: a target that is not an organization must stop the run before any
+# POST. During the rename window a stranger can hold the user name
+# `smartwatermelon`; a user-to-user transfer would send them an invitation.
+echo "twistedmelonman User" >"${WORK}/state/alpha"
+echo "twistedmelonman User" >"${WORK}/state/beta"
+rm -f "${WORK}/state/posts"
+printf 'nightowlstudiollc Organization\n' >"${WORK}/state/orgs"
+err="$(run "${WORK}/list" 2>&1 >/dev/null)"
+rc=$?
+read_posts
+if [[ "${rc}" -eq 1 && "${err}" == *smartwatermelon* && -z "${log}" ]]; then
+  _pass "missing target org: exit 1, zero POSTs"
+else
+  _fail "missing target org: rc=${rc} err=${err} posts=${log}"
+fi
+
+# Case 8: a target that resolves but is a User (the squatter case) is refused
+# the same way.
+printf 'smartwatermelon User\nnightowlstudiollc Organization\n' >"${WORK}/state/orgs"
+rm -f "${WORK}/state/posts"
+err="$(run "${WORK}/list" 2>&1 >/dev/null)"
+rc=$?
+read_posts
+if [[ "${rc}" -eq 1 && "${err}" == *smartwatermelon* && -z "${log}" ]]; then
+  _pass "target is a User: exit 1, zero POSTs"
+else
+  _fail "target is a User: rc=${rc} err=${err} posts=${log}"
+fi
+
+# Case 9: --dry-run runs the pre-flight too. It is read-only and cheap, and a
+# dry run that skips it would report a plan that cannot execute.
+rm -f "${WORK}/state/posts"
+err="$(run "${WORK}/list" --dry-run 2>&1 >/dev/null)"
+rc=$?
+read_posts
+if [[ "${rc}" -eq 1 && "${err}" == *smartwatermelon* && -z "${log}" ]]; then
+  _pass "dry-run: pre-flight still enforced"
+else
+  _fail "dry-run: pre-flight skipped: rc=${rc} err=${err} posts=${log}"
+fi
+
+# Case 10: --only with a repo that is not on the move list exits 1 and POSTs
+# nothing. A typo must not look like a successful no-op run.
+printf 'smartwatermelon Organization\nnightowlstudiollc Organization\n' >"${WORK}/state/orgs"
+rm -f "${WORK}/state/posts"
+err="$(run "${WORK}/list" --only nosuchrepo 2>&1 >/dev/null)"
+rc=$?
+read_posts
+if [[ "${rc}" -eq 1 && "${err}" == *nosuchrepo* && -z "${log}" ]]; then
+  _pass "--only off-list: exit 1, no POST"
+else
+  _fail "--only off-list: rc=${rc} err=${err} posts=${log}"
 fi
 
 exit "${fail}"

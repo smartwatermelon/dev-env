@@ -58,16 +58,25 @@ while read -r repo target; do
     fail=1
     continue
   fi
-  # Every top-level field except owner must be byte-identical.
-  changed="$(jq -r -n --slurpfile b "${b}" --slurpfile a "${a}" \
+  # Every top-level field except owner must be byte-identical. A jq failure
+  # here means a snapshot is unreadable, not that nothing changed: swallowing
+  # it would leave ${changed} empty and report the repo as ok.
+  if ! changed="$(jq -r -n --slurpfile b "${b}" --slurpfile a "${a}" \
     '($b[0] | del(.owner)) as $x | ($a[0] | del(.owner)) as $y
-     | [($x + $y | keys[]) | select($x[.] != $y[.])] | join(",")' || true)"
+     | [($x + $y | keys[]) | select($x[.] != $y[.])] | join(",")')"; then
+    echo "verify: ${repo}: cannot diff snapshots" >&2
+    fail=1
+    continue
+  fi
   if [[ -n "${changed}" ]]; then
     echo "verify: ${repo}: fields changed besides owner: ${changed}" >&2
     fail=1
   fi
-  login="$(jq -r '.owner.login' "${a}" || true)"
-  type="$(jq -r '.owner.type' "${a}" || true)"
+  if ! login="$(jq -r '.owner.login' "${a}")" || ! type="$(jq -r '.owner.type' "${a}")"; then
+    echo "verify: ${repo}: cannot diff snapshots" >&2
+    fail=1
+    continue
+  fi
   if [[ "${login,,}" != "${target,,}" || "${type}" != "Organization" ]]; then
     echo "verify: ${repo}: owner is ${login} (${type}), expected ${target} (Organization)" >&2
     fail=1

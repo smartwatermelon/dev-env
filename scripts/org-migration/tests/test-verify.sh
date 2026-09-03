@@ -157,7 +157,33 @@ else
   _fail "nested clone: rc=${rc} out=${out}"
 fi
 
-# Case 8: a broken nested clone fails the run.
+# Case 8a: an unparseable baseline JSON must fail the repo, not read as "ok".
+# jq's failure used to be swallowed by `|| true`, leaving ${changed} empty --
+# which the loop read as "no fields changed besides owner".
+mkdir -p "${WORK}/base-truncated"
+cp "${WORK}/base/cleanroom.json" "${WORK}/base-truncated/cleanroom.json"
+head -c 20 "${WORK}/base/alpha.json" >"${WORK}/base-truncated/alpha.json"
+after_bad="$(mktemp -d "${WORK}/after-XXXXXX")" && rmdir "${after_bad}"
+err="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list" "${WORK}/base-truncated" "${after_bad}" --clones "${WORK}/clones-good" 2>&1 >/dev/null)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${err}" == *"alpha: cannot diff snapshots"* ]]; then
+  _pass "unparseable baseline: exit 1, reports cannot diff snapshots"
+else
+  _fail "unparseable baseline: rc=${rc} err=${err}"
+fi
+
+# Case 8b: and it must not print a per-repo ok line for that repo.
+after_bad2="$(mktemp -d "${WORK}/after-XXXXXX")" && rmdir "${after_bad2}"
+out="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list" "${WORK}/base-truncated" "${after_bad2}" --clones "${WORK}/clones-good" 2>&1)"
+if [[ "${out}" != *"verify: alpha: ok"* ]]; then
+  _pass "unparseable baseline: no ok line for alpha"
+else
+  _fail "unparseable baseline: printed an ok line: ${out}"
+fi
+
+# Case 9: a broken nested clone fails the run.
 mkdir -p "${WORK}/clones-nested-bad/clients/broken/.git"
 echo "git@github.com:smartwatermelon/broken.git" >"${WORK}/clones-nested-bad/clients/broken/.git/ORIGIN"
 err="$(run "${WORK}/core-good" "${WORK}/clones-nested-bad" 2>&1 >/dev/null)"
