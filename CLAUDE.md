@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase; there are no build, test, or lint commands.
+This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase and there is no build step, but it is not command-free either:
+
+- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`.
+- **Lint**: `shellcheck -S info <script>` applies to every shell script in the repo, and must be clean with no `# shellcheck disable` directives.
 
 ## Repository Structure
 

@@ -72,7 +72,36 @@ gh api repos/smartwatermelon/dotfiles --jq '.owner.login + " " + .owner.type'  #
 cd ~/Developer/dotfiles && gh pr list --limit 1           # identity guard passes, no error
 ```
 
-## F. The other two machines (TILSIT, MIMOLETTE)
+## F. Verify the transfer (`verify.sh`)
+
+```bash
+bash scripts/org-migration/verify.sh scripts/org-migration/move-list.txt \
+  docs/data/org-migration/baseline "$(mktemp -d)"
+```
+
+**Always give `verify.sh` a fresh, empty after-dir.** It refuses a directory
+that already holds files, because a leftover JSON from an earlier run would be
+compared as though this run had just written it — a repo whose snapshot failed
+now could still be reported ok from stale state. A `mktemp -d` per run is the
+simplest way to get one.
+
+**`cleanroom` is the one repo that moves to a *different* owner name**
+(`nightowlstudiollc`, not `smartwatermelon`), so its URL-bearing fields may
+legitimately differ: `protection.url`, a ruleset's `source` and `_links`, and
+`pages.html_url` all embed the owner. A `fields changed besides owner` report
+naming only those fields, for `cleanroom` only, is expected — not drift to
+"restore". Inspect it before deciding:
+
+```bash
+diff <(jq -S . docs/data/org-migration/baseline/cleanroom.json) \
+     <(jq -S . <after-dir>/cleanroom.json)
+```
+
+If every difference is an owner name inside a URL, the transfer is correct.
+The same report for any other repo, or a difference in a non-URL field, is
+real drift.
+
+## G. The other two machines (TILSIT, MIMOLETTE)
 
 Run section D on each, before the alias-removal PR (plan Task 12) merges.
 Until then the alias keeps the old `hosts.yml` name working.
