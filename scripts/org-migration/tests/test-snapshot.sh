@@ -37,9 +37,17 @@ case "${path}" in
     echo '{"name":"dotfiles","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"public","archived":false,"has_pages":false}' | emit ;;
   repos/smartwatermelon/dotfiles/topics) echo '{"names":["bash","dotfiles"]}' | emit ;;
   repos/smartwatermelon/dotfiles/actions/secrets) echo '{"secrets":[{"name":"CLAUDE_CODE_OAUTH_TOKEN"},{"name":"ANOTHER"}]}' | emit ;;
-  repos/smartwatermelon/dotfiles/branches/main/protection) echo '{"message":"Branch not protected"}' >&2; exit 1 ;;
+  repos/smartwatermelon/dotfiles/branches/main/protection) echo 'gh: Branch not protected (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/dotfiles/rulesets) echo '[{"id":1,"name":"main"}]' | emit ;;
-  repos/smartwatermelon/dotfiles/pages) echo '{"message":"Not Found"}' >&2; exit 1 ;;
+  repos/smartwatermelon/dotfiles/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  # flaky: the core repo reads fine, but a sub-resource fails with something
+  # that is NOT a 404 — a transient error or an expired token.
+  repos/smartwatermelon/flaky) echo '{"name":"flaky","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"public","archived":false}' | emit ;;
+  repos/smartwatermelon/flaky/topics) echo '{"names":[]}' | emit ;;
+  repos/smartwatermelon/flaky/actions/secrets) echo '{"secrets":[]}' | emit ;;
+  repos/smartwatermelon/flaky/rulesets) echo '[]' | emit ;;
+  repos/smartwatermelon/flaky/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  repos/smartwatermelon/flaky/branches/main/protection) echo 'gh: Bad credentials (HTTP 401)' >&2; exit 1 ;;
   repos/smartwatermelon/ghost*) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   *) echo "stub: unexpected path ${path}" >&2; exit 2 ;;
 esac
@@ -79,7 +87,26 @@ else
   _fail "missing repo: good repo skipped"
 fi
 
-# Case 3: malformed line rejected before any API call.
+# Case 3: a sub-resource that fails with something other than 404 must fail
+# the snapshot. Recording `null` there would make verify.sh read a transient
+# error or an expired token as "no branch protection configured".
+rm -rf "${WORK}/out" && mkdir -p "${WORK}/out"
+printf 'flaky\tsmartwatermelon\n' >"${WORK}/list-flaky"
+err="$(PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-flaky" "${WORK}/out" 2>&1 >/dev/null)"
+rc=$?
+if [[ "${rc}" -ne 0 && "${err}" == *flaky* ]]; then
+  _pass "non-404 sub-resource failure: non-zero and names flaky"
+else
+  _fail "non-404 sub-resource failure: expected non-zero naming flaky, got rc=${rc} err=${err}"
+fi
+if [[ ! -f "${WORK}/out/flaky.json" ]]; then
+  _pass "non-404 sub-resource failure: no snapshot written"
+else
+  wrote="$(cat "${WORK}/out/flaky.json" || true)"
+  _fail "non-404 sub-resource failure: wrote a snapshot anyway: ${wrote}"
+fi
+
+# Case 4: malformed line rejected before any API call.
 printf 'dotfiles smartwatermelon\n' >"${WORK}/list-malformed"
 if PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-malformed" "${WORK}/out" 2>/dev/null; then
   _fail "malformed line: should fail"

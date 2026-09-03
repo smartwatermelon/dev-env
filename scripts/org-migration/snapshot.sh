@@ -16,14 +16,26 @@ list="$1"
 outdir="$2"
 mkdir -p "${outdir}"
 
-# Fetch a sub-resource; print `null` when GitHub answers 404 (not configured).
+# Fetch a sub-resource. A 404 means "not configured" and prints `null`. Any
+# other failure — a transient error, an expired token — is a failure, not an
+# absence: mapping it to `null` would let verify.sh read it as expected state.
+# Non-zero on such a failure, with gh's message on stderr.
 _optional() {
-  local out
-  if out="$(gh api "$1" 2>/dev/null)"; then
+  local out err why rc=0
+  err="$(mktemp)" || return 1
+  # Cleanup on every exit path, including an early return.
+  trap 'rm -f "${err}"' RETURN
+  out="$(gh api "$1" 2>"${err}")" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     printf '%s\n' "${out}"
-  else
+  elif grep -q '(HTTP 404)' "${err}"; then
     echo null
+    rc=0
+  else
+    why="$(tr '\n' ' ' <"${err}" || true)"
+    printf 'snapshot: %s: %s\n' "$1" "${why}" >&2
   fi
+  return "${rc}"
 }
 
 pairs="$(om_read_move_list "${list}")" || exit 1
@@ -38,9 +50,13 @@ while read -r repo _target; do
   default_branch="$(jq -r '.default_branch' <<<"${core}")"
   topics="$(gh api "${base}/topics" --jq '.names' 2>/dev/null || echo '[]')"
   secrets="$(gh api "${base}/actions/secrets" --jq '[.secrets[].name] | sort' 2>/dev/null || echo '[]')"
-  protection="$(_optional "${base}/branches/${default_branch}/protection")"
-  rulesets="$(_optional "${base}/rulesets")"
-  pages="$(_optional "${base}/pages")"
+  if ! protection="$(_optional "${base}/branches/${default_branch}/protection")" ||
+    ! rulesets="$(_optional "${base}/rulesets")" ||
+    ! pages="$(_optional "${base}/pages")"; then
+    echo "snapshot: FAILED to read ${repo}" >&2
+    failed=$((failed + 1))
+    continue
+  fi
   jq -n \
     --arg repo "${repo}" \
     --argjson core "${core}" \
