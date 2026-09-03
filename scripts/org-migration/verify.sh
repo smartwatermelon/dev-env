@@ -34,7 +34,20 @@ base="${positional[1]}"
 after="${positional[2]}"
 fail=0
 
-bash "${HERE}/snapshot.sh" "${list}" "${after}" >/dev/null || fail=1
+# The after-dir must be ours alone. A leftover JSON from an earlier run would
+# be compared as though this run had just written it, so a repo whose snapshot
+# failed now could still be reported ok from stale state.
+if [[ -e "${after}" ]] && [[ -n "$(ls -A "${after}" 2>/dev/null || true)" ]]; then
+  echo "verify: after-dir ${after} is not empty; use a fresh directory" >&2
+  exit 1
+fi
+
+# A failed snapshot means the after-dir is incomplete. Stop here: comparing a
+# partial snapshot would print per-repo ok lines that describe nothing.
+if ! bash "${HERE}/snapshot.sh" "${list}" "${after}" >/dev/null; then
+  echo "verify: snapshot failed; not comparing against the baseline" >&2
+  exit 1
+fi
 
 pairs="$(om_read_move_list "${list}")" || exit 1
 while read -r repo target; do
@@ -64,15 +77,19 @@ while read -r repo target; do
 done <<<"${pairs}"
 
 # Every local clone whose origin is smartwatermelon/* must still resolve.
-for gitdir in "${clones}"/*/.git; do
+# ~/Developer is not flat: clients/<repo> and netlify/crazy-larry sit one
+# level deeper, so scan both depths.
+for gitdir in "${clones}"/*/.git "${clones}"/*/*/.git; do
   [[ -e "${gitdir}" ]] || continue
   dir="${gitdir%/.git}"
   url="$(git -C "${dir}" remote get-url origin 2>/dev/null || true)"
   [[ "${url}" =~ github\.com[:/]smartwatermelon/ ]] || continue
+  # Name it relative to the clones root, so a nested clone is unambiguous.
+  name="${dir#"${clones}"/}"
   if git -C "${dir}" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then
-    echo "verify: clone ${dir##*/}: ls-remote ok"
+    echo "verify: clone ${name}: ls-remote ok"
   else
-    echo "verify: clone ${dir##*/}: ls-remote FAILED (${url})" >&2
+    echo "verify: clone ${name}: ls-remote FAILED (${url})" >&2
     fail=1
   fi
 done

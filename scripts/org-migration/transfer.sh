@@ -55,8 +55,14 @@ while read -r repo target; do
     failed=$((failed + 1))
     continue
   fi
-  login="${current% *}"
-  type="${current#* }"
+  # "login type", exactly two space-free fields. Anything else is unexpected
+  # gh output; treat it as a lookup failure rather than POSTing garbage.
+  read -r login type <<<"${current}"
+  if [[ ! "${current}" =~ ^[^[:space:]]+[[:space:]][^[:space:]]+$ || -z "${login}" || -z "${type}" ]]; then
+    echo "transfer: ${repo}: unexpected owner lookup result '${current}'; skipping" >&2
+    failed=$((failed + 1))
+    continue
+  fi
   if [[ "${login,,}" == "${target,,}" && "${type}" == "Organization" ]]; then
     echo "transfer: ${repo}: already under ${target}; skip"
     continue

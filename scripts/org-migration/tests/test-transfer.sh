@@ -49,6 +49,13 @@ if [[ "${method}" == "POST" && "${path}" == */transfer ]]; then
   exit 0
 fi
 repo="${path#repos/*/}"
+# "malformed" answers a lookup with a single field, standing in for any
+# unexpected gh output (an empty owner, a truncated body).
+if [[ "${repo}" == "malformed" ]]; then
+  json='{"name":"malformed","owner":{"login":"","type":""}}'
+  if [[ -n "${jqexpr}" ]]; then jq -r "${jqexpr}" <<<"${json}"; else echo "${json}"; fi
+  exit 0
+fi
 if [[ -f "${STATE}/${repo}" ]]; then
   read -r login type <"${STATE}/${repo}"
   # repos/smartwatermelon/<repo> always resolves (the redirect path). A lookup
@@ -109,7 +116,20 @@ if [[ "${rc}" -eq 1 && "${err}" == *stuck* ]]; then _pass "stuck: reported, exit
 read_posts
 if [[ "${log}" == *"/beta/transfer"* ]]; then _pass "stuck: loop continued to beta"; else _fail "stuck: beta not attempted"; fi
 
-# Case 5: --only restricts to one repo.
+# Case 5: an unexpected lookup result must fail that repo, not POST garbage.
+# The old split produced an empty login and POSTed repos//malformed/transfer.
+rm -f "${WORK}/state/posts"
+printf 'malformed\tsmartwatermelon\n' >"${WORK}/list-malformed"
+err="$(run "${WORK}/list-malformed" 2>&1 >/dev/null)"
+rc=$?
+read_posts
+if [[ "${rc}" -eq 1 && "${err}" == *malformed* && -z "${log}" ]]; then
+  _pass "malformed lookup: reported, exit 1, no POST"
+else
+  _fail "malformed lookup: rc=${rc} err=${err} posts=${log}"
+fi
+
+# Case 6: --only restricts to one repo.
 echo "twistedmelonman User" >"${WORK}/state/alpha"
 echo "twistedmelonman User" >"${WORK}/state/beta"
 rm -f "${WORK}/state/posts"

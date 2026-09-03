@@ -40,7 +40,11 @@ case "${path}" in
   repos/smartwatermelon/*/branches/*/protection | repos/smartwatermelon/*/pages)
     echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/*/rulesets) echo '[]' | emit ;;
-  repos/smartwatermelon/*) emit <"${OM_TEST_CORE:?}/${repo}.json" ;;
+  repos/smartwatermelon/*)
+    if [[ ! -f "${OM_TEST_CORE:?}/${repo}.json" ]]; then
+      echo 'gh: Not Found (HTTP 404)' >&2; exit 1
+    fi
+    emit <"${OM_TEST_CORE}/${repo}.json" ;;
   *) exit 1 ;;
 esac
 STUB
@@ -77,7 +81,16 @@ echo "git@github.com:smartwatermelon/alpha.git" >"${WORK}/clones/good/.git/ORIGI
 echo "git@github.com:someoneelse/thing.git" >"${WORK}/clones/other/.git/ORIGIN"
 echo "git@github.com:smartwatermelon/broken.git" >"${WORK}/clones/broken/.git/ORIGIN"
 
-run() { OM_TEST_CORE="$1" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" "${WORK}/list" "${WORK}/base" "${WORK}/after" --clones "$2"; }
+# verify.sh refuses a non-empty after-dir, so every run gets a fresh one. run()
+# is often called inside $(...), where an incremented counter would not survive
+# the subshell, so derive the directory from a mktemp -d instead.
+run() {
+  local out
+  out="$(mktemp -d "${WORK}/after-XXXXXX")"
+  rmdir "${out}"
+  OM_TEST_CORE="$1" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+    "${WORK}/list" "${WORK}/base" "${out}" --clones "$2"
+}
 
 # Case 1: owner-only change, all clones fine -> exit 0.
 mkdir -p "${WORK}/core-good" "${WORK}/clones-good"
@@ -106,5 +119,53 @@ if [[ "${rc}" -eq 1 && "${err}" == *alpha* ]]; then _pass "not transferred: exit
 err="$(run "${WORK}/core-good" "${WORK}/clones" 2>&1 >/dev/null)"
 rc=$?
 if [[ "${rc}" -eq 1 && "${err}" == *broken* && "${err}" != *other* ]]; then _pass "clones: broken reported, other ignored"; else _fail "clones: rc=${rc} err=${err}"; fi
+
+# Case 5: a non-empty after-dir is refused. Otherwise a stale JSON from an
+# earlier run would be compared as if this run had just written it.
+mkdir -p "${WORK}/after-stale"
+cp "${WORK}/base/alpha.json" "${WORK}/after-stale/alpha.json"
+err="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list" "${WORK}/base" "${WORK}/after-stale" --clones "${WORK}/clones-good" 2>&1 >/dev/null)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${err}" == *after-stale* ]]; then
+  _pass "stale after-dir: refused, exit 1"
+else
+  _fail "stale after-dir: rc=${rc} err=${err}"
+fi
+
+# Case 6: when the snapshot fails, stop before the comparison loop -- never
+# print a per-repo ok line based on files this run did not write.
+printf 'alpha\tsmartwatermelon\nghost\tsmartwatermelon\n' >"${WORK}/list-ghost"
+out="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list-ghost" "${WORK}/base" "${WORK}/after-ghost" --clones "${WORK}/clones-good" 2>&1)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${out}" != *": ok"* ]]; then
+  _pass "snapshot failure: exit 1 with no per-repo ok line"
+else
+  _fail "snapshot failure: rc=${rc} out=${out}"
+fi
+
+# Case 7: ~/Developer is not flat -- clients/<repo> and netlify/crazy-larry sit
+# one level deeper, so a nested clone must be checked too.
+mkdir -p "${WORK}/clones-nested/netlify/crazy-larry/.git"
+echo "git@github.com:smartwatermelon/crazy-larry.git" >"${WORK}/clones-nested/netlify/crazy-larry/.git/ORIGIN"
+out="$(run "${WORK}/core-good" "${WORK}/clones-nested" 2>&1)"
+rc=$?
+if [[ "${rc}" -eq 0 && "${out}" == *crazy-larry* ]]; then
+  _pass "nested clone: checked one level deeper"
+else
+  _fail "nested clone: rc=${rc} out=${out}"
+fi
+
+# Case 8: a broken nested clone fails the run.
+mkdir -p "${WORK}/clones-nested-bad/clients/broken/.git"
+echo "git@github.com:smartwatermelon/broken.git" >"${WORK}/clones-nested-bad/clients/broken/.git/ORIGIN"
+err="$(run "${WORK}/core-good" "${WORK}/clones-nested-bad" 2>&1 >/dev/null)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${err}" == *broken* ]]; then
+  _pass "nested clone: broken one reported, exit 1"
+else
+  _fail "nested clone broken: rc=${rc} err=${err}"
+fi
 
 exit "${fail}"
