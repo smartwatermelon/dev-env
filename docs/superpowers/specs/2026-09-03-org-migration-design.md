@@ -30,6 +30,7 @@ before, during, and after the migration.
 | `cleanroom` transfers to `nightowlstudiollc`, not to the new org. | Commercial product repo; that org is on Team and already gives it private-repo protection. |
 | Archived repos (27) and active forks (2) stay under `twistedmelonman`. | Archived repos cannot run CI, so they need no org secret. Their old URLs redirect indefinitely because the org will never reuse those names. Forks stay attached to the person. |
 | Delete `KEBAB_TAX_GITHUB_TOKEN` from the archived `ralph-burndown`. | Only non-Claude secret in the account. Nothing consumes it. |
+| Delete the archived `smartwatermelon.github.io` repo. | Not in use. After the rename it would become `twistedmelonman.github.io`, a Pages host nothing points at. Deleting is simpler than carrying it. |
 | F4 shape: explicit escape hatch, no routing, no second PAT. | Both tokens are the **same login** — see "What verification changed." Only the scope differs. A command that needs `admin:org` runs with `GH_TOKEN` unset; the wrapper then falls through to the keyring token, which has it. |
 | Loud failure on a scope error. | Andrew: "so we don't have to re-derive every time." The wrapper detects GitHub's scope error in `gh`'s stderr and prints the exact fix. |
 | Calendar reminders for token expiry are created by the agent via the Google Calendar connector, after minting. | The expiry date only exists once the token does. |
@@ -64,8 +65,9 @@ archived. Move list is the 31, with `cleanroom` targeting
 (tap name `smartwatermelon/tap`), `smartwatermelon-marketplace` and
 `superpowers-marketplace` (referenced by owner in Claude settings), `.github`
 (becomes the org's community-health and profile repo), `projectinsomnia`
-(Pages site; its `smartwatermelon.github.io` origin becomes the org's Pages
-host with the same name).
+(Pages site; its `smartwatermelon.github.io` Pages *host* becomes the org's
+Pages host with the same name. The archived *repo* of that name is
+unrelated and is deleted in Step 6).
 
 ## Sequence
 
@@ -150,6 +152,9 @@ present (the `claude-code-action` step authenticated rather than skipped).
 
 - Delete `KEBAB_TAX_GITHUB_TOKEN` from `twistedmelonman/ralph-burndown`.
 - Delete the `claude-code-login` fork (dead end, 429 from Anthropic).
+- Delete the archived `smartwatermelon.github.io` repo (unused; Andrew's
+  decision 2026-09-03). Confirm it is not `projectinsomnia`'s Pages source
+  first: `gh api repos/smartwatermelon/projectinsomnia/pages`.
 - Write `dev-env/docs/token-rotation.md` (see "Token tracking").
 - Create two Google Calendar events, one per org, two weeks before each
   token's expiry, description pointing at the rotation runbook.
