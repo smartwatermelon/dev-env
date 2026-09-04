@@ -194,4 +194,30 @@ else
   _fail "nested clone broken: rc=${rc} err=${err}"
 fi
 
+# Case 10: a baseline dir that does not exist must fail on the path, not
+# degrade into a "missing snapshot" line per repo. A mistyped baseline path
+# otherwise reads as total drift across the whole move list.
+out="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list" "${WORK}/nonexistent-baseline" "${WORK}/after-missing-base" \
+  --clones "${WORK}/clones-good" 2>&1)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${out}" == *"does not exist"* && "${out}" != *"missing snapshot"* ]]; then
+  _pass "missing baseline dir: named as the failure, exit 1"
+else
+  _fail "missing baseline dir: rc=${rc} out=${out}"
+fi
+
+# Case 11: an empty baseline dir is the same class of mistake -- a path that
+# exists but holds no snapshots.
+mkdir -p "${WORK}/empty-baseline"
+out="$(OM_TEST_CORE="${WORK}/core-good" PATH="${WORK}/bin:${PATH}" bash "${VERIFY}" \
+  "${WORK}/list" "${WORK}/empty-baseline" "${WORK}/after-empty-base" \
+  --clones "${WORK}/clones-good" 2>&1)"
+rc=$?
+if [[ "${rc}" -eq 1 && "${out}" == *"is empty"* && "${out}" != *"missing snapshot"* ]]; then
+  _pass "empty baseline dir: named as the failure, exit 1"
+else
+  _fail "empty baseline dir: rc=${rc} out=${out}"
+fi
+
 exit "${fail}"
