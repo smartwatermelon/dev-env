@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase; there are no build, test, or lint commands.
+This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase and there is no build step, but it is not command-free either:
+
+- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`.
+- **Lint**: `shellcheck -S info <script>` applies to every shell script in the repo, and must be clean with no `# shellcheck disable` directives.
 
 ## Repository Structure
 
@@ -12,6 +15,9 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/plans/` — Implementation plans (e.g., infrastructure consolidation)
   - `docs/WORKFLOW-DEEP-DIVE.md` — Comprehensive reference for all enforcement layers (hooks, wrappers, CI/CD)
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
+  - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
+  - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
+- `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `.claude/` — Project-specific Claude Code configuration templates
   - `.claude/config.sh.template` — Template for project configuration (Node version, required tools, deployment secrets, build/deploy hooks)
   - `.claude/hooks/extensions/` — Project-specific git hook extensions (discovered and run by global hooks at `~/.config/git/hooks/`)
