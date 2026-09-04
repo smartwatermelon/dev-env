@@ -72,12 +72,48 @@ gh api repos/smartwatermelon/dotfiles --jq '.owner.login + " " + .owner.type'  #
 cd ~/Developer/dotfiles && gh pr list --limit 1           # identity guard passes, no error
 ```
 
+## Stop: the transfer happens outside this runbook
+
+Parts A–E cover **Step 2** of the design only: the rename and the org. No
+repo has moved yet. Parts F and G below verify a transfer, so do not run
+them here — every repo would still report `owner is twistedmelonman (User)`,
+which is correct for this moment and looks like 31 failures.
+
+Go to `docs/superpowers/specs/2026-09-03-org-migration-design.md` and do:
+
+- **Step 3** — transfer `github-workflows` alone and prove one consumer per
+  org still runs green. It is the cross-org dependency: both orgs reference
+  `uses: smartwatermelon/github-workflows/...`. Read the run log to confirm
+  the reusable workflow resolved from the new owner; a green check by itself
+  is not evidence.
+
+  ```bash
+  bash scripts/org-migration/transfer.sh scripts/org-migration/move-list.txt \
+    --only github-workflows --dry-run
+  bash scripts/org-migration/transfer.sh scripts/org-migration/move-list.txt \
+    --only github-workflows
+  ```
+
+- **Step 4** — transfer the remaining repos:
+
+  ```bash
+  bash scripts/org-migration/transfer.sh scripts/org-migration/move-list.txt --dry-run
+  bash scripts/org-migration/transfer.sh scripts/org-migration/move-list.txt
+  ```
+
+Come back to Part F when Step 4 is done.
+
 ## F. Verify the transfer (`verify.sh`)
+
+Run this **after** design Steps 3 and 4, not before.
 
 ```bash
 bash scripts/org-migration/verify.sh scripts/org-migration/move-list.txt \
-  docs/data/org-migration/baseline "$(mktemp -d)"
+  docs/data/org-migration/2026-09-04-baseline "$(mktemp -d)"
 ```
+
+The baseline directory is dated. `verify.sh` fails and names the path if you
+get it wrong, rather than reporting every repo as a missing snapshot.
 
 **Always give `verify.sh` a fresh, empty after-dir.** It refuses a directory
 that already holds files, because a leftover JSON from an earlier run would be
@@ -103,8 +139,17 @@ real drift.
 
 ## G. The other two machines (TILSIT, MIMOLETTE)
 
-Run section D on each, before the alias-removal PR (plan Task 12) merges.
-Until then the alias keeps the old `hosts.yml` name working.
+Run section D on each, before the alias-removal PR (plan Task 12, design
+Step 6) merges. Until then the alias keeps the old `hosts.yml` name working.
+
+Section D re-logins the keyring. On a machine whose shell was already open
+before the rename, the sourced `gh` wrapper is also stale: reload it with
+`exec bash -l` before verifying, or the old wrapper still tries to switch to
+`smartwatermelon` and fails closed. `which gh` and `hash -t gh` show the
+staleness; `command -v` does not.
+
+Steps 5–7 of the design (org secret, cleanup, docs) are not covered by this
+runbook.
 
 ## Undo
 

@@ -34,6 +34,20 @@ base="${positional[1]}"
 after="${positional[2]}"
 fail=0
 
+# The baseline dir must exist and hold snapshots. Without this check a wrong
+# path is not an error: every repo simply misses its baseline file and the
+# comparison loop reports "missing snapshot" for the whole move list, which
+# reads as catastrophic drift rather than as a typo. Fail on the path itself
+# so the message names the real problem.
+if [[ ! -d "${base}" ]]; then
+  echo "verify: baseline-dir ${base} does not exist" >&2
+  exit 1
+fi
+if [[ -z "$(ls -A "${base}" 2>/dev/null || true)" ]]; then
+  echo "verify: baseline-dir ${base} is empty" >&2
+  exit 1
+fi
+
 # The after-dir must be ours alone. A leftover JSON from an earlier run would
 # be compared as though this run had just written it, so a repo whose snapshot
 # failed now could still be reported ok from stale state.
