@@ -65,6 +65,23 @@ case "${path}" in
   repos/smartwatermelon/forbidden/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/forbidden/branches/main/protection) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   repos/smartwatermelon/ghost*) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  # privrepo: a private repo under a free plan. GitHub answers the protection
+  # endpoint with THIS 403 (measured 2026-09-04), which means "feature not
+  # available", i.e. no protection — unlike the secrets 403 above.
+  repos/smartwatermelon/privrepo) echo '{"name":"privrepo","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"private","archived":false}' | emit ;;
+  repos/smartwatermelon/privrepo/topics) echo '{"names":[]}' | emit ;;
+  repos/smartwatermelon/privrepo/actions/secrets) echo '{"secrets":[]}' | emit ;;
+  repos/smartwatermelon/privrepo/rulesets) echo 'gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)' >&2; exit 1 ;;
+  repos/smartwatermelon/privrepo/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  repos/smartwatermelon/privrepo/branches/main/protection) echo 'gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)' >&2; exit 1 ;;
+  # proplan: the SAME sentence on a different endpoint must still fail — the
+  # exemption is scoped to branch protection, not to the sentence.
+  repos/smartwatermelon/proplan) echo '{"name":"proplan","owner":{"login":"smartwatermelon","type":"User"},"default_branch":"main","visibility":"private","archived":false}' | emit ;;
+  repos/smartwatermelon/proplan/topics) echo '{"names":[]}' | emit ;;
+  repos/smartwatermelon/proplan/actions/secrets) echo 'gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)' >&2; exit 1 ;;
+  repos/smartwatermelon/proplan/rulesets) echo '[]' | emit ;;
+  repos/smartwatermelon/proplan/pages) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
+  repos/smartwatermelon/proplan/branches/main/protection) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
   *) echo "stub: unexpected path ${path}" >&2; exit 2 ;;
 esac
 STUB
@@ -163,6 +180,32 @@ if [[ ! -e "${WORK}/out/forbidden.json" ]]; then
 else
   wrote="$(cat "${WORK}/out/forbidden.json" || true)"
   _fail "403 on secrets: wrote a snapshot anyway: ${wrote}"
+fi
+
+# Case 7: a private repo under a free plan. The protection endpoint's
+# "Upgrade to GitHub Pro" 403 is an absence, not a failure: the snapshot must
+# succeed with protection=null. Known-bad: before the exemption this failed
+# all three private repos on the real move list.
+rm -rf "${WORK}/out" && mkdir -p "${WORK}/out"
+printf 'privrepo\tsmartwatermelon\n' >"${WORK}/list-privrepo"
+out="$(PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-privrepo" "${WORK}/out" 2>&1)"
+rc=$?
+f="${WORK}/out/privrepo.json"
+if [[ "${rc}" -eq 0 ]] && [[ -f "${f}" ]] && jq -e '.visibility=="private" and .protection==null and .rulesets==null' "${f}" >/dev/null; then
+  _pass "private repo, free plan: protection and rulesets 403 recorded as null, snapshot succeeds"
+else
+  _fail "private repo, free plan: expected rc 0, protection==null, rulesets==null; got rc=${rc} out=${out}"
+fi
+# The exemption is scoped to the protection endpoint: the same sentence on
+# the secrets endpoint is still a failure (recording [] would hide it).
+rm -rf "${WORK}/out" && mkdir -p "${WORK}/out"
+printf 'proplan\tsmartwatermelon\n' >"${WORK}/list-proplan"
+out="$(PATH="${WORK}/bin:${PATH}" bash "${SNAPSHOT}" "${WORK}/list-proplan" "${WORK}/out" 2>&1)"
+rc=$?
+if [[ "${rc}" -ne 0 && "${out}" == *proplan* && ! -e "${WORK}/out/proplan.json" ]]; then
+  _pass "Pro-plan 403 on secrets: still a failure, no snapshot written"
+else
+  _fail "Pro-plan 403 on secrets: expected non-zero naming proplan and no file, got rc=${rc} out=${out}"
 fi
 
 # Case 6: malformed line rejected before any API call.

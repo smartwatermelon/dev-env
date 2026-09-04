@@ -31,6 +31,17 @@ _optional() {
   elif grep -q '(HTTP 404)' "${err}"; then
     echo null
     rc=0
+  elif [[ "$1" == */branches/*/protection || "$1" == */rulesets ]] &&
+    grep -q 'Upgrade to GitHub Pro or make this repository public' "${err}"; then
+    # Branch protection and rulesets are not features on a private repo under
+    # a free plan (personal or organization). GitHub answers both endpoints
+    # with a 403 carrying this exact sentence, not a 404 — measured
+    # 2026-09-04 on smartwatermelon/{scripts,cleanroom,claude-config-backup}.
+    # It is an absence, and the same absence after the transfer, so `null`
+    # is the value verify.sh must compare. The same sentence on any other
+    # endpoint, and any other 403 here, is still a failure.
+    echo null
+    rc=0
   else
     why="$(tr '\n' ' ' <"${err}" || true)"
     printf 'snapshot: %s: %s\n' "$1" "${why}" >&2

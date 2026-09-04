@@ -1,0 +1,82 @@
+{
+  "repo": "gmail-newsletter-filter",
+  "owner": {
+    "login": "smartwatermelon",
+    "type": "User"
+  },
+  "default_branch": "main",
+  "visibility": "public",
+  "archived": false,
+  "topics": [
+    "automation",
+    "email-filter",
+    "gmail",
+    "gmail-api",
+    "google-apps-script",
+    "google-sheets",
+    "inbox-zero",
+    "newsletter"
+  ],
+  "pages": null,
+  "secrets": ["CLAUDE_CODE_OAUTH_TOKEN"],
+  "protection": {
+    "url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection",
+    "required_status_checks": {
+      "url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection/required_status_checks",
+      "strict": true,
+      "contexts": ["claude-review / run-review", "test", "lint"],
+      "contexts_url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection/required_status_checks/contexts",
+      "checks": [
+        {
+          "context": "claude-review / run-review",
+          "app_id": 15368
+        },
+        {
+          "context": "test",
+          "app_id": 15368
+        },
+        {
+          "context": "lint",
+          "app_id": 15368
+        }
+      ]
+    },
+    "required_pull_request_reviews": {
+      "url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection/required_pull_request_reviews",
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": false,
+      "required_approving_review_count": 0
+    },
+    "required_signatures": {
+      "url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection/required_signatures",
+      "enabled": false
+    },
+    "enforce_admins": {
+      "url": "https://api.github.com/repos/smartwatermelon/gmail-newsletter-filter/branches/main/protection/enforce_admins",
+      "enabled": false
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": true
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    }
+  },
+  "rulesets": []
+}
