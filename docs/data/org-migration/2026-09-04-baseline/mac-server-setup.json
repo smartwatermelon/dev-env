@@ -1,0 +1,100 @@
+{
+  "repo": "mac-server-setup",
+  "owner": {
+    "login": "smartwatermelon",
+    "type": "User"
+  },
+  "default_branch": "main",
+  "visibility": "public",
+  "archived": false,
+  "topics": [
+    "macos",
+    "mac-mini",
+    "apple-silicon",
+    "home-server",
+    "automation",
+    "server-setup",
+    "plex-media-server",
+    "homebrew",
+    "smb-mounting",
+    "1password-integration",
+    "launchagent",
+    "infrastructure-as-code",
+    "keychain-access",
+    "nfs-mount"
+  ],
+  "pages": null,
+  "secrets": ["CLAUDE_CODE_OAUTH_TOKEN"],
+  "protection": {
+    "url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection",
+    "required_status_checks": {
+      "url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection/required_status_checks",
+      "strict": true,
+      "contexts": ["claude-review / run-review"],
+      "contexts_url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection/required_status_checks/contexts",
+      "checks": [
+        {
+          "context": "claude-review / run-review",
+          "app_id": 15368
+        }
+      ]
+    },
+    "required_pull_request_reviews": {
+      "url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection/required_pull_request_reviews",
+      "dismiss_stale_reviews": false,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": false,
+      "required_approving_review_count": 0
+    },
+    "required_signatures": {
+      "url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection/required_signatures",
+      "enabled": false
+    },
+    "enforce_admins": {
+      "url": "https://api.github.com/repos/smartwatermelon/mac-server-setup/branches/main/protection/enforce_admins",
+      "enabled": false
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": true
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    }
+  },
+  "rulesets": [
+    {
+      "id": 7590377,
+      "name": "protecc",
+      "target": "branch",
+      "source_type": "Repository",
+      "source": "smartwatermelon/mac-server-setup",
+      "enforcement": "active",
+      "node_id": "RRS_lACqUmVwb3NpdG9yec459OZbzgBz0ek",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/smartwatermelon/mac-server-setup/rulesets/7590377"
+        },
+        "html": {
+          "href": "https://github.com/smartwatermelon/mac-server-setup/rules/7590377"
+        }
+      },
+      "created_at": "2025-08-21T17:39:35.050-07:00",
+      "updated_at": "2025-08-21T17:39:35.075-07:00"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "repo": "claude-config-backup",
+  "owner": {
+    "login": "smartwatermelon",
+    "type": "User"
+  },
+  "default_branch": "main",
+  "visibility": "private",
+  "archived": false,
+  "topics": [],
+  "pages": null,
+  "secrets": [],
+  "protection": null,
+  "rulesets": null
+}
