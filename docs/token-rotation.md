@@ -6,17 +6,30 @@ leaked: revoke and rotate.
 
 Org-level secrets (design:
 `docs/superpowers/specs/2026-09-03-org-migration-design.md`, Step 5). Free-plan
-org secrets do not reach private repos, so `scripts` keeps a repo-level
-token until it goes public.
+org secrets do not reach private repos, so every private repo that runs a
+Claude workflow keeps its own repo-level copy. Both orgs currently read as
+`plan=team`, which *would* deliver org secrets to private repos — do not rely
+on that. The Team plan was bought to file a support ticket and will be
+dropped; a repo whose copy was deleted on that basis fails silently at the
+downgrade.
 
 | Scope | Minted | Expires | Minted on |
 | --- | --- | --- | --- |
-| org `smartwatermelon` | | | |
-| org `nightowlstudiollc` | | | |
-| repo `smartwatermelon/scripts` | | | |
+| org `smartwatermelon` | 2026-09-04 | unrecorded | ASIAGO |
+| org `nightowlstudiollc` | 2026-07-01 | unrecorded | unrecorded |
+| repo `smartwatermelon/scripts` | 2026-07-29 | unrecorded | unrecorded |
+| repo `nightowlstudiollc/photo-game-poc` | 2026-03-02 | unrecorded | unrecorded |
+| repo `nightowlstudiollc/cleanroom` | 2026-08-31 | unrecorded | unrecorded |
 
-Each row has a Google Calendar event "Rotate CLAUDE_CODE_OAUTH_TOKEN (<scope>)"
-two weeks before the expiry date, pointing here.
+Minted dates are the secret's `updated_at` from
+`gh secret list`, which is when the value was last set — accurate for
+rotation planning. **Expiry is not recoverable from the API.** It exists only
+in what `claude setup-token` printed at mint time, so fill each row in at
+step 4 of the runbook below rather than reconstructing it later. Until a row
+has a real expiry, its calendar event cannot be scheduled.
+
+Each row gets a Google Calendar event "Rotate CLAUDE_CODE_OAUTH_TOKEN
+(<scope>)" two weeks before the expiry date, pointing here.
 
 ## Rotation runbook
 
@@ -37,7 +50,11 @@ between.
    ```bash
    env -u GH_TOKEN gh secret set CLAUDE_CODE_OAUTH_TOKEN --org smartwatermelon --visibility all
    # or --org nightowlstudiollc
-   # or, for scripts:  gh secret set CLAUDE_CODE_OAUTH_TOKEN -R smartwatermelon/scripts
+   # private repos each keep their own copy -- an org secret does not reach
+   # them on the Free plan:
+   #   gh secret set CLAUDE_CODE_OAUTH_TOKEN -R smartwatermelon/scripts
+   #   gh secret set CLAUDE_CODE_OAUTH_TOKEN -R nightowlstudiollc/photo-game-poc
+   #   gh secret set CLAUDE_CODE_OAUTH_TOKEN -R nightowlstudiollc/cleanroom
    ```
 
    Paste when prompted.
