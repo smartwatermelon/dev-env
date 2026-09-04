@@ -13,23 +13,37 @@ on that. The Team plan was bought to file a support ticket and will be
 dropped; a repo whose copy was deleted on that basis fails silently at the
 downgrade.
 
-| Scope | Minted | Expires | Minted on |
+**One token is installed in several places.** It was minted 2026-06-29 and
+expires **2027-06-29**. The migration copied the existing token rather than
+minting new ones, deliberately, to avoid adding a variable mid-migration.
+So a single rotation covers every row below that names it — these are
+locations, not separate credentials.
+
+| Scope | Token | Expires | Secret last set |
 | --- | --- | --- | --- |
-| org `smartwatermelon` | 2026-09-04 | unrecorded | ASIAGO |
-| org `nightowlstudiollc` | 2026-07-01 | unrecorded | unrecorded |
-| repo `smartwatermelon/scripts` | 2026-07-29 | unrecorded | unrecorded |
-| repo `nightowlstudiollc/photo-game-poc` | 2026-03-02 | unrecorded | unrecorded |
-| repo `nightowlstudiollc/cleanroom` | 2026-08-31 | unrecorded | unrecorded |
+| org `smartwatermelon` | 2026-06-29 | 2027-06-29 | 2026-09-04 |
+| org `nightowlstudiollc` | 2026-06-29 | 2027-06-29 | 2026-07-01 |
+| repo `smartwatermelon/scripts` | 2026-06-29 | 2027-06-29 | 2026-07-29 |
+| repo `nightowlstudiollc/cleanroom` | 2026-06-29 | 2027-06-29 | 2026-08-31 |
+| repo `nightowlstudiollc/photo-game-poc` | unknown | unknown | 2026-03-02 |
 
-Minted dates are the secret's `updated_at` from
-`gh secret list`, which is when the value was last set — accurate for
-rotation planning. **Expiry is not recoverable from the API.** It exists only
-in what `claude setup-token` printed at mint time, so fill each row in at
-step 4 of the runbook below rather than reconstructing it later. Until a row
-has a real expiry, its calendar event cannot be scheduled.
+"Secret last set" is the secret's `updated_at` from `gh secret list` — when
+that copy was written, which is not when the token behind it was minted.
+Do not read it as an expiry input.
 
-Each row gets a Google Calendar event "Rotate CLAUDE_CODE_OAUTH_TOKEN
-(<scope>)" two weeks before the expiry date, pointing here.
+`photo-game-poc` is the exception: its copy predates 2026-06-29, so it holds
+an older token whose expiry is not recorded anywhere. The repo is archived
+and runs nothing, so this is not urgent; resolve it by re-setting that
+secret from the current token, at which point the row folds into the block
+above.
+
+Expiry is not recoverable from the API — it exists only in what
+`claude setup-token` printed at mint time. When a future rotation splits
+these into separate tokens, give each its own row and record the expiry at
+step 4 of the runbook below.
+
+One Google Calendar event, "Rotate CLAUDE_CODE_OAUTH_TOKEN (all scopes)",
+sits two weeks before 2027-06-29 and points here. One token, one reminder.
 
 ## Rotation runbook
 
@@ -45,7 +59,10 @@ between.
 
    Copy the token from the terminal. Do not paste it anywhere but step 2.
 
-2. Set it (the wrapper prints this exact line if you forget `env -u`):
+2. Set it in **every** location below — they currently share one token, so a
+   rotation that updates only some of them leaves the rest on a credential
+   that is about to expire. (The wrapper prints this exact line if you
+   forget `env -u`.)
 
    ```bash
    env -u GH_TOKEN gh secret set CLAUDE_CODE_OAUTH_TOKEN --org smartwatermelon --visibility all
