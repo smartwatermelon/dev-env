@@ -201,10 +201,11 @@ IDENTITY / BILLING (parallel with foundation)
        └──> ALL of FLEET  [unblocked]
 
 FLEET (I3 done; one pass per repo)
-  W0  Create the smartwatermelon org ruleset      [NEW — see I3's struck
-       benefit. 25 transferred repos are protectable and unprotected;
-       nothing protects them until this exists. nightowlstudiollc already
-       has one.]
+  W0  Bring the fleet to the exemplar settings    [DONE 2026-09-05, 33/37]
+       Applied per-repo branch protection matching dotfiles/claude-config
+       to 9 repos. NOT an org ruleset: nightowlstudiollc's is
+       enforcement=disabled and enforces nothing. Remaining 4 have no
+       review workflow (#89); rulesets as the scaling answer (#90).
   W1  Build standards-check.yml  [+ zizmor.yml + branch protection folded in]
        └──> W2  Roll out to fleet (pilots first)
               └──> W3  Retire CI judgment reviewer
@@ -449,17 +450,28 @@ only way three private user-owned repos (`scripts`, `claude-config-backup`,
 **Struck 2026-09-04, on measurement.** Half-true, and the wrong half was
 load-bearing. The migration removed the *blocker* but did not apply
 protection: all three moved from 403 ("cannot be set") to 404 ("not set").
-`cleanroom` is protected today only because `nightowlstudiollc` has a
-"Claude blocking review" org ruleset that caught it on arrival. The new
-`smartwatermelon` org has **no rulesets at all**, so `scripts` and
-`claude-config-backup` landed unprotected and stay that way.
+Converting a platform limitation into ordinary fleet work is progress, but it
+is not "ordinary fleet repos with no separate remediation" — someone still
+has to do the work.
 
-The real state after I3: 25 repos that are now *protectable* and unprotected,
-where before they were merely unprotected. That is progress, but it is not
-"ordinary fleet repos with no separate remediation" — it converts a platform
-limitation into ordinary fleet work that someone still has to do. **Creating
-the `smartwatermelon` org ruleset is unowned work this section previously
-assumed away.** W-series scope should absorb it.
+> **Mechanism corrected 2026-09-05, and the work is now done.** The
+> paragraph above originally credited `cleanroom`'s protection to a
+> `nightowlstudiollc` "Claude blocking review" org ruleset. **That ruleset is
+> `enforcement: disabled` and enforces nothing** —
+> `repos/nightowlstudiollc/cleanroom/rules/branches/main` returns `[]`. Every
+> protected repo in both orgs is protected by **classic per-repo branch
+> protection**. This was a label-matching error: a ruleset was credited on
+> its name without reading its enforcement field, which is the exact failure
+> this document warns about elsewhere.
+>
+> The gap was also smaller than reported. The 25 transferred repos were not
+> unprotected — most carried `claude-review / run-review` through the
+> transfer intact. The real gap was **9 repos**, closed 2026-09-05 by
+> applying the `dotfiles`/`claude-config` exemplar per-repo: 33 of 37
+> non-archived repos now enforce `claude-review / run-review`, up from 25.
+> Four remain, tracked in **#89** — they have no review workflow, so
+> protecting them would enforce nothing. Org rulesets as the scaling
+> mechanism are evaluated in **#90**.
 
 Three approaches already ruled out and recorded in the issue: `grll/claude-
 code-login` (Anthropic returns 429 to third parties), Workload Identity
@@ -498,12 +510,15 @@ safety benefit. Six have no protection at all, including `scripts`,
 > the audit.
 >
 > **Corrected 2026-09-04, after I3 ran.** They are now 404, not 403: settable
-> but unset. Only `cleanroom` came out protected, because
-> `nightowlstudiollc`'s org ruleset applied on arrival; the new
-> `smartwatermelon` org has no ruleset, so `scripts` and
-> `claude-config-backup` are unprotected. The category moved from
+> but unset. Only `cleanroom` came out protected. The category moved from
 > platform-blocked to ordinary unprotected — it **is** a gap to close, just a
 > closable one now.
+>
+> **Closed 2026-09-05.** `scripts` and `claude-config-backup` diverged:
+> `scripts` now enforces `claude-review / run-review`;
+> `claude-config-backup` has no review workflow to require and is tracked in
+> #89. `cleanroom`'s protection came from **per-repo branch protection**, not
+> from any org ruleset — see the corrected note in the I3 section.
 
 A separate measurement (2026-08-19, github-workflows#154): 35 non-archived
 repos carry a `claude-blocking-review.yml` caller; 27 have it as a required
@@ -913,11 +928,14 @@ ordinary org repos by the time W2 runs.
 > **Half-right, measured 2026-09-04 after I3.** The *category* dissolved;
 > the *gap* did not. All three moved from 403 ("cannot be set") to 404
 > ("not set") — settable, and still unset. `cleanroom` is protected today
-> only because `nightowlstudiollc` carries a "Claude blocking review" org
-> ruleset; the new `smartwatermelon` org has none, so `scripts` and
-> `claude-config-backup` are unprotected. "Do not file work against it" was
-> wrong: W2 must still cover these three, and the org ruleset they depend
-> on is new work — see **W0** in the dependency graph.
+> only by its own per-repo branch protection. "Do not file work against it"
+> was wrong: these three needed real remediation, done 2026-09-05 under W0.
+>
+> **Do not credit the org ruleset here.** An earlier version of this note
+> attributed `cleanroom`'s protection to `nightowlstudiollc`'s "Claude
+> blocking review" ruleset. That ruleset is `enforcement: disabled`;
+> `repos/nightowlstudiollc/cleanroom/rules/branches/main` returns `[]`.
+> Per-repo branch protection is what enforces across both orgs today.
 
 This also revises the W2 pilot rationale below, which picks `scripts` on the
 grounds that its `claude-review` check is "Pro-gated and therefore not
@@ -963,10 +981,12 @@ review (L), and runtime EOL (N) are independent. Fleet (W) waits on I3.
 
 **Critical path** is I3 → W1 → W2 → W3. Everything else fits around it.
 
-> **Updated 2026-09-04.** I3 is done (25/30 repos; five paths permanently
-> retired). The head of the critical path is now **W0 → W1 → W2 → W3** —
-> W0 creates the `smartwatermelon` org ruleset that the 25 transferred
-> repos need before W2's protection pass means anything.
+> **Updated 2026-09-05.** I3 is done (25/30 repos; five paths permanently
+> retired), and W0 is done with it — the fleet was brought to the
+> `dotfiles`/`claude-config` exemplar per-repo, 33 of 37 non-archived repos
+> enforcing `claude-review / run-review`. The critical path is now
+> **W1 → W2 → W3**, and W2 inherits a fleet that is already largely
+> conformant rather than one it must protect from scratch.
 
 **Start with:** L1 (gates whether local review is real), F1 → F2/F3 (stops
 wrong-identity actions), I0 (unblocks the billing control), and N1a (one
