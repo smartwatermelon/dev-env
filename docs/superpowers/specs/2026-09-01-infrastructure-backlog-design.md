@@ -190,18 +190,21 @@ FOUNDATION (start here; no upstream dependencies)
        ├──> F2  git-identity.sh owner-awareness
        ├──> F3  GH_TOKEN precedence guard (cheap tier)
        └──> I1  account-switching module
-  F4  Token scope resolution (admin:org)
-       └──> I3 Phase 4
+  F4  Token scope resolution (admin:org)          [DONE 2026-09-04]
 
 IDENTITY / BILLING (parallel with foundation)
   I0  CLAUDE_CONFIG_DIR billing-verification script
        └──> I1  account-switching module
               └──> I2  one-time company-machine setup
-  I3  Org migration (dev-env#54)
-       ├──> I1  (owner mapping must be updated in the same change)
-       └──> ALL of FLEET
+  I3  Org migration (dev-env#54)                  [DONE 2026-09-04, 25/30]
+       ├──> I1  (owner mapping shipped with I3; see I1's note)
+       └──> ALL of FLEET  [unblocked]
 
-FLEET (after I3; one pass per repo)
+FLEET (I3 done; one pass per repo)
+  W0  Create the smartwatermelon org ruleset      [NEW — see I3's struck
+       benefit. 25 transferred repos are protectable and unprotected;
+       nothing protects them until this exists. nightowlstudiollc already
+       has one.]
   W1  Build standards-check.yml  [+ zizmor.yml + branch protection folded in]
        └──> W2  Roll out to fleet (pilots first)
               └──> W3  Retire CI judgment reviewer
@@ -285,7 +288,28 @@ branches, plus a second PAT) or a narrower escape hatch that unsets `GH_TOKEN`
 for org-scoped calls only. Decide that shape when I3 is planned; it is not
 settled here.
 
-Blocks I3 Phase 4.
+~~Blocks I3 Phase 4.~~
+
+**Done 2026-09-04, via the narrow escape hatch — and the finding is that
+this was never an identity problem.** The router was not needed. The wrapper
+now detects GitHub's own scope error on stderr
+(`needs the "admin:org" scope`) and prints the exact `env -u GH_TOKEN`
+re-run, preserving the original exit code. No command classification, so a
+misclassification cannot exist: the hint fires only when GitHub itself says
+the scope is missing.
+
+The distinction that made this cheap: `GH_TOKEN` was never the *wrong
+identity*, only a *too-narrow scope* on the right one. Both the CCCLI PAT
+and the keyring credential are Andrew. Routing by identity would have built
+a second credential path to solve a problem that one unset variable solves,
+and would have widened the blast radius of the session-wide token to do it.
+`CLAUDE_GH_TOKEN_ROUTER` stays deferred, and F3's cheap fail-closed tier
+turned out to be the right shape.
+
+Observed in practice during I3: `gh secret list --org` failed exactly this
+way, printed the hint, and the re-run worked. See
+`docs/superpowers/specs/2026-09-03-org-migration-design.md`, "F4 scope-error
+hint".
 
 ## Identity and billing layer
 
@@ -361,6 +385,14 @@ updating that mapping, personal repos fall from condition 2 into condition 3
 and silently bill Beacon on the company machine. Same change, or I1 first with
 I3 updating it — but not independent.
 
+**Satisfied 2026-09-04.** I3 shipped the mapping update with it, in the
+pre-migration wrapper PR: `_gh_wrapper_sync_identity` maps
+`smartwatermelon | nightowlstudiollc | twistedmelonman -> twistedmelonman`,
+so all three resolve to the personal identity and condition 2 still catches
+them. I1 remains unimplemented, and when it is built it must **read** that
+set rather than restate it — a second copy is what would drift and produce
+the silent-Beacon-billing failure this note describes.
+
 Open questions carried forward from the draft: mapping-config file format and
 location; test approach for the parsing logic.
 
@@ -371,6 +403,26 @@ run one interactive `claude login` as the personal account. Company machine
 only; nothing needed on personal machines.
 
 ### I3 — Org migration (dev-env#54)
+
+> **Done, 2026-09-04.** Executed as a rename-then-reclaim, not as the six
+> phases sketched below: the user account was renamed to `twistedmelonman`
+> and `smartwatermelon` reclaimed as an org, so no reference to
+> `smartwatermelon/*` had to change. The spec is
+> `docs/superpowers/specs/2026-09-03-org-migration-design.md`; the runbook is
+> `docs/runbooks/org-migration-rename.md`. Outcomes that contradict this
+> section are marked inline below. Findings the spec's own failure table did
+> not anticipate are in dev-env#84.
+>
+> **25 of 30 repos moved.** Five are permanently blocked by GitHub's popular
+> repository namespace retirement — `dotfiles`, `claude-config`, `personify`,
+> `huddle-transcribe`, `projectinsomnia`. A path is retired when the repo
+> there saw >100 clones or >100 Actions runs in the week before the rename,
+> and retirement binds the *string* `smartwatermelon/<name>`, so the new org
+> inherits it. Transfer returns 422, and creation is blocked too; there is no
+> API route. They stay under `twistedmelonman` with working redirects. A
+> support ticket is open. This was avoidable only by reversing the order —
+> create the org under a temporary name, transfer while the user is still
+> `smartwatermelon`, then rename both — which no GitHub doc prescribes.
 
 Six phases, not started. Phase 4 blocked by F4.
 
@@ -390,13 +442,24 @@ final ones.
 
 Cost: #54's phases are the long pole of the entire plan.
 
-**Additional benefit, identified 2026-09-02:** the migration is also the only
-way three private user-owned repos (`scripts`, `claude-config-backup`,
-`cleanroom`) can ever carry branch protection — GitHub does not offer it for
-private repos under a personal account at this tier. Moving them into the org
-converts them from "cannot be protected" to ordinary fleet repos, with no
-separate remediation. That is a real argument for the migrate-early decision
-above, beyond the conflict-ambiguity reasoning already recorded.
+~~**Additional benefit, identified 2026-09-02:** the migration is also the
+only way three private user-owned repos (`scripts`, `claude-config-backup`,
+`cleanroom`) can ever carry branch protection.~~
+
+**Struck 2026-09-04, on measurement.** Half-true, and the wrong half was
+load-bearing. The migration removed the *blocker* but did not apply
+protection: all three moved from 403 ("cannot be set") to 404 ("not set").
+`cleanroom` is protected today only because `nightowlstudiollc` has a
+"Claude blocking review" org ruleset that caught it on arrival. The new
+`smartwatermelon` org has **no rulesets at all**, so `scripts` and
+`claude-config-backup` landed unprotected and stay that way.
+
+The real state after I3: 25 repos that are now *protectable* and unprotected,
+where before they were merely unprotected. That is progress, but it is not
+"ordinary fleet repos with no separate remediation" — it converts a platform
+limitation into ordinary fleet work that someone still has to do. **Creating
+the `smartwatermelon` org ruleset is unowned work this section previously
+assumed away.** W-series scope should absorb it.
 
 Three approaches already ruled out and recorded in the issue: `grll/claude-
 code-login` (Anthropic returns 429 to third parties), Workload Identity
@@ -429,9 +492,18 @@ safety benefit. Six have no protection at all, including `scripts`,
 > holds. Use the audit's numbers.
 >
 > The 3 in the 403 group are private repos owned by the **user account**, not
-> an org, which is why protection cannot be set on them at all. **I3 resolves
-> that category by moving them into the org** — they are not a gap to close
-> separately. See "The 403 group is an org-migration artifact" in the audit.
+> an org, which is why protection cannot be set on them at all. ~~**I3
+> resolves that category by moving them into the org** — they are not a gap
+> to close separately.~~ See "The 403 group is an org-migration artifact" in
+> the audit.
+>
+> **Corrected 2026-09-04, after I3 ran.** They are now 404, not 403: settable
+> but unset. Only `cleanroom` came out protected, because
+> `nightowlstudiollc`'s org ruleset applied on arrival; the new
+> `smartwatermelon` org has no ruleset, so `scripts` and
+> `claude-config-backup` are unprotected. The category moved from
+> platform-blocked to ordinary unprotected — it **is** a gap to close, just a
+> closable one now.
 
 A separate measurement (2026-08-19, github-workflows#154): 35 non-archived
 repos carry a `claude-blocking-review.yml` caller; 27 have it as a required
@@ -471,6 +543,18 @@ protection cannot be set — not because of a check-level gate. W2 runs after
 I3, by which point `scripts` is org-owned and its checks enforce normally.
 Re-pick a genuinely low-stakes pilot at that point instead of inheriting this
 one.
+
+**Status 2026-09-04, after I3.** `scripts` is org-owned and private, and its
+checks still do not enforce — the new `smartwatermelon` org has no ruleset
+and the repo has no branch protection, so the "enforce normally" prediction
+has not come true and will not until someone creates the ruleset. The
+re-pick instruction stands, and now has a second reason: `scripts` is still
+the unenforced repo, so picking it would once again test nothing.
+
+Note `scripts` is also queued to go public (dev-env#85: secret audit,
+history rewrite, then visibility and protection). If that lands before W2,
+it becomes a normal protected repo and stops being a viable low-stakes
+pilot for the opposite reason.
 
 Existing tooling does the fan-out: `claude-review-audit.sh` (read-only, walks
 both orgs, classifies workflow files per repo) and
@@ -826,6 +910,15 @@ I3, which is already the critical path. Do not file work against it, and do
 not treat the three as a branch-protection gap in the W2 pass; they will be
 ordinary org repos by the time W2 runs.
 
+> **Half-right, measured 2026-09-04 after I3.** The *category* dissolved;
+> the *gap* did not. All three moved from 403 ("cannot be set") to 404
+> ("not set") — settable, and still unset. `cleanroom` is protected today
+> only because `nightowlstudiollc` carries a "Claude blocking review" org
+> ruleset; the new `smartwatermelon` org has none, so `scripts` and
+> `claude-config-backup` are unprotected. "Do not file work against it" was
+> wrong: W2 must still cover these three, and the org ruleset they depend
+> on is new work — see **W0** in the dependency graph.
+
 This also revises the W2 pilot rationale below, which picks `scripts` on the
 grounds that its `claude-review` check is "Pro-gated and therefore not
 enforced." That reasoning is right about the effect and wrong about the
@@ -869,6 +962,11 @@ Nothing in the delta reverses a decision or changes the critical path.
 review (L), and runtime EOL (N) are independent. Fleet (W) waits on I3.
 
 **Critical path** is I3 → W1 → W2 → W3. Everything else fits around it.
+
+> **Updated 2026-09-04.** I3 is done (25/30 repos; five paths permanently
+> retired). The head of the critical path is now **W0 → W1 → W2 → W3** —
+> W0 creates the `smartwatermelon` org ruleset that the 25 transferred
+> repos need before W2's protection pass means anything.
 
 **Start with:** L1 (gates whether local review is real), F1 → F2/F3 (stops
 wrong-identity actions), I0 (unblocks the billing control), and N1a (one
