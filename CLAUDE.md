@@ -12,6 +12,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
 ## Repository Structure
 
 - `docs/` — Design documents, workflow deep dives, and research notes
+  - `docs/STATUS.md` — Point-in-time project status: what's done, what's next, what's deferred by decision. Start here.
   - `docs/plans/` — Implementation plans (e.g., infrastructure consolidation)
   - `docs/WORKFLOW-DEEP-DIVE.md` — Comprehensive reference for all enforcement layers (hooks, wrappers, CI/CD)
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
