@@ -64,13 +64,17 @@ list if you would rather add it later with `gh auth refresh -s delete_repo`.
 ## E. Verify from a shell (paste the output back to the agent)
 
 ```bash
+grep user: ~/.config/gh/hosts.yml                        # user: twistedmelonman (exactly one line)
 gh api user --jq .login                                  # GH_TOKEN: twistedmelonman
-env -u GH_TOKEN gh api user --jq .login                  # keyring: twistedmelonman
 gh api orgs/smartwatermelon --jq '.login + " " + .type'  # smartwatermelon Organization
 gh api orgs/smartwatermelon/memberships/twistedmelonman --jq .role   # admin
 gh api repos/smartwatermelon/dotfiles --jq '.owner.login + " " + .owner.type'  # twistedmelonman User (redirect)
 cd ~/Developer/dotfiles && gh pr list --limit 1           # identity guard passes, no error
 ```
+
+`gh api user` reports the server-side login and prints `twistedmelonman` even
+before Part D has run, because GitHub renamed the account. Only the `hosts.yml`
+line proves the re-login happened; the wrapper compares that recorded name.
 
 ## Stop: the transfer happens outside this runbook
 
