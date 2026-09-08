@@ -204,7 +204,7 @@ and previously unrecorded here:
 Org secret set (visibility `ALL`), `ralph-burndown` secret removed,
 `claude-code-login` and `smartwatermelon.github.io` deleted, #85 filed, #54
 closed. Runbook Part D verified on TILSIT and MIMOLETTE 2026-09-08 (both
-authenticate as `twistedmelonman`); MIMOLETTE's dotfiles clone was 15 commits
+authenticate as `twistedmelonman`); MIMOLETTE's dotfiles clone was 35 commits
 behind and was fast-forwarded. The temporary login alias is now removable
 (migration plan Task 12).
 ```
