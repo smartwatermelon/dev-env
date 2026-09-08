@@ -1,6 +1,6 @@
 # Infrastructure project status
 
-**As of 2026-09-05.** Point-in-time snapshot of the infrastructure backlog
+**As of 2026-09-08.** Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
@@ -15,11 +15,11 @@ partly done. Local review and runtime EOL have not started.
 
 | Layer | State |
 | --- | --- |
-| Foundation (F) | F1, F4 done. F2, F3 open. |
+| Foundation (F) | F1, F3, F4 done. F2 open (latent hazard, not urgent). |
 | Identity / billing (I) | I3 done. I0, I1, I2 open. |
-| Fleet (W) | W0 done. W1, W2, W3 open — **critical path**. |
-| Local review (L) | Not started. L1 gates whether local review is real. |
-| Runtime EOL (N) | Not started. Node 20 past EOL since 2026-04-30. |
+| Fleet (W) | W0 done. W1, W2, W3 open — **critical path**. Design decisions taken 2026-09-08. |
+| Local review (L) | L1 done. L2, L3, L4, L5 open. |
+| Runtime EOL (N) | N1a done. N1b (product repos) open. |
 
 **Critical path: W1 → W2 → W3.** I3 and W0 have left it. Everything in L and
 N runs in parallel and depends on nothing.
@@ -33,14 +33,14 @@ the design sketched: the personal account `smartwatermelon` was renamed to
 `twistedmelonman`, then `smartwatermelon` was re-created as an organization
 and repos transferred in.
 
-**25 of 30 repos moved. Five never will.** `dotfiles`, `claude-config`,
+**25 of 30 repos moved. Five are blocked pending a support ticket.** `dotfiles`, `claude-config`,
 `personify`, `huddle-transcribe`, `projectinsomnia` are blocked by GitHub's
-**popular repository namespace retirement** — a path is retired permanently
+**popular repository namespace retirement** — a path is retired
 when the repo saw >100 clones or >100 Actions runs in the week before a
 rename, or shipped a Marketplace action. Retirement binds the *string*, not
 the account, so the new org inherited the old user account's retired paths.
 It blocks transfer (HTTP 422) and creation alike. A support ticket is in
-flight; assume it will be denied.
+flight (4729524), reopened after the org's Team upgrade; Andrew is pursuing it.
 
 Three platform behaviors found the hard way, all now documented:
 
@@ -86,48 +86,68 @@ protection in both orgs is classic per-repo branch protection. The gap was
 also smaller than reported: the transferred repos mostly carried their
 required check through intact.
 
+### Starter set — L1, N1a, F3 (2026-09-02/03)
+
+Executed per `docs/superpowers/plans/2026-09-02-infrastructure-backlog-starter-set.md`
+and previously unrecorded here:
+
+- **L1 — dotfiles config contamination.** Remediation (`git-env-isolation.sh`,
+  9 fixture tests, a known-bad control) had already landed; the starter set
+  removed the `uchg` tripwire on `dotfiles/.git/config`. Verified 2026-09-08:
+  no flag, `core.hooksPath` intact. Follow-up `dotfiles#304` records why the
+  flag is intentionally absent.
+- **N1a — local nvm default and infra-repo CI pins.** `~/.nvm/alias/default`
+  is `lts/krypton` (v24.19.0). `claude-code-workflows-agents#16` merged.
+- **F3 — `GH_TOKEN` precedence guard, cheap tier.** `dotfiles#302` merged:
+  the wrapper fails closed when `GH_TOKEN` resolves to a login other than the
+  one the repo owner maps to. Follow-up `dotfiles#303` (cache the lookup).
+
+### Migration cleanup (Steps 5–7) and the other two machines
+
+Org secret set (visibility `ALL`), `ralph-burndown` secret removed,
+`claude-code-login` and `smartwatermelon.github.io` deleted, #85 filed, #54
+closed. Runbook Part D verified on TILSIT and MIMOLETTE 2026-09-08 (both
+authenticate as `twistedmelonman`); MIMOLETTE's dotfiles clone was 35 commits
+behind and was fast-forwarded. The temporary login alias is now removable
+(migration plan Task 12).
+
 ## Open work, in priority order
 
-### Blocking nothing, but on the critical path
+### Critical path: W1 → W2 → W3
 
-**W1 — build `standards-check.yml`**, folding in `zizmor.yml` and branch
-protection. Then **W2** (fleet rollout, pilots first) and **W3** (retire the
-CI judgment reviewer). W2 now inherits a largely conformant fleet rather than
-one it must protect from scratch, so re-scope it against current state rather
-than the design's original numbers.
+Decisions taken 2026-09-08 (Andrew) that unblock W1 — see
+`docs/superpowers/plans/2026-09-08-backlog-remainder-roadmap.md`:
 
-Re-pick the W2 pilot. The design chose `scripts` because its check was
-"Pro-gated and therefore not enforced" — that reasoning expired at I3, and
-`scripts` now enforces normally.
+- **No judgment reviewer stays in CI.** `standards-check.yml` replaces
+  `claude-blocking-review.yml` outright; local hooks are the only judgment
+  pass. `claude-assistant.yml` is out of scope and keeps its token.
+- **`nightowl-restore-blocking-review.sh` is retired with W3.**
 
-### Should be done early
+W2 pilots, re-picked from repos with no enforcement today: `repo-template`,
+`pr-review`, `claude-code-workflows-agents`, `nightowlstudiollc/.github`.
+`scripts` is not a pilot (see #85).
 
-- **L1 — dotfiles config contamination.** Gates whether local review is real
-  at all. The design says do this first in the L track.
-- **N1a — local nvm default + infra-repo CI pins.** One command plus two CI
-  pins; removes an unpatched runtime from daily use. Node 20 has been past
-  EOL since 2026-04-30 (dev-env#78).
-- **F2 / F3** — owner-aware `git-identity.sh` and the `GH_TOKEN` precedence
-  guard. Both consume F1, which is done.
-- **I0** — `CLAUDE_CONFIG_DIR` billing-verification script; unblocks the
-  billing control and then I1.
+### Runs in parallel with W
 
-### Filed this session
+- **I0** — `CLAUDE_CONFIG_DIR` billing-verification script. Deliverable is a
+  script Andrew runs on the company machine.
+- **F2** — owner-aware `git-identity.sh`. Latent hazard only; do after I0.
+- **N1b** — product-repo Node bumps (`tensegrity`, `kebab-tax`,
+  `Gmail-MCP-Server`, `reliquarist`). Confirm each job reaches its Node
+  step before and after.
+- **L2 → L3, L4, L5** — deploy/edit separation, the false-OK pair
+  (claude-config#439, #451), doc hygiene, small unfiled items.
+- **#89** — add `claude-blocking-review.yml` + exemplar protection to
+  `smartwatermelon/.github` only; the other three stay ungated by decision.
+- **#90** — evaluate org rulesets on one test repo against a known-bad PR.
+- **#85** — full-history secret audit of `scripts`, then stop and report.
+- **#94** — Netlify publish verification for six sites (needs the Netlify
+  dashboard as the inventory of record).
 
-- **#89** — four repos have no enforced review check because they have **no
-  review workflow to require**: `smartwatermelon/.github`,
-  `claude-config-backup`, `superpowers`, `superpowers-marketplace`. Protecting
-  them as-is would report "protected" while enforcing nothing.
-  `smartwatermelon/.github` is in exactly that state today.
-- **#90** — evaluate org rulesets as the scaling mechanism. Per-repo
-  protection does not scale to new repos, and `repo-template` cannot carry
-  protection in the template. This is the real problem the disabled ruleset
-  was presumably meant to solve. Validate any ruleset against a known-bad
-  case before trusting it.
+### Filed 2026-09-05
+
 - **#84** — three conditions the org-migration design's failure table does
   not cover.
-- **#85** — make `smartwatermelon/scripts` public: secret audit, history
-  rewrite, branch protection.
 
 ## Deferred by decision
 
@@ -135,11 +155,11 @@ These are not oversights. Do not "fix" them without asking.
 
 | Item | Decision |
 | --- | --- |
-| Runbook Part D on TILSIT and MIMOLETTE | **Postponed 2026-09-05.** The `gh` wrapper's temporary `twistedmelonman=smartwatermelon` login alias (`~/.config/bash/gh-wrapper.sh:188`) stays in place until both machines run it. |
+| Runbook Part D on TILSIT and MIMOLETTE | **Done 2026-09-08.** Alias removal (migration plan Task 12) is unblocked. |
 | Splitting and rotating the shared token | **Deferred.** One token is installed in five places; a single rotation covers all of them. See `docs/token-rotation.md`. |
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
-| Five retired repo paths | **Support ticket in flight.** Assume denial and plan around the five paths staying dead. |
+| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
 
 ## Standing methodology
 
