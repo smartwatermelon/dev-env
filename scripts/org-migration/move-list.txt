@@ -4,11 +4,12 @@
 # transferred first and alone via `transfer.sh --only github-workflows`
 # (design Step 3).
 # cleanroom is the one repo that targets nightowlstudiollc.
-# Five repos target twistedmelonman: their smartwatermelon/<name> paths are
-# permanently retired by GitHub (popular-repository namespace retirement,
-# HTTP 422 on transfer and on create). They stay on the user account with
-# working redirects. Support ticket 4729524; assume denial. See
-# docs/STATUS.md "Deferred by decision".
+# Five repos target twistedmelonman as an INTERIM shim: their
+# smartwatermelon/<name> paths are retired by GitHub (popular-repository
+# namespace retirement, HTTP 422 on transfer and on create). They stay on
+# the user account with working redirects while support ticket 4729524 is
+# open. If GitHub releases the paths, flip these five back to
+# smartwatermelon and re-run transfer.sh. See docs/STATUS.md.
 .github	smartwatermelon
 archive-resolver	smartwatermelon
 claude-code-workflows-agents	smartwatermelon

@@ -51,7 +51,7 @@ the two open follow-ups from W0. They are inputs to the roadmap below.
 | L1 done | `dotfiles/.git/config` carries no `uchg` flag; `core.hooksPath` = `~/.config/git/hooks`; starter-set Task 4 |
 | N1a done | `~/.nvm/alias/default` = `lts/krypton`; `which node` → v24.19.0; `claude-code-workflows-agents#16` merged |
 | F3 done | `dotfiles#302` MERGED (fail closed when `GH_TOKEN` overrides the resolved identity) |
-| Support ticket 4729524 | closed by GitHub 2026-09-04 as self-service-only; reopened same day after the Team upgrade; status ping sent 2026-09-08. No staff reply. Assume denial. |
+| Support ticket 4729524 | closed by GitHub 2026-09-04 as self-service-only; reopened same day after the Team upgrade; status ping sent 2026-09-08. No staff reply. Andrew is not giving up on the paths; the move-list carries an interim shim. |
 | Task 11 Step 5 loop flags `claude-config`, `huddle-transcribe` | both are retired paths; `twistedmelonman` is their correct remote. The move-list still says `smartwatermelon`, so the loop and `verify.sh` treat them as drift. |
 
 ---
@@ -79,11 +79,12 @@ Replace the header comment block (lines 1–6) with:
 # transferred first and alone via `transfer.sh --only github-workflows`
 # (design Step 3).
 # cleanroom is the one repo that targets nightowlstudiollc.
-# Five repos target twistedmelonman: their smartwatermelon/<name> paths are
-# permanently retired by GitHub (popular-repository namespace retirement,
-# HTTP 422 on transfer and on create). They stay on the user account with
-# working redirects. Support ticket 4729524; assume denial. See
-# docs/STATUS.md "Deferred by decision".
+# Five repos target twistedmelonman as an INTERIM shim: their
+# smartwatermelon/<name> paths are retired by GitHub (popular-repository
+# namespace retirement, HTTP 422 on transfer and on create). They stay on
+# the user account with working redirects while support ticket 4729524 is
+# open. If GitHub releases the paths, flip these five back to
+# smartwatermelon and re-run transfer.sh. See docs/STATUS.md.
 ```
 
 Change these five rows so the target reads `twistedmelonman` (keep the TAB):
@@ -140,7 +141,7 @@ Replace lines 3–6 with:
 
 ```markdown
 Status: EXECUTED 2026-09-04 as a rename-then-reclaim. 25 of 30 repos
-transferred; five paths permanently retired (see `docs/STATUS.md`). Findings
+transferred; five paths retired pending support ticket 4729524 (see `docs/STATUS.md`). Findings
 and deviations are in dev-env#54's closing comment and dev-env#84. Executes
 items I3 and F4 of `2026-09-01-infrastructure-backlog-design.md`.
 ```
@@ -262,7 +263,7 @@ Replace the `Runbook Part D` row with:
 Replace the `Five retired repo paths` row with:
 
 ```markdown
-| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. Assume denial. The move-list now records `twistedmelonman` as their end state. |
+| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
 ```
 
 - [ ] **Step 6: Run markdown lint if configured, then commit**

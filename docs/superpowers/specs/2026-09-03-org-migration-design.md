@@ -1,7 +1,7 @@
 # Design: Org Migration (I3) and Token Scope Escape Hatch (F4)
 
 Status: EXECUTED 2026-09-04 as a rename-then-reclaim. 25 of 30 repos
-transferred; five paths permanently retired (see `docs/STATUS.md`). Findings
+transferred; five paths retired pending support ticket 4729524 (see `docs/STATUS.md`). Findings
 and deviations are in dev-env#54's closing comment and dev-env#84. Executes
 items I3 and F4 of `2026-09-01-infrastructure-backlog-design.md`.
 

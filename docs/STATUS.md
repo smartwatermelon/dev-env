@@ -33,14 +33,14 @@ the design sketched: the personal account `smartwatermelon` was renamed to
 `twistedmelonman`, then `smartwatermelon` was re-created as an organization
 and repos transferred in.
 
-**25 of 30 repos moved. Five never will.** `dotfiles`, `claude-config`,
+**25 of 30 repos moved. Five are blocked pending a support ticket.** `dotfiles`, `claude-config`,
 `personify`, `huddle-transcribe`, `projectinsomnia` are blocked by GitHub's
-**popular repository namespace retirement** — a path is retired permanently
+**popular repository namespace retirement** — a path is retired
 when the repo saw >100 clones or >100 Actions runs in the week before a
 rename, or shipped a Marketplace action. Retirement binds the *string*, not
 the account, so the new org inherited the old user account's retired paths.
 It blocks transfer (HTTP 422) and creation alike. A support ticket is in
-flight; assume it will be denied.
+flight (4729524), reopened after the org's Team upgrade; Andrew is pursuing it.
 
 Three platform behaviors found the hard way, all now documented:
 
@@ -159,7 +159,7 @@ These are not oversights. Do not "fix" them without asking.
 | Splitting and rotating the shared token | **Deferred.** One token is installed in five places; a single rotation covers all of them. See `docs/token-rotation.md`. |
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
-| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. Assume denial. The move-list now records `twistedmelonman` as their end state. |
+| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
 
 ## Standing methodology
 
