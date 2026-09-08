@@ -1,9 +1,9 @@
 # Design: Org Migration (I3) and Token Scope Escape Hatch (F4)
 
-Status: APPROVED IN CHAT 2026-09-03 — spec under review before the
-implementation plan. Executes items I3 and F4 of
-`2026-09-01-infrastructure-backlog-design.md`. Supersedes the phase plan in
-`smartwatermelon/dev-env#54` while keeping its goal.
+Status: EXECUTED 2026-09-04 as a rename-then-reclaim. 25 of 30 repos
+transferred; five paths permanently retired (see `docs/STATUS.md`). Findings
+and deviations are in dev-env#54's closing comment and dev-env#84. Executes
+items I3 and F4 of `2026-09-01-infrastructure-backlog-design.md`.
 
 ## Purpose
 
