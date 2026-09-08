@@ -1898,7 +1898,49 @@ EOF
 
 Surface the issue URL.
 
-**Verified when:** Steps 1–4 done and reported.
+- [ ] **Step 5: Repoint any local clone whose `origin` drifted off `smartwatermelon/*`**
+
+The migration's "no remote changes" premise holds only for clones whose
+`origin` still says `smartwatermelon/<repo>`: those URLs are correct again
+once the repo lands in the org. A clone repointed at `twistedmelonman/<repo>`
+during the window between the rename and the transfer is a different case —
+it keeps working via redirect, so nothing fails loudly, but it no longer
+matches the intended end state.
+
+It also drops out of verification silently. `verify.sh`'s clone loop skips any
+remote that does not match `github.com[:/]smartwatermelon/` (`verify.sh:109`,
+`continue`), so a drifted clone is not checked and not reported — the run
+still prints a clean result. Do not read a passing `verify.sh` as evidence
+that every local clone was examined.
+
+Find and fix them:
+
+```bash
+for d in "${HOME}"/Developer/*/.git; do
+  dir="${d%/.git}"
+  url="$(git -C "${dir}" remote get-url origin 2>/dev/null || true)"
+  [[ "${url}" =~ github\.com[:/]twistedmelonman/ ]] || continue
+  repo="${url##*/}"; repo="${repo%.git}"
+  if grep -qE "^${repo}[[:space:]]+smartwatermelon$" \
+      /Users/andrewrich/Developer/dev-env/scripts/org-migration/move-list.txt; then
+    echo "repoint: ${dir##*/}  ${url}"
+    git -C "${dir}" remote set-url origin "git@github.com:smartwatermelon/${repo}.git"
+  fi
+done
+```
+
+Only repos on the move list with target `smartwatermelon` are repointed;
+forks and archived repos legitimately stay under `twistedmelonman`. Re-run
+`verify.sh` afterward and confirm each repointed clone now appears in its
+`ls-remote ok` output rather than being skipped.
+
+Known drift as of 2026-09-08, found by the loop above: `claude-config` and
+`huddle-transcribe`. `claude-config` was repointed while diagnosing a
+`gh pr create` failure — the stale `smartwatermelon` remote made `gh` build
+a cross-repo PR and fail with "No commits between …". `dev-env` and
+`dotfiles` were checked and are still on `smartwatermelon`.
+
+**Verified when:** Steps 1–5 done and reported.
 
 ---
 
