@@ -25,6 +25,8 @@ decisions recorded in `2026-09-08-backlog-remainder-roadmap.md`. Research
 inputs: `.superpowers/sdd/2026-09-08-backlog-remainder-roadmap/w1-research.md`
 (git-ignored scratch; the facts it established are restated here).
 
+> **Deviation recorded 2026-09-08:** `github.job_workflow_sha` is empty inside a reusable workflow. The shipped workflow (github-workflows#162) uses `job.workflow_sha` with a fail-loud verify step instead. References to `github.job_workflow_sha` below are the original design text, kept as written.
+
 ## Global Constraints
 
 - Work happens in `/Users/andrewrich/Developer/github-workflows`. Never commit

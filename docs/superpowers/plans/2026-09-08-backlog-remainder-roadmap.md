@@ -43,9 +43,9 @@ the two open follow-ups from W0. They are inputs to the roadmap below.
 
 | Claim | Evidence |
 | --- | --- |
-| Runbook Part D done on TILSIT | `env -u GH_TOKEN gh api user --jq .login` over SSH → `twistedmelonman`; dotfiles at `37f9b6f` |
-| Runbook Part D done on MIMOLETTE | same login; dotfiles was at `2ab0959` (2026-08-20), fast-forwarded to `37f9b6f` this session; missing `~/.config/git/hooks/lib-symlink-exclusions.sh` symlink added |
-| Task 12 gate ("section D ran on all three machines") | **satisfied** |
+| Runbook Part D on TILSIT | **Wrongly recorded done.** `gh api user` prints the renamed login regardless of hosts.yml; hosts.yml still says `smartwatermelon`. dotfiles at `37f9b6f` |
+| Runbook Part D on MIMOLETTE | **Wrongly recorded done**, same flaw; dotfiles was at `2ab0959` (2026-08-20), fast-forwarded to `37f9b6f`; missing `~/.config/git/hooks/lib-symlink-exclusions.sh` symlink added |
+| Task 12 gate ("section D ran on all three machines") | **was NOT satisfied**; the alias was removed anyway (dotfiles#310). Consequence: wrapper fails closed on TILSIT/MIMOLETTE until Part D runs there |
 | Migration Tasks 10, 11 done | org secret `CLAUDE_CODE_OAUTH_TOKEN` visibility `ALL`; `ralph-burndown` secret list empty; `claude-code-login` and `smartwatermelon.github.io` return 404; #85 filed; #54 CLOSED |
 | Task 13 Step 3 not done | migration spec line 3 still reads `APPROVED IN CHAT 2026-09-03` |
 | L1 done | `dotfiles/.git/config` carries no `uchg` flag; `core.hooksPath` = `~/.config/git/hooks`; starter-set Task 4 |
@@ -301,12 +301,12 @@ it verbatim. Two additions:
 ```bash
 for h in tilsit.local mimolette.local; do
   printf '%s: ' "$h"
-  ssh -o ConnectTimeout=6 -o BatchMode=yes "$h" 'env -u GH_TOKEN gh api user --jq .login'
+  ssh -o ConnectTimeout=6 -o BatchMode=yes "$h" 'grep user: ~/.config/gh/hosts.yml'
 done
-env -u GH_TOKEN gh api user --jq .login
+grep user: ~/.config/gh/hosts.yml
 ```
 
-Expected: `twistedmelonman` three times. If any machine prints anything else or is unreachable, stop and report; do not remove the alias.
+Expected: `user: twistedmelonman` three times. If any machine prints anything else or is unreachable, stop and report; do not remove the alias.
 
 - [ ] **Step B: After the PR merges, pull dotfiles on all three machines**
 

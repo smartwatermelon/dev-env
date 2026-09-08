@@ -106,10 +106,12 @@ and previously unrecorded here:
 
 Org secret set (visibility `ALL`), `ralph-burndown` secret removed,
 `claude-code-login` and `smartwatermelon.github.io` deleted, #85 filed, #54
-closed. Runbook Part D verified on TILSIT and MIMOLETTE 2026-09-08 (both
-authenticate as `twistedmelonman`); MIMOLETTE's dotfiles clone was 35 commits
-behind and was fast-forwarded. The temporary login alias is now removable
-(migration plan Task 12).
+closed. Runbook Part D was wrongly recorded as done on TILSIT and MIMOLETTE
+on 2026-09-08 (`gh api user` reports the renamed login even before re-login;
+`hosts.yml` on both still says `smartwatermelon`). MIMOLETTE's dotfiles clone
+was 35 commits behind and was fast-forwarded. The temporary login alias was
+removed anyway (`dotfiles#310`), so the wrapper fails closed on both machines
+for org-owned repos until Andrew re-runs Part D there.
 
 ## Open work, in priority order
 
@@ -155,7 +157,7 @@ These are not oversights. Do not "fix" them without asking.
 
 | Item | Decision |
 | --- | --- |
-| Runbook Part D on TILSIT and MIMOLETTE | **Done 2026-09-08.** Alias removal (migration plan Task 12) is unblocked. |
+| Runbook Part D on TILSIT and MIMOLETTE | **Still pending on both** as of 2026-09-08; wrongly marked done earlier that day. Manual re-login by Andrew; verify with `grep user: ~/.config/gh/hosts.yml`. |
 | Splitting and rotating the shared token | **Deferred.** One token is installed in five places; a single rotation covers all of them. See `docs/token-rotation.md`. |
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
