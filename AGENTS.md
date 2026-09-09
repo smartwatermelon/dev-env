@@ -1,0 +1,38 @@
+# AGENTS.md
+
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+## Purpose
+
+This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Codex development environment. It is not an application codebase and there is no build step, but it is not command-free either:
+
+- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`.
+- **Lint**: `shellcheck -S info <script>` applies to every shell script in the repo, and must be clean with no `# shellcheck disable` directives.
+
+## Repository Structure
+
+- `docs/` — Design documents, workflow deep dives, and research notes
+  - `docs/STATUS.md` — Point-in-time project status: what's done, what's next, what's deferred by decision. Start here.
+  - `docs/plans/` — Implementation plans (e.g., infrastructure consolidation)
+  - `docs/WORKFLOW-DEEP-DIVE.md` — Comprehensive reference for all enforcement layers (hooks, wrappers, CI/CD)
+  - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
+  - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
+  - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
+- `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
+- `.Codex/` — Project-specific Codex configuration templates
+  - `.Codex/config.sh.template` — Template for project configuration (Node version, required tools, deployment secrets, build/deploy hooks)
+  - `.Codex/hooks/extensions/` — Project-specific git hook extensions (discovered and run by global hooks at `~/.config/git/hooks/`)
+  - `.Codex/README.md` — Setup guide for using the `.Codex/` directory in other projects
+
+## Key Concepts
+
+**Global infrastructure lives at `~/.Codex/` and `~/.config/git/hooks/`** — this repo documents and plans changes to that infrastructure, but the live infrastructure is installed globally, not here. Changes here are design docs and templates meant to be copied/symlinked into the global locations.
+
+**The infrastructure consolidation plan** (`docs/plans/2026-03-25-infrastructure-consolidation-design.md`) is the active roadmap. It aims to make this repo the single source of truth with an `install.sh` that symlinks everything into place (blue/green settings merge, idempotent installs).
+
+## Working in This Repo
+
+- Documents are Markdown — no build step required
+- When editing design plans, preserve the existing structure and status markers
+- Hook extensions follow the contract: exit 0 = pass, exit 1 = block; see `example.sh.disabled` for the template
+- `config.sh.template` is a reference template — don't add project-specific values to it
