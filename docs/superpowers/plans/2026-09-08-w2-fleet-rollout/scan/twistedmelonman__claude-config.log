@@ -1,0 +1,234 @@
+
+== shellcheck
+
+In hooks/lib-review-context.sh line 68:
+  hash=$(printf '%s\n%s\n' "${branch}" "$(sort <<<"${changed_files}")" \
+                                          ^------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In hooks/lib-review-context.sh line 69:
+    | shasum -a 256 2>/dev/null | awk '{print $1}')
+      ^-----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In hooks/pre-merge-review.sh line 224:
+source "${_LIB_DIR}/lib-review-issues.sh"
+       ^-- SC1091 (info): Not following: lib-review-issues.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In hooks/run-review.sh line 94:
+  case "$1" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In hooks/run-review.sh line 1190:
+source "${_LIB_DIR}/lib-review-issues.sh"
+       ^-- SC1091 (info): Not following: lib-review-issues.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In hooks/run-review.sh line 1194:
+source "${_LIB_DIR}/lib-review-context.sh"
+       ^-- SC1091 (info): Not following: lib-review-context.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In hooks/tests/run-review-test.sh line 2904:
+  "$(grep -c 'issue create' "${GH_CALLS}" 2>/dev/null | tr -d ' ' | sed 's/^0$//')"
+     ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                        ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                    ^-----------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In hooks/tests/run-review-test.sh line 2909:
+  "$(cat "${TEST49_LOG}" 2>/dev/null || echo "")"
+     ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In hooks/tests/run-review-test.sh line 3058:
+printf '%s\n' '# increment the counter' 'counter=$((counter + 1))' >>foo.sh
+                                        ^------------------------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In hooks/tests/run-review-test.sh line 3109:
+  "$(grep -c 'issue create' "${GH_CALLS53}" 2>/dev/null | tr -d ' ' | sed 's/^0$//')"
+     ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                          ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                      ^-----------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/blocked-audit.sh line 19:
+    echo "Total blocked attempts: $(wc -l <"${LOG_FILE}" | tr -d ' ')"
+                                    ^------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                           ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/hook-block-api-merge.sh line 108:
+  printf 'Use `gh pr merge <number>` instead — it routes through pre-merge-review.sh.\n' >&2
+         ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/hook-block-api-merge.sh line 122:
+  printf 'Use `gh pr merge <number>` instead — it routes through pre-merge-review.sh.\n' >&2
+         ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/hook-block-api-merge.sh line 140:
+  printf 'If you are trying to merge a PR, use `gh pr merge <number>` instead.\n' >&2
+         ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/hook-block-api-merge.sh line 156:
+  printf 'If you are trying to merge a PR, use `gh pr merge <number>` instead.\n' >&2
+         ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/hook-block-api-merge.sh line 178:
+  printf 'Use `gh pr merge <number>` (no global flags before the subcommand) instead.\n' >&2
+         ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-block-api-merge.sh line 131:
+inp="$(make_input 'git commit -m "$(gh api repos/o/r/pulls/1/merge --method PUT)"')"
+                  ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-block-api-merge.sh line 133:
+inp="$(make_input 'git commit -m "`gh api repos/o/r/pulls/1/merge`"')"
+                  ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-block-api-merge.sh line 160:
+cmd_multiline=$(printf 'git -C /path commit -m "$(cat <<EOF\n%sEOF\n)"' "${msg_at}")
+                       ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-block-api-merge.sh line 180:
+inp="$(make_input 'gh pr create --body "$(gh api repos/o/r/pulls/1/merge)"')"
+                  ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-block-git-worktree.sh line 281:
+bs='\\'
+     ^-- SC1003 (info): Want to escape a single quote? echo 'This is how it'\''s done'.
+
+
+In scripts/tests/test-hook-check-commit-message.sh line 44:
+heredoc_cmd='git commit -m "$(cat <<'"'"'EOF'"'"'
+            ^-----------------------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-check-commit-message.sh line 53:
+heredoc_bad='git commit -m "$(cat <<'"'"'EOF'"'"'
+            ^-----------------------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-check-commit-message.sh line 101:
+inp="$(make_input 'git commit -m "$(some_command_without_heredoc)"')"
+                  ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In scripts/tests/test-hook-check-commit-message.sh line 102:
+check 'Fail-open: $(cmd) without heredoc' 0 "${inp}"
+      ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC1003 -- Want to escape a single quote? ec...
+  https://www.shellcheck.net/wiki/SC1091 -- Not following: lib-review-context...
+  https://www.shellcheck.net/wiki/SC2016 -- Expressions don't expand in singl...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:44:121: [warning] line too long (157 > 120 characters) (line-length)
+.github/workflows/claude.yml:51:1: [warning] too many blank lines (1 > 0) (empty-lines)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/claude.yml:25:9
+   |
+25 |         - name: Checkout repository
+   |  _________^
+26 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+27 | |         with:
+28 | |           fetch-depth: 1
+   | |________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+14 findings (4 ignored, 9 suppressed, 1 unsafe fixes): 0 informational, 0 low, 1 medium, 0 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md README.md docs/CHECKLISTS.md docs/CODE-REVIEW.md docs/CUSTOM_AGENTS.md docs/HUMAN-BYPASS.md docs/INFRASTRUCTURE.md docs/PHILOSOPHY.md docs/README.md docs/REFERENCE.md docs/plans/2026-04-03-symlink-reconciliation-design.md docs/plans/2026-04-03-symlink-reconciliation-plan.md docs/plans/2026-04-13-merge-lock-batch-auth.md docs/plans/2026-07-28-open-issues-triage.md docs/plans/2026-08-04-infra-work-and-env-scoping-report.md docs/plans/2026-08-04-review-convergence-fixes.md docs/plans/2026-08-31-agent-spend-controls-handoff.md docs/plans/2026-09-01-claude-account-switching-design.md skills/asd-ste100/SKILL.md skills/asd-ste100/examples/before-after.md skills/asd-ste100/references/writing-rules.md skills/converging-issue-backlogs/SKILL.md skills/converging-issue-backlogs/field-data.md
+Linting: 23 files
+Summary: 57 issues in 9 files
+docs/INFRASTRUCTURE.md:110 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Retry the commit (transient ..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:43 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `plugins/marketplaces/superp..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:57 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### `_ensure_symlink(target, link)`"]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:58 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- If symlink exists pointing t..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:63 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### `_is_excluded(file)`"]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:64 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Returns 0 if file matches ex..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:66 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### `_is_submodule_path(file)`"]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:67 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Returns 0 if file is inside ..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:91 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Iterates tracked files"]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:120 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. **Symlink repair** — run `i..."]
+docs/plans/2026-04-03-symlink-reconciliation-design.md:130 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Runtime dirs: `projects/`, `..."]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:13 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h3]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:16 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/run-review.sh..."]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:66 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `install.sh`"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:100 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:106 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:108 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:112 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:149 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `scripts/update-tool..."]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:159 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:164 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:166 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:169 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:172 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:186 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:220 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.gitignore`"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:314 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Symlink repair: 0 repairs"]
+docs/plans/2026-04-03-symlink-reconciliation-plan.md:321 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Add to known-runtime list in..."]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:12 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/merge-lock.sh..."]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:32 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `tests/test_merge_lo..."]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:136 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/merge-lock.sh..."]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:250 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/merge-lock.sh..."]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:313 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-04-13-merge-lock-batch-auth.md:315 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-08-04-infra-work-and-env-scoping-report.md:77 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Gotcha 1: `zizmor` (GitHub Actions security linter) blocked an"]
+docs/plans/2026-08-04-infra-work-and-env-scoping-report.md:127 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Gotcha 2: pre-push review surfaced a real (if minor) inconsistency,"]
+docs/plans/2026-08-04-infra-work-and-env-scoping-report.md:127:71 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ',']
+docs/plans/2026-08-04-review-convergence-fixes.md:36 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `hooks/lib-review-co..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:41 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Produces: `extract_file_head..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:242 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/lib-review-co..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:247 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Produces (in `lib-review-con..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:445 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/run-review.sh..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:450 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Produces (in `run-review.sh`..."]
+docs/plans/2026-08-04-review-convergence-fixes.md:769 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `hooks/run-review.sh..."]
+skills/asd-ste100/examples/before-after.md:26 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Two instructions in one sent..."]
+skills/asd-ste100/examples/before-after.md:43 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- One sentence carrying three ..."]
+skills/asd-ste100/examples/before-after.md:61 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Present perfect ("has comple..."]
+skills/asd-ste100/examples/before-after.md:69 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "should proceed to consume" ..."]
+skills/asd-ste100/examples/before-after.md:78 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Marketing adjectives and cla..."]
+skills/asd-ste100/references/writing-rules.md:18 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use approved words only in t..."]
+skills/asd-ste100/references/writing-rules.md:25 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Permitted forms: infinitive,..."]
+skills/asd-ste100/references/writing-rules.md:30 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Active voice is required for..."]
+skills/asd-ste100/references/writing-rules.md:34 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- One instruction per sentence..."]
+skills/asd-ste100/references/writing-rules.md:41 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- One topic per paragraph."]
+skills/asd-ste100/references/writing-rules.md:46 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Safety-critical instructions..."]
+skills/asd-ste100/SKILL.md:120 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Rewrite ambiguous or dense E..."]
+skills/asd-ste100/SKILL.md:127 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Reproduce ASD's official ~90..."]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 3 linter(s) failed

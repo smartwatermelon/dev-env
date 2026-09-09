@@ -1,0 +1,42 @@
+owner/repo	green? (y/n/never-ran)	blocking linters
+nightowlstudiollc/.github	y	
+nightowlstudiollc/amelia-boone	never-ran	
+nightowlstudiollc/cleanroom	n	markdownlint
+nightowlstudiollc/financial-agent	never-ran	
+nightowlstudiollc/kebab-tax	n	markdownlint,shellcheck,yamllint
+nightowlstudiollc/kebab-tax-netlify	y	
+nightowlstudiollc/night-owl-studio	never-ran	
+nightowlstudiollc/reliquarist	y	
+nightowlstudiollc/tensegrity	n	markdownlint
+nightowlstudiollc/tnjcleaning	never-ran	
+nightowlstudiollc/vpn-lan-bridge	never-ran	
+smartwatermelon/.github	n	markdownlint
+smartwatermelon/archive-resolver	n	markdownlint
+smartwatermelon/claude-code-workflows-agents	y	
+smartwatermelon/claude-config-backup	never-ran	
+smartwatermelon/claude-wrapper	never-ran	
+smartwatermelon/crazy-larry	never-ran	
+smartwatermelon/dev-env	n	markdownlint
+smartwatermelon/dumbify	n	shellcheck
+smartwatermelon/github-workflows	y	(self-caller "Self Standards Check", not the stub; the stub file itself is DIFFERS-classified, see plan-corrections #1)
+smartwatermelon/gmail-newsletter-filter	n	markdownlint
+smartwatermelon/homebrew-tap	never-ran	
+smartwatermelon/lock-sync	n	markdownlint,shellcheck
+smartwatermelon/mac-dev-server-setup	never-ran	
+smartwatermelon/mac-server-setup	never-ran	
+smartwatermelon/pr-review	y	
+smartwatermelon/qwen-sidebar	never-ran	
+smartwatermelon/repo-template	y	
+smartwatermelon/scripts	n	shellcheck
+smartwatermelon/slack-mcp	n	markdownlint,shellcheck
+smartwatermelon/smartwatermelon-marketplace	never-ran	
+smartwatermelon/spokane-snow	n	shellcheck
+smartwatermelon/superpowers	never-ran	
+smartwatermelon/superpowers-marketplace	never-ran	
+smartwatermelon/swift-progress-indicator	y	
+smartwatermelon/x-thread-reader	never-ran	
+twistedmelonman/claude-config	n	markdownlint,shellcheck
+twistedmelonman/dotfiles	never-ran	
+twistedmelonman/huddle-transcribe	y	
+twistedmelonman/personify	n	shellcheck
+twistedmelonman/projectinsomnia	n	markdownlint,shellcheck

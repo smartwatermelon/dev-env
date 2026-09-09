@@ -1,0 +1,189 @@
+
+== shellcheck
+
+In install.sh line 175:
+  [[ "$(uname -s)" == "Darwin" ]] || fatal "This script only supports macOS."
+        ^------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 277:
+    mapfile -t current_domains < <(parse_mirrors_file "$LOCAL_MIRRORS_FILE")
+                                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 323:
+    echo "# Updated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+                       ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 393:
+    echo "# Updated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+                       ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 413:
+  [[ -L "$link" ]] && [[ "$(readlink "$link")" == "$target" ]]
+                            ^--------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 520:
+  mapfile -t managed < <(read_manifest)
+                         ^-----------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 591:
+  mapfile -t DESIRED_DOMAINS < <(get_desired_mirrors)
+                                 ^-----------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 603:
+  mapfile -t MANIFEST_DOMAINS < <(read_manifest)
+                                  ^-----------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:44:121: [warning] line too long (157 > 120 characters) (line-length)
+.github/workflows/claude.yml:51:1: [warning] too many blank lines (1 > 0) (empty-lines)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/release.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/update-mirrors.yml
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/ci.yml:17:9
+   |
+17 |       - uses: actions/checkout@v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/ci.yml:44:9
+   |
+44 |       - uses: actions/checkout@v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/ci.yml:17:15
+   |
+17 |       - uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/ci.yml:44:15
+   |
+44 |       - uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/claude.yml:25:9
+   |
+25 |         - name: Checkout repository
+   |  _________^
+26 | |         uses: actions/checkout@v7
+27 | |         with:
+28 | |           fetch-depth: 1
+   | |________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:26:15
+   |
+26 |         uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:32:15
+   |
+32 |         uses: anthropics/claude-code-action@v1
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/release.yml:16:9
+   |
+16 |       - uses: actions/checkout@v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/release.yml:16:15
+   |
+16 |       - uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/update-mirrors.yml:27:9
+   |
+27 |       - uses: actions/checkout@v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/update-mirrors.yml:27:15
+   |
+27 |       - uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+39 findings (5 ignored, 23 suppressed, 11 unsafe fixes): 0 informational, 5 low, 0 medium, 6 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md LICENSE.md README.md docs/superpowers/specs/2026-04-27-update-mirrors-resilience-design.md
+Linting: 4 files
+Summary: 1 issue in 1 file
+LICENSE.md:1 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "MIT License"]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 3 linter(s) failed

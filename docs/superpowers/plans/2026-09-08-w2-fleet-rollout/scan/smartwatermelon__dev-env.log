@@ -1,0 +1,112 @@
+
+== shellcheck
+
+In .claude/hooks/extensions/example.sh.disabled line 33:
+check_business_hours() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 34:
+  local current_hour=$(date +%H)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 58:
+check_todo_comments() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 60:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 68:
+    echo "${staged_changes}" | grep -iE '^\+.*TODO(?! #[0-9])' | sed 's/^/  /'
+                               ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 81:
+check_hardcoded_secrets() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 83:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 111:
+check_formatting() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 113:
+  local staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 122:
+  local js_files=$(echo "${staged_files}" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+        ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 125:
+    local unformatted_files=$(echo "${js_files}" | xargs prettier --check 2>&1 | grep -E '^/' || true)
+          ^---------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 145:
+check_commit_message_format() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 153:
+  local commit_msg=$(cat "${commit_msg_file}")
+        ^--------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+  https://www.shellcheck.net/wiki/SC2329 -- This function is never invoked. C...
+::error::shellcheck found problems
+
+== yamllint
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+No findings to report. Good job! (1 ignored, 7 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .claude/README.md CLAUDE.md README.md docs/2026-08-24-dotfiles-config-contamination-handoff.md docs/2026-08-25-dotfiles-config-contamination-response.md docs/2026-08-31-github-settings-app-evaluation.md docs/STATUS.md docs/WORKFLOW-DEEP-DIVE.md docs/data/corpus-440/FINDINGS-methodology.md docs/data/corpus-440/REBUILD.md docs/data/corpus-440/RESULTS.md docs/gh-json-jq-guide.md docs/github-actions-security-methodology.md docs/local-code-review-options.md docs/local-first-code-quality-epic.md docs/plans/2026-03-25-infrastructure-consolidation-design.md docs/plans/2026-04-02-phase2-implementation.md docs/plans/2026-04-02-phase2-local-whole-codebase-review.md docs/plans/2026-04-28-dependabot-auto-merge-c2.md docs/plans/2026-05-18-anthropic-spend-audit.md docs/plans/2026-07-31-cost-perf-followups.md docs/plans/2026-08-26-review-pipeline-redesign-design.md docs/plans/2026-08-27-workflow-sha-pinning.md docs/runbooks/org-migration-rename.md docs/superpowers/plans/2026-09-02-infrastructure-backlog-starter-set.md docs/superpowers/plans/2026-09-03-org-migration.md docs/superpowers/plans/2026-09-08-backlog-remainder-roadmap.md docs/superpowers/plans/2026-09-08-w1-standards-check.md docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md docs/superpowers/specs/2026-09-03-org-migration-design.md docs/token-rotation.md
+Linting: 32 files
+Summary: 18 issues in 2 files
+docs/2026-08-31-github-settings-app-evaluation.md:52:57 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:52:65 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:57:16 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:57:20 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:85:76 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:85:84 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:149:12 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:149:22 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:155:44 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/2026-08-31-github-settings-app-evaluation.md:155:53 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+docs/plans/2026-08-27-workflow-sha-pinning.md:19 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:22 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:36 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:38 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:42 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:44 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:95 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+docs/plans/2026-08-27-workflow-sha-pinning.md:97 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed

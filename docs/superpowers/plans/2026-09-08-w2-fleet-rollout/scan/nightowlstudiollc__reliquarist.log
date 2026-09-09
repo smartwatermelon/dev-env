@@ -1,0 +1,32 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+pnpm-lock.yaml:2848:121: [warning] line too long (259 > 120 characters) (line-length)
+pnpm-lock.yaml:3014:121: [warning] line too long (222 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+No findings to report. Good job! (6 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md docs/night-shift-reports/20260416.md docs/night-shift-reports/README.md docs/plans/2026-02-20-phase0-implementation.md docs/plans/2026-02-20-phase0-scaffolding-design.md docs/plans/2026-02-20-phase1-core-engine-design.md docs/plans/2026-02-20-phase1-implementation.md docs/plans/2026-02-26-phase2-implementation.md docs/plans/2026-02-26-phase2-provider-implementations-design.md docs/plans/2026-02-26-phase3-presentation-layer-design.md docs/plans/2026-03-06-phase4-design.md docs/plans/2026-03-06-phase4-implementation.md docs/plans/2026-04-11-v2-screenshot-intelligence.md docs/plans/RELIQUARIST_PROJECT_PLAN.md docs/runbooks/ralph-automation.md docs/specs/RELIQUARIST_TECH_SPEC.md docs/testing/manual-testing-checklist.md fastlane/screenshots/README.md
+Linting: 18 files
+Summary: 0 issues in 0 files
+
+== node-floor
+::error::package.json engines.node: >=20.0.0: Node 20 is below the supported floor (22)
+::error::.github/workflows/ci.yml: node-version: 20: Node 20 is below the supported floor (22)
+::error::2 Node pin(s) below floor 22. Node 20 reached EOL 2026-04-30.
+::error::node-floor found problems
+
+::error::standards-check: 1 linter(s) failed

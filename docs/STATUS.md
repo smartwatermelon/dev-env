@@ -10,19 +10,20 @@ live query on the date shown, and the fleet drifts.
 
 ## Where the project is
 
-The identity and migration layers are done. The fleet layer is unblocked and
-partly done. Local review and runtime EOL have not started.
+The identity and migration layers are done. The fleet layer has one item
+left, W3. Runtime EOL is done. Local review has not started beyond L1.
 
 | Layer | State |
 | --- | --- |
 | Foundation (F) | F1, F3, F4 done. F2 open (latent hazard, not urgent). |
 | Identity / billing (I) | I3 done. I0, I1, I2 open. |
-| Fleet (W) | W0 done. W1, W2, W3 open — **critical path**. Design decisions taken 2026-09-08. |
+| Fleet (W) | W0, W1, W2 done. W3 open — **critical path**. |
 | Local review (L) | L1 done. L2, L3, L4, L5 open. |
-| Runtime EOL (N) | N1a done. N1b (product repos) open. |
+| Runtime EOL (N) | N1a, N1b done. |
 
-**Critical path: W1 → W2 → W3.** I3 and W0 have left it. Everything in L and
-N runs in parallel and depends on nothing.
+**Critical path: W1 → W2 → W3.** I3, W0, W1, W2 have left it. Only W3
+remains. Runtime EOL (N) is fully done. Everything in L runs in parallel and
+depends on nothing.
 
 ## Done
 
@@ -86,6 +87,31 @@ protection in both orgs is classic per-repo branch protection. The gap was
 also smaller than reported: the transferred repos mostly carried their
 required check through intact.
 
+### W1, W2 — `standards-check.yml` built and rolled out fleet-wide
+
+Plan: `docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md` (execution
+record and corrections folded in). `standards-check.yml` (deterministic
+linters, no judgment reviewer) is installed as a **non-required** check on
+every non-archived, non-ignored fleet repo. Waves 1 (node-floor) and 2
+(zizmor pins) are merged everywhere they applied; wave 3 (shellcheck/
+markdownlint/yamllint) is scoped and on hold — see the Critical path section
+below. W3 (flip to required, per repo) is next.
+
+**N1b — done, with a correction.** The live node-floor set was
+`kebab-tax`, `reliquarist`, `gmail-newsletter-filter`, not the plan's
+original four: `smartwatermelon/headroom` and `Gmail-MCP-Server` both
+return 404 under either org and do not exist; `tensegrity` has no
+sub-floor Node pin and passed node-floor cleanly without a fix (its
+zizmor/markdownlint debt is unrelated and rides wave 3). All three real
+node-floor repos are merged and green on node-floor.
+
+Also noted during the wave-2 scan: `smartwatermelon/gmail-newsletter-filter`
+carries its own root `zizmor.yml`, a strict prefix of the canonical
+policy file (same `unpinned-uses`/`excessive-permissions` rules, missing
+three later ignore blocks). It passes zizmor regardless, so no action is
+needed now, but it is config drift from the canonical file worth fixing
+eventually.
+
 ### Starter set — L1, N1a, F3 (2026-09-02/03)
 
 Executed per `docs/superpowers/plans/2026-09-02-infrastructure-backlog-starter-set.md`
@@ -117,7 +143,11 @@ for org-owned repos until Andrew re-runs Part D there.
 
 ### Critical path: W1 → W2 → W3
 
-Decisions taken 2026-09-08 (Andrew) that unblock W1 — see
+W1 and W2 are done; W3 (flip `standards-check` to required per repo) is the
+remaining critical-path item. Plan and execution record:
+`docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md`.
+
+Decisions taken 2026-09-08 (Andrew) that unblocked W1 — see
 `docs/superpowers/plans/2026-09-08-backlog-remainder-roadmap.md`:
 
 - **No judgment reviewer stays in CI.** `standards-check.yml` replaces
@@ -125,18 +155,36 @@ Decisions taken 2026-09-08 (Andrew) that unblock W1 — see
   pass. `claude-assistant.yml` is out of scope and keeps its token.
 - **`nightowl-restore-blocking-review.sh` is retired with W3.**
 
-W2 pilots, re-picked from repos with no enforcement today: `repo-template`,
-`pr-review`, `claude-code-workflows-agents`, `nightowlstudiollc/.github`.
-`scripts` is not a pilot (see #85).
+W2 pilots (done): `repo-template`, `pr-review`, `claude-code-workflows-agents`,
+`nightowlstudiollc/.github`. `scripts` was not a pilot (see #85). The stub
+was installed on all 40 fleet repos on 2026-09-08 via direct push
+(`bulk-install-standards-check.sh`, `github-workflows#164`); `github-workflows`
+itself classifies `DIFFERS` by design (that path holds the reusable workflow,
+not a caller stub); `nightowlstudiollc/networth-agent` is `IGNORED`; 3 repos
+are archived.
+
+**Merge locks actually typed by Andrew: 2** (dev-env#99, github-workflows#164).
+Every other W2 merge was done from the GitHub UI; dev-env#101 tracks a
+merge-lock TUI improvement to make that the normal path.
+
+**W3 readiness** (latest `standards-check` PR run per repo, measured
+2026-09-08; a repo with no PR since install shows `never-ran` and needs a
+no-op PR in W3 to get a first run): **green 9 of 41, red 15, never-ran 17.**
+All 15 red repos fail only on wave-3 linters (shellcheck/markdownlint/
+yamllint) — zizmor and node-floor are clean everywhere a check has run,
+confirming waves 1–2 landed cleanly. Full table:
+`docs/superpowers/plans/2026-09-08-w2-fleet-rollout/w3-readiness.tsv`.
+
+**Wave 3 (combined shellcheck/markdownlint/yamllint, ~26 repos) is ON HOLD
+by Andrew's decision as of 2026-09-08 18:45 PDT — not started.** It is the
+main path to moving repos out of `never-ran`/red before W3 flips checks to
+required.
 
 ### Runs in parallel with W
 
 - **I0** — `CLAUDE_CONFIG_DIR` billing-verification script. Deliverable is a
   script Andrew runs on the company machine.
 - **F2** — owner-aware `git-identity.sh`. Latent hazard only; do after I0.
-- **N1b** — product-repo Node bumps (`tensegrity`, `kebab-tax`,
-  `Gmail-MCP-Server`, `reliquarist`). Confirm each job reaches its Node
-  step before and after.
 - **L2 → L3, L4, L5** — deploy/edit separation, the false-OK pair
   (claude-config#439, #451), doc hygiene, small unfiled items.
 - **#89** — add `claude-blocking-review.yml` + exemplar protection to
@@ -145,6 +193,10 @@ W2 pilots, re-picked from repos with no enforcement today: `repo-template`,
 - **#85** — full-history secret audit of `scripts`, then stop and report.
 - **#94** — Netlify publish verification for six sites (needs the Netlify
   dashboard as the inventory of record).
+- `nightowlstudiollc/kebab-tax-netlify`'s `validate-audit` job (in its
+  `Test` workflow) fails on 7 new npm advisories (`fast-uri` x4, `toml` x2,
+  `extract-zip` x1, published 2026-08-17..09-03), found during the wave-2
+  scan. Unrelated to the rollout; left untouched.
 
 ### Filed 2026-09-05
 

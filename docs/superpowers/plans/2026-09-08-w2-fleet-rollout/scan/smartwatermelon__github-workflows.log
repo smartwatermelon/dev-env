@@ -1,0 +1,67 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/claude-assistant.yml:12:121: [warning] line too long (203 > 120 characters) (line-length)
+.github/workflows/claude-assistant.yml:13:121: [warning] line too long (217 > 120 characters) (line-length)
+.github/workflows/claude-assistant.yml:14:121: [warning] line too long (204 > 120 characters) (line-length)
+.github/workflows/claude-assistant.yml:32:121: [warning] line too long (233 > 120 characters) (line-length)
+.github/workflows/claude-assistant.yml:273:121: [warning] line too long (129 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:210:121: [warning] line too long (151 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:258:121: [warning] line too long (172 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:358:121: [warning] line too long (187 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:531:121: [warning] line too long (164 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:543:121: [warning] line too long (136 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:590:121: [warning] line too long (129 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:609:121: [warning] line too long (284 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:641:121: [warning] line too long (148 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:675:121: [warning] line too long (284 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:723:121: [warning] line too long (128 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:774:121: [warning] line too long (122 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:781:121: [warning] line too long (154 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:784:121: [warning] line too long (158 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:791:121: [warning] line too long (251 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:860:121: [warning] line too long (150 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:867:121: [warning] line too long (129 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:870:121: [warning] line too long (170 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:871:121: [warning] line too long (184 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:877:121: [warning] line too long (131 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:880:121: [warning] line too long (144 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:887:121: [warning] line too long (144 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:893:121: [warning] line too long (341 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:896:121: [warning] line too long (126 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:900:121: [warning] line too long (124 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:907:121: [warning] line too long (123 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:920:121: [warning] line too long (126 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:921:121: [warning] line too long (163 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:927:121: [warning] line too long (134 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:966:121: [warning] line too long (162 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:999:121: [warning] line too long (175 > 120 characters) (line-length)
+.github/workflows/claude-blocking-review.yml:1011:121: [warning] line too long (133 > 120 characters) (line-length)
+.github/workflows/claude.yml:14:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:15:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:16:121: [warning] line too long (200 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-assistant.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/self-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/self-standards-check.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/standards-check.yml
+No findings to report. Good job! (3 ignored, 18 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md README.md docs/plans/2026-03-06-centralize-claude-assistant.md docs/plans/2026-03-06-prompt-injection-hardening.md docs/plans/2026-03-20-migrate-all-repos-to-blocking-review.md docs/plans/2026-04-18-v2-rollout-playbook.md docs/plans/2026-04-30-bulk-install-smartwatermelon-fleet.md docs/plans/2026-04-30-create-nightowlstudiollc-github-defaults.md docs/plans/2026-04-30-required-workflows-nightowlstudiollc.md
+Linting: 9 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+standards-check: all enabled linters clean

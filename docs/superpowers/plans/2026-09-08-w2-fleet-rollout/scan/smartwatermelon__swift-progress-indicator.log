@@ -1,0 +1,54 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/release.yml
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/release.yml:16:9
+   |
+16 |         - name: Checkout code
+   |  _________^
+17 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+   | |_____________________________________________________________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+help[template-injection]: code injection via template expansion
+  --> .github/workflows/release.yml:68:51
+   |
+59 |         run: |
+   |         --- this run block
+...
+68 |           sed -i '' "s/sha256 \".*\"/sha256 \"${{ env.SHA256 }}\"/" Casks/progress-indicator.rb
+   |                                                   ^^^^^^^^^^ may expand into attacker-controllable code
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#template-injection
+
+18 findings (2 ignored, 14 suppressed, 2 unsafe fixes): 0 informational, 1 low, 1 medium, 0 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: README.md RELEASING.md
+Linting: 2 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 1 linter(s) failed

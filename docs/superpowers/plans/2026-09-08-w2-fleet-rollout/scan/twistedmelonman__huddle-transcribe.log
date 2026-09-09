@@ -1,0 +1,44 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/claude-blocking-review.yml:30:121: [warning] line too long (122 > 120 characters) (line-length)
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+.github/workflows/claude.yml:23:121: [warning] line too long (131 > 120 characters) (line-length)
+.github/workflows/lint.yml:143:121: [warning] line too long (166 > 120 characters) (line-length)
+.github/workflows/lint.yml:249:121: [warning] line too long (136 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/lint.yml
+error[dangerous-triggers]: use of fundamentally insecure workflow trigger
+  --> .github/workflows/dependabot-auto-merge.yml:44:1
+   |
+44 | / on:
+45 | |   pull_request_target:
+46 | |     types: [opened, synchronize, reopened]
+   | |__________________________________________^ pull_request_target is almost always used insecurely
+   |
+   = note: audit confidence → Medium
+   = help: audit documentation → https://docs.zizmor.sh/audits/#dangerous-triggers
+
+12 findings (11 suppressed): 0 informational, 0 low, 0 medium, 1 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md README.md docs/plans/bash-version-launch-surface-findings.md docs/plans/speaker-name-attribution.md
+Linting: 4 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 1 linter(s) failed

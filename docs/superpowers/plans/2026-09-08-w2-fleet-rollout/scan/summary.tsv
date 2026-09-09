@@ -1,0 +1,42 @@
+smartwatermelon/claude-code-workflows-agents	1	shellcheck,zizmor,markdownlint
+smartwatermelon/pr-review	1	shellcheck,zizmor
+smartwatermelon/repo-template	0	
+smartwatermelon/github-workflows	0	
+smartwatermelon/claude-config-backup	0	
+smartwatermelon/dev-env	1	shellcheck,markdownlint
+smartwatermelon/mac-server-setup	1	shellcheck
+smartwatermelon/archive-resolver	1	shellcheck,zizmor,markdownlint
+smartwatermelon/swift-progress-indicator	1	zizmor
+smartwatermelon/gmail-newsletter-filter	1	markdownlint,node-floor
+smartwatermelon/scripts	1	shellcheck,zizmor
+smartwatermelon/lock-sync	1	shellcheck,zizmor,markdownlint
+smartwatermelon/superpowers-marketplace	0	
+smartwatermelon/homebrew-tap	0	
+smartwatermelon/claude-wrapper	1	shellcheck
+smartwatermelon/dumbify	1	shellcheck,zizmor
+smartwatermelon/x-thread-reader	0	
+smartwatermelon/superpowers	1	shellcheck,markdownlint
+smartwatermelon/smartwatermelon-marketplace	1	shellcheck,markdownlint
+smartwatermelon/mac-dev-server-setup	1	markdownlint
+smartwatermelon/crazy-larry	0	
+smartwatermelon/qwen-sidebar	1	shellcheck
+smartwatermelon/slack-mcp	1	shellcheck,zizmor,markdownlint
+smartwatermelon/spokane-snow	1	shellcheck,zizmor
+smartwatermelon/.github	1	zizmor,markdownlint
+nightowlstudiollc/.github	1	zizmor
+nightowlstudiollc/amelia-boone	1	shellcheck,markdownlint
+nightowlstudiollc/kebab-tax-netlify	1	zizmor
+nightowlstudiollc/networth-agent	1	shellcheck
+nightowlstudiollc/financial-agent	1	shellcheck
+nightowlstudiollc/tnjcleaning	1	shellcheck
+nightowlstudiollc/night-owl-studio	1	yamllint
+nightowlstudiollc/cleanroom	1	markdownlint
+nightowlstudiollc/vpn-lan-bridge	0	
+nightowlstudiollc/kebab-tax	1	shellcheck,yamllint,zizmor,markdownlint,node-floor
+nightowlstudiollc/tensegrity	1	zizmor,markdownlint
+nightowlstudiollc/reliquarist	1	node-floor
+twistedmelonman/dotfiles	1	shellcheck
+twistedmelonman/claude-config	1	shellcheck,zizmor,markdownlint
+twistedmelonman/personify	1	shellcheck,zizmor
+twistedmelonman/huddle-transcribe	1	zizmor
+twistedmelonman/projectinsomnia	1	shellcheck,markdownlint

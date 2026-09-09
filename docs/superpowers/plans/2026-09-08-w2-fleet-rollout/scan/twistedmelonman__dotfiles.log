@@ -1,0 +1,433 @@
+
+== shellcheck
+
+In bash/completion.sh line 78:
+  eval "$(register-python-argcomplete pipx)"
+          ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 82:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 117:
+    eval "$(grep -vE '^export (PATH|MANPATH|INFOPATH)=' <<<"${BREW_SHELLENV}")"
+            ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 119:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 122:
+    if (($(awk "BEGIN {print (${_pf_duration} > 1.0)}"))); then
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 133:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 140:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/env.sh line 143:
+    if (($(awk "BEGIN {print (${_pf_duration} > 1.0)}"))); then
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/functions.sh line 924:
+  source "${HOME}/.bash_profile"
+         ^---------------------^ SC1091 (info): Not following: ./.bash_profile: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 10:
+  source "${BASH_CONFIG_DIR}/functions.sh"
+         ^-- SC1091 (info): Not following: ./functions.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 18:
+  source "${BASH_CONFIG_DIR}/env.sh"
+         ^-------------------------^ SC1091 (info): Not following: ./env.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 23:
+  source "${BASH_CONFIG_DIR}/path.sh"
+         ^--------------------------^ SC1091 (info): Not following: ./path.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 28:
+  source "${BASH_CONFIG_DIR}/services.sh"
+         ^-- SC1091 (info): Not following: ./services.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 33:
+  source "${BASH_CONFIG_DIR}/completion.sh"
+         ^-- SC1091 (info): Not following: ./completion.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 38:
+  source "${BASH_CONFIG_DIR}/history.sh"
+         ^-----------------------------^ SC1091 (info): Not following: ./history.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 43:
+  source "${BASH_CONFIG_DIR}/aliases.sh"
+         ^-----------------------------^ SC1091 (info): Not following: ./aliases.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 48:
+  source "${BASH_CONFIG_DIR}/prompt.sh"
+         ^----------------------------^ SC1091 (info): Not following: ./prompt.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/main.sh line 62:
+  eval "$(direnv hook bash)"
+          ^--------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/path.sh line 50:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/path.sh line 54:
+  if [[ $(type -t _profile_time) == "function" ]] && [[ "$-" == *i* ]]; then
+          ^-------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/path.sh line 57:
+    if (($(awk "BEGIN {print (${_pf_duration} > 1.0)}"))); then
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/run-tests.sh line 41:
+source "${_tests_dir_for_isolation}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-finicky-generate-config.sh line 67:
+check "missing apps dir yields empty scan" "" "$(finicky_scan_pwas "${TMP}/nope" "${PROFILES}")"
+                                                 ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 84:
+check "render replaces marker with sorted literal" "1" "$(grep -cF "${expected_literal}" <<<"${rendered}")"
+                                                          ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 85:
+check "render drops the marker comment" "0" "$(grep -c '@@INSTALLED_PWAS@@' <<<"${rendered}")"
+                                               ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 86:
+check "render keeps the rest of the template" "1" "$(grep -c '^export default' <<<"${rendered}")"
+                                                     ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 87:
+check "render prepends a GENERATED header on line 1" "1" "$(head -1 <<<"${rendered}" | grep -c 'GENERATED')"
+                                                            ^----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                                       ^-----------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 91:
+check "empty scan renders an empty object" "1" "$(grep -cF 'const INSTALLED_PWAS = {};' <<<"${rendered_empty}")"
+                                                  ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 119:
+check "trailing-space marker error mentions marker" "1" "$(grep -c 'marker' "${TMP}/ts.err")"
+                                                           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 128:
+check "embedded marker error mentions marker" "1" "$(grep -c 'marker' "${TMP}/em.err")"
+                                                     ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 132:
+check "real template has exactly one marker" "1" "$(grep -cF 'const INSTALLED_PWAS = {}; // @@INSTALLED_PWAS@@' "${REAL_TEMPLATE}" 2>/dev/null || echo 0)"
+                                                    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 133:
+check "real template catalogs GitHub" "1" "$(grep -c 'mjoklplbddabcmpepnokjaffbmgbkkgg' "${REAL_TEMPLATE}" 2>/dev/null || echo 0)"
+                                             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 135:
+check "real template renders with fixture scan" "2" "$(grep -cF "${GH_ID}" <<<"${real_rendered}")"
+                                                       ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 141:
+    check "rendered real template passes node --check" "ok" "$(head -3 "${TMP}/node.err")"
+                                                               ^-----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 143:
+  printf '%s\n' "$(finicky_render "${REAL_TEMPLATE}" "")" >"${TMP}/rendered-empty.mjs"
+                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 147:
+    check "rendered real template with no PWAs passes node --check" "ok" "$(head -3 "${TMP}/node2.err")"
+                                                                            ^------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 171:
+check "dangling symlink replaced by a regular file" "regular" "$([[ -f "${OUT}" && ! -L "${OUT}" ]] && echo regular || echo other)"
+                                                                 ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 172:
+check "installed file carries the literal" "1" "$(grep -cF "${GH_ID}" "${OUT}")"
+                                                  ^--------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 173:
+check "first install reports installed" "1" "$(grep -c 'installed:' "${TMP}/run1.out")"
+                                               ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 174:
+check "first install runs the restart command" "yes" "$([[ -f "${SENTINEL}" ]] && echo yes || echo no)"
+                                                        ^--------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 181:
+check "second run reports unchanged" "1" "$(grep -c 'unchanged:' "${TMP}/run2.out")"
+                                            ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 182:
+check "second run does not restart" "no" "$([[ -f "${SENTINEL}" ]] && echo yes || echo no)"
+                                            ^--------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 190:
+check "dry-run reports would install" "1" "$(grep -c 'would install:' "${TMP}/run3.out")"
+                                             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 191:
+check "dry-run leaves the file alone" "1" "$(grep -cF "${FOO_ID}" "${OUT}")"
+                                             ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 192:
+check "dry-run does not restart" "no" "$([[ -f "${SENTINEL}" ]] && echo yes || echo no)"
+                                         ^--------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 209:
+check "failing restart command still reports installed" "1" "$(grep -c 'installed:' "${TMP}/run4.out")"
+                                                               ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 210:
+check "failing restart command is warned about" "1" "$(grep -c 'restart command failed' "${TMP}/run4.out")"
+                                                       ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 220:
+  check "invalid render leaves existing file intact" "1" "$(grep -cF "${FOO_ID}" "${OUT}")"
+                                                            ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 233:
+  check "no finicky-check temp files remain" "0" "$(find "${TMPDIR_TEST}" -name 'finicky-check.*' | wc -l | tr -d ' ')"
+                                                    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                                                    ^---^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                                                            ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-finicky-generate-config.sh line 240:
+check "install.sh calls the generator" "2" "$(grep -cE 'bash "\$\{REPO_DIR\}/finicky/generate-config\.sh"' "${REPO_ROOT}/install.sh")"
+                                              ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In bash/tests/test-gh-wrapper-draft-off-org.sh line 20:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-gh-wrapper-identity.sh line 25:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-gh-wrapper-scope-hint.sh line 23:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-git-config-hygiene.sh line 44:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-git-wrapper-init-hook.sh line 30:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-gpush-wrapper-guard.sh line 20:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-install-worktree-guard.sh line 28:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-post-checkout-gitignore.sh line 53:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-post-checkout-hookspath.sh line 34:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-pre-push-base-ref.sh line 42:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In bash/tests/test-pre-push-stale-ci.sh line 39:
+source "${_tests_dir}/lib/git-env-isolation.sh"
+       ^-- SC1091 (info): Not following: lib/git-env-isolation.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In git/hooks/lib-symlink-repair.sh line 119:
+  done < <(git -C "${REPO_DIR}" ls-files)
+           ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In git/hooks/pre-commit line 48:
+  source "${_REPAIR_LIB}"
+         ^--------------^ SC1091 (info): Not following: lib-symlink-repair.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 33:
+check_business_hours() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 34:
+  local current_hour=$(date +%H)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 58:
+check_todo_comments() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 60:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 68:
+    echo "${staged_changes}" | grep -iE '^\+.*TODO(?! #[0-9])' | sed 's/^/  /'
+                               ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 81:
+check_hardcoded_secrets() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 83:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 111:
+check_formatting() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 113:
+  local staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 122:
+  local js_files=$(echo "${staged_files}" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+        ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 125:
+    local unformatted_files=$(echo "${js_files}" | xargs prettier --check 2>&1 | grep -E '^/' || true)
+          ^---------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 145:
+check_commit_message_format() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In git/template/.claude-template/hooks/extensions/example.sh.disabled line 153:
+  local commit_msg=$(cat "${commit_msg_file}")
+        ^--------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In install.sh line 255:
+done < <(git -C "${REPO_DIR}" ls-files)
+         ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In install.sh line 509:
+  done < <(git -C "${REPO_DIR}" ls-files)
+           ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...
+  https://www.shellcheck.net/wiki/SC1091 -- Not following: ./.bash_profile: o...
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+.github/workflows/dependabot-auto-merge.yml:21:121: [warning] line too long (159 > 120 characters) (line-length)
+gh/config.yml:7:121: [warning] line too long (130 > 120 characters) (line-length)
+gh/config.yml:9:121: [warning] line too long (151 > 120 characters) (line-length)
+gh/config.yml:11:121: [warning] line too long (139 > 120 characters) (line-length)
+gh/config.yml:16:121: [warning] line too long (133 > 120 characters) (line-length)
+gh/config.yml:20:121: [warning] line too long (132 > 120 characters) (line-length)
+gh/config.yml:26:121: [warning] line too long (155 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/bash-tests.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+No findings to report. Good job! (4 ignored, 8 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: README.md bash/README.md docs/plans/2026-03-26-symlink-migration-design.md docs/plans/2026-03-26-symlink-migration-plan.md docs/plans/2026-07-10-nightly-updates-sudo-tcc-plan.md docs/plans/2026-07-29-path-rationalization-design.md docs/plans/2026-07-29-path-rationalization-plan.md docs/plans/2026-09-01-finicky-pwa-generator-design.md docs/plans/2026-09-01-finicky-pwa-generator-plan.md docs/superpowers/plans/2026-08-13-git-gpush-wrapper-extraction.md git/README.md git/template/.claude-template/README.md pre-commit/README.md vim/README.md
+Linting: 14 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 1 linter(s) failed
