@@ -1,0 +1,444 @@
+
+== shellcheck
+
+In .claude/hooks/extensions/example.sh.disabled line 33:
+check_business_hours() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 34:
+  local current_hour=$(date +%H)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 58:
+check_todo_comments() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 60:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 68:
+    echo "${staged_changes}" | grep -iE '^\+.*TODO(?! #[0-9])' | sed 's/^/  /'
+                               ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 81:
+check_hardcoded_secrets() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 83:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 111:
+check_formatting() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 113:
+  local staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 122:
+  local js_files=$(echo "${staged_files}" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+        ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 125:
+    local unformatted_files=$(echo "${js_files}" | xargs prettier --check 2>&1 | grep -E '^/' || true)
+          ^---------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 145:
+check_commit_message_format() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 153:
+  local commit_msg=$(cat "${commit_msg_file}")
+        ^--------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+  https://www.shellcheck.net/wiki/SC2329 -- This function is never invoked. C...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:22:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:23:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:24:121: [warning] line too long (203 > 120 characters) (line-length)
+.github/workflows/claude.yml:25:121: [warning] line too long (236 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/verify-deploy-preview.yml
+No findings to report. Good job! (1 ignored, 12 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .claude/README.md CLAUDE.md EDITING-COOKBOOK.md PLAN.md README-SPONSORSHIPS.md README.md docs/astro-upgrade-analysis.md docs/audit-baseline.md docs/editing-guide.md docs/plans/2026-03-11-post-call-implementation.md src/data/blog/2013-summer-death-race-by-the-numbers.md src/data/blog/2016-a-year-of-healing.md src/data/blog/2017-year-rediscovering-joy.md src/data/blog/2018-the-year-of-letting-go.md src/data/blog/2019yearofrebirth.md src/data/blog/32-hours-and-21-minutes.md src/data/blog/a-racing-year-in-review-the-tippity-top.md src/data/blog/adventures-in-urban-training-hills.md src/data/blog/adventures-in-urban-training-wood-chopping.md src/data/blog/barkley2018.md src/data/blog/bigsbackyardultra.md src/data/blog/bodiesandresponsibility.md src/data/blog/brokenfemurbrokenheart.md src/data/blog/cashews-leadership-and-lessons-learned.md src/data/blog/coming-back-as-a-veteran.md src/data/blog/coming-home-worlds-toughest-mudder-2014.md src/data/blog/crossfit-obstacles-combine-love.md src/data/blog/day-after-worlds-toughest-mudder-hangover.md src/data/blog/death-race-by-the-numbers.md src/data/blog/death-race-truths.md src/data/blog/dont-fight-the-water.md src/data/blog/dr-2012-cheaters-and-brats-never-prosper.md src/data/blog/dr-recovery-at-sea.md src/data/blog/eatingdisordersandpandemics.md src/data/blog/eggfreezing.md src/data/blog/everyday-im-shufflin.md src/data/blog/finding-joy-in-the-dns.md src/data/blog/how-far-weve-come.md src/data/blog/how-worlds-toughest-mudder-ruined-my-life.md src/data/blog/i-fear-my-own-return.md src/data/blog/identity-injury-and-the-athlete.md src/data/blog/injured-reserve.md src/data/blog/injury-when-it-all-comes-crashing-down.md src/data/blog/letstalkaboutfeelings.md src/data/blog/meels-on-wheels.md src/data/blog/mission-unknown.md src/data/blog/on-being-broken-rehab-and-recovery.md src/data/blog/on-girl-crushes-and-the-interwebs.md src/data/blog/one-year-later-spartan-race-championships.md src/data/blog/race-happy.md src/data/blog/reflections-2015-in-review.md src/data/blog/reflections-on-a-year-in-recovery.md src/data/blog/relationshipwithsport.md src/data/blog/rewritingthescript.md src/data/blog/runningineatingdisorderrecovery.md src/data/blog/s-e-r-e-urban-chicago-is-a-dangerous-place.md src/data/blog/sean-obrien-100k-and-the-golden-ticket.md src/data/blog/spartan-ultrabeast-the-happiest-place-on-earth.md src/data/blog/substack-are-athletes-obligated-to-speak-out-on-social-media.md src/data/blog/substack-are-athletes-obligated-to-speak-up.md src/data/blog/substack-childless-or-child-free.md src/data/blog/substack-eggs-still-on-ice.md src/data/blog/substack-finding-myself-again.md src/data/blog/substack-highs-and-lows-the-importance-of-hilo.md src/data/blog/substack-highs-and-lows.md src/data/blog/substack-holes-in-the-ceiling.md src/data/blog/substack-i-said-id-be-done-with-this-by-40.md src/data/blog/substack-i-wish-this-was-a-stress-fracture.md src/data/blog/substack-if-it-warms-up-it-cant-be-a-stress-fracture.md src/data/blog/substack-if-it-warms-up-it-cant-be-a-stress.md src/data/blog/substack-its-a-pause-not-a-goodbye.md src/data/blog/substack-maybe-your-body-isnt-cut-out-for-this.md src/data/blog/substack-maybe-your-body-isnt-cut-out-for.md src/data/blog/substack-maybe.md src/data/blog/substack-mirrors.md src/data/blog/substack-not-the-worst-case-scenario.md src/data/blog/substack-now.md src/data/blog/substack-of-course-i-never-have-straightforward.md src/data/blog/substack-past-my-prime.md src/data/blog/substack-please-believe-me.md src/data/blog/substack-recovery-has-no-endpoint.md src/data/blog/substack-so-this-is-40.md src/data/blog/substack-temporary.md src/data/blog/substack-the-great-unsettling.md src/data/blog/substack-the-recovery-you-want-isnt-always.md src/data/blog/substack-this-is-the-hard-part.md src/data/blog/substack-un-optimizing-my-life.md src/data/blog/superhuman.md src/data/blog/the-betrayal-has-begun.md src/data/blog/the-book-of-ultra-the-georgia-death-race.md src/data/blog/the-first-dnf.md src/data/blog/the-gearwhore-edition-cold-weather-racing.md src/data/blog/the-injury-commandments.md src/data/blog/the-push-for-legitimacy.md src/data/blog/the-ten-commandments-of-worlds-toughest-mudder-part-i.md src/data/blog/the-trouble-with-chicking.md src/data/blog/the-trouble-with-rr.md src/data/blog/the-way-back.md src/data/blog/therecoveryineeded.md src/data/blog/these-races-should-be-everything-i-hate.md src/data/blog/thestateofthings.md src/data/blog/ultrabeast-eve-eve-non-sequiturs.md src/data/blog/used-and-abused-the-essentials.md src/data/blog/volenti-non-fit-injuria.md src/data/blog/walking-a-tightrope.md src/data/blog/when-will-you-be-back.md src/data/blog/willingness-to-suffer.md src/data/blog/winter-death-race-faqs.md src/data/blog/worlds-toughest-mudder-2013-and-it-wont-change-a-thing.md src/data/blog/worlds-toughest-mudder-2015-revolution.md src/data/blog/wtm-commandments-revisited-one-year-later.md src/data/blog/year-return-running-logs.md src/pages/about.md
+Linting: 113 files
+Summary: 341 issues in 44 files
+CLAUDE.md:182 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+docs/editing-guide.md:58 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `pubDatetime`: Use ISO forma..."]
+docs/plans/2026-03-11-post-call-implementation.md:35 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `migrate_images.py` ..."]
+docs/plans/2026-03-11-post-call-implementation.md:172 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `src/pages/index.ast..."]
+docs/plans/2026-03-11-post-call-implementation.md:253 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Hero box shows 4 most-recent..."]
+docs/plans/2026-03-11-post-call-implementation.md:281 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `src/pages/contact.a..."]
+docs/plans/2026-03-11-post-call-implementation.md:395 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `src/layouts/PostDet..."]
+docs/plans/2026-03-11-post-call-implementation.md:452 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `src/assets/icons/Ic..."]
+docs/plans/2026-03-11-post-call-implementation.md:555 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `src/pages/race-sche..."]
+docs/plans/2026-03-11-post-call-implementation.md:604 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Preserve year anchors (`id="..."]
+docs/plans/2026-03-11-post-call-implementation.md:649 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `src/pages/press.ast..."]
+docs/plans/2026-03-11-post-call-implementation.md:735 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `netlify.toml`"]
+docs/plans/2026-03-11-post-call-implementation.md:847 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Possibly modify: select `src..."]
+docs/plans/2026-03-11-post-call-implementation.md:873 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **A (preferred if simple):**..."]
+docs/plans/2026-03-11-post-call-implementation.md:957 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `docs/editing-guide...."]
+docs/plans/2026-03-11-post-call-implementation.md:1024 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Netlify dashboard → `amelia-..."]
+docs/plans/2026-03-11-post-call-implementation.md:1027 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Update `website` in `src/con..."]
+EDITING-COOKBOOK.md:73 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+EDITING-COOKBOOK.md:77 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+EDITING-COOKBOOK.md:78:66 error MD038/no-space-in-code Spaces inside code span elements [Context: "`  - `"]
+PLAN.md:1 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "# PLAN.md — Amelia Boone Demo Site"]
+PLAN.md:18 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- A working, attractive scaffo..."]
+PLAN.md:29 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Best-in-class for content-he..."]
+PLAN.md:53 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Clean blog list / post layou..."]
+PLAN.md:81 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+PLAN.md:90 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+PLAN.md:113 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```yaml"]
+PLAN.md:130 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+PLAN.md:139 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Short hero section: name, on..."]
+README.md:7:9 error MD034/no-bare-urls Bare URL used [Context: "https://ameliabooneracing.com/"]
+src/data/blog/2016-a-year-of-healing.md:15:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:27:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:35:8 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2016-a-year-of-healing.md:45:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:51:390 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2016-a-year-of-healing.md:53:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:55:331 error MD039/no-space-in-links Spaces inside link text [Context: "[ never-ending merry go-round ..."]
+src/data/blog/2016-a-year-of-healing.md:77:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:81:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:89:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:97:365 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2016-a-year-of-healing.md:103:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:107:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2016-a-year-of-healing.md:115:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2017-year-rediscovering-joy.md:31:61 error MD039/no-space-in-links Spaces inside link text [Context: "[ when do I race again]"]
+src/data/blog/2017-year-rediscovering-joy.md:45:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2017-year-rediscovering-joy.md:49:37 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2017-year-rediscovering-joy.md:53:42 error MD039/no-space-in-links Spaces inside link text [Context: "[ erring on the side of cautio..."]
+src/data/blog/2017-year-rediscovering-joy.md:63:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2017-year-rediscovering-joy.md:79:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2017-year-rediscovering-joy.md:83:19 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2017-year-rediscovering-joy.md:87:41 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2017-year-rediscovering-joy.md:97:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2018-the-year-of-letting-go.md:23 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h4]
+src/data/blog/2018-the-year-of-letting-go.md:25:95 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2018-the-year-of-letting-go.md:27:45 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2018-the-year-of-letting-go.md:29:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2018-the-year-of-letting-go.md:31:341 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/2018-the-year-of-letting-go.md:43:42 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "y **"]
+src/data/blog/2018-the-year-of-letting-go.md:45:442 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/2018-the-year-of-letting-go.md:45:1049 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/2018-the-year-of-letting-go.md:49:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2018-the-year-of-letting-go.md:55:36 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "s **"]
+src/data/blog/2018-the-year-of-letting-go.md:65:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2018-the-year-of-letting-go.md:67:328 error MD039/no-space-in-links Spaces inside link text [Context: "[ Premiere Spine & Sport]"]
+src/data/blog/2019yearofrebirth.md:37:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2019yearofrebirth.md:67:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/2019yearofrebirth.md:71:96 error MD039/no-space-in-links Spaces inside link text [Context: "[ feel like the pendulum is fi..."]
+src/data/blog/barkley2018.md:24:71 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/barkley2018.md:41:43 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/barkley2018.md:62:43 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/barkley2018.md:121:43 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/barkley2018.md:161:54 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/barkley2018.md:175:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/barkley2018.md:214:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bigsbackyardultra.md:19:92 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/bigsbackyardultra.md:19:231 error MD039/no-space-in-links Spaces inside link text [Context: "[ heel stress fracture two wee..."]
+src/data/blog/bigsbackyardultra.md:45:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bigsbackyardultra.md:51:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bigsbackyardultra.md:71:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bigsbackyardultra.md:75:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bigsbackyardultra.md:91:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bodiesandresponsibility.md:13 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h6]
+src/data/blog/bodiesandresponsibility.md:41:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bodiesandresponsibility.md:55:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/bodiesandresponsibility.md:63:155 error MD034/no-bare-urls Bare URL used [Context: "https://christyharrison.com/bl..."]
+src/data/blog/bodiesandresponsibility.md:65:160 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "R **"]
+src/data/blog/brokenfemurbrokenheart.md:12:315 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:14:356 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:16:45 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:18:153 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:20:37 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:22:256 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:24:406 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/brokenfemurbrokenheart.md:26:387 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:32:217 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:34:86 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:38:34 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:44:354 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:50:117 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/brokenfemurbrokenheart.md:52:212 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/death-race-truths.md:106:1 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/death-race-truths.md:106 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+src/data/blog/death-race-truths.md:107 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 3]
+src/data/blog/dont-fight-the-water.md:19:100 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/dont-fight-the-water.md:23:43 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/dont-fight-the-water.md:35:141 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/dont-fight-the-water.md:39:280 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/dont-fight-the-water.md:39:363 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/dont-fight-the-water.md:49:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/dont-fight-the-water.md:51:690 error MD039/no-space-in-links Spaces inside link text [Context: "[ Premiere Spine & Sport,]"]
+src/data/blog/eatingdisordersandpandemics.md:15:211 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/eatingdisordersandpandemics.md:45:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/eatingdisordersandpandemics.md:63:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/eatingdisordersandpandemics.md:75:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/eggfreezing.md:18:12 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:20:7 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:22:28 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:24:34 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:26:386 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:26:8 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:28:17 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:30:14 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:32:19 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:34:310 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:34:12 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/eggfreezing.md:36:23 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "? **"]
+src/data/blog/eggfreezing.md:38:22 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "? **"]
+src/data/blog/eggfreezing.md:42:535 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:48:598 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:50:529 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:54:545 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:56:557 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:58:210 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:76:219 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:78:20 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:82:346 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:88:495 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:90:294 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:95:50 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/eggfreezing.md:101:576 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:103:154 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:107:379 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:113:245 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:115:179 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:119:562 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:123:541 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:127:639 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/eggfreezing.md:133:408 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/i-fear-my-own-return.md:22:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/i-fear-my-own-return.md:24:100 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/i-fear-my-own-return.md:24:275 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/i-fear-my-own-return.md:36:23 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/i-fear-my-own-return.md:62:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/i-fear-my-own-return.md:64:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/i-fear-my-own-return.md:92:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/identity-injury-and-the-athlete.md:25:43 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/identity-injury-and-the-athlete.md:36:54 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/identity-injury-and-the-athlete.md:42:1 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/identity-injury-and-the-athlete.md:42 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+src/data/blog/identity-injury-and-the-athlete.md:43 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 3]
+src/data/blog/identity-injury-and-the-athlete.md:47:72 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/identity-injury-and-the-athlete.md:51:1 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/identity-injury-and-the-athlete.md:51 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+src/data/blog/identity-injury-and-the-athlete.md:52 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 3]
+src/data/blog/identity-injury-and-the-athlete.md:57:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/letstalkaboutfeelings.md:41:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:13:4 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/race-happy.md:25:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:33:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:39:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:41:470 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/race-happy.md:43:8 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/race-happy.md:59:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:71:347 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/race-happy.md:77:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/race-happy.md:79:463 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/race-happy.md:81:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/reflections-2015-in-review.md:14:2 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:14 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:33:23 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/reflections-2015-in-review.md:59:130 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:59 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:68:273 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:68 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:69:120 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:69 error MD039/no-space-in-links Spaces inside link text [Context: "[ ]"]
+src/data/blog/reflections-2015-in-review.md:103:182 error MD034/no-bare-urls Bare URL used [Context: "http://www.amazon.com/Natural-..."]
+src/data/blog/reflections-2015-in-review.md:103:316 error MD034/no-bare-urls Bare URL used [Context: "http://fourhourworkweek.com/20..."]
+src/data/blog/reflections-2015-in-review.md:103:383 error MD034/no-bare-urls Bare URL used [Context: "http://www.mudrunguide.com/201..."]
+src/data/blog/reflections-2015-in-review.md:103:468 error MD034/no-bare-urls Bare URL used [Context: "http://obstacleracingmedia.com..."]
+src/data/blog/reflections-on-a-year-in-recovery.md:12:590 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:16:216 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:22:70 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "h **"]
+src/data/blog/reflections-on-a-year-in-recovery.md:26:205 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:28:463 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:30:336 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:32:475 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:36:333 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:38:146 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:40:388 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:42:168 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:44:211 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:46:223 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:46:18 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/reflections-on-a-year-in-recovery.md:46:24 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/reflections-on-a-year-in-recovery.md:48:131 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:50:187 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:52:200 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:54:363 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:54:161 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/reflections-on-a-year-in-recovery.md:54:169 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/reflections-on-a-year-in-recovery.md:62:87 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "w **"]
+src/data/blog/reflections-on-a-year-in-recovery.md:78:207 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/reflections-on-a-year-in-recovery.md:80:829 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:86:153 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:88:199 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:90:304 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:93:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/reflections-on-a-year-in-recovery.md:97:694 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:101:420 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:103:246 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:107:226 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:109:44 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/reflections-on-a-year-in-recovery.md:111:261 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:12:179 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:18:232 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:20:224 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:22:116 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:30:478 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:36:254 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:38:13 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ": **"]
+src/data/blog/relationshipwithsport.md:40:280 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:42:134 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:44:215 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:51:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/relationshipwithsport.md:55:435 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:57:121 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:61:236 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:63:354 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:65:422 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:69:266 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:73:517 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:75:304 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/relationshipwithsport.md:79:81 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/rewritingthescript.md:18:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/rewritingthescript.md:20:99 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/rewritingthescript.md:20:222 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/rewritingthescript.md:32:293 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/rewritingthescript.md:36:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/rewritingthescript.md:42:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/rewritingthescript.md:44:34 error MD039/no-space-in-links Spaces inside link text [Context: "...ing with injury and setbacks ]"]
+src/data/blog/rewritingthescript.md:44:709 error MD039/no-space-in-links Spaces inside link text [Context: "[ Western States]"]
+src/data/blog/rewritingthescript.md:46:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/runningineatingdisorderrecovery.md:20:287 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:22:270 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/runningineatingdisorderrecovery.md:28:771 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:32:346 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:36:226 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:36:3 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/runningineatingdisorderrecovery.md:36:88 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/runningineatingdisorderrecovery.md:37:99 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:38:236 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:40:283 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:44:526 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:46:44 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "y **"]
+src/data/blog/runningineatingdisorderrecovery.md:50:459 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:54:333 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:58:265 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:62:447 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:66:191 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:68:225 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:74:112 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:76:751 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:76:1 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/runningineatingdisorderrecovery.md:76:26 error MD049/emphasis-style Emphasis style [Expected: underscore; Actual: asterisk]
+src/data/blog/runningineatingdisorderrecovery.md:78:419 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:80:516 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:82:46 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "s **"]
+src/data/blog/runningineatingdisorderrecovery.md:86:283 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:88:290 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:92:165 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:94:250 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:100:443 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:102:748 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:108:338 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:110:211 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/runningineatingdisorderrecovery.md:114:624 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+src/data/blog/sean-obrien-100k-and-the-golden-ticket.md:14:620 error MD034/no-bare-urls Bare URL used [Context: "http://www.wser.org/2015/11/26..."]
+src/data/blog/sean-obrien-100k-and-the-golden-ticket.md:36:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/sean-obrien-100k-and-the-golden-ticket.md:52:107 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/sean-obrien-100k-and-the-golden-ticket.md:60:1 error MD018/no-missing-space-atx No space after hash on atx style heading [Context: "#seeyouinsquaw AND #seeyouinta..."]
+src/data/blog/substack-are-athletes-obligated-to-speak-up.md:31:133 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "s *"]
+src/data/blog/substack-eggs-still-on-ice.md:47:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-holes-in-the-ceiling.md:21:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-holes-in-the-ceiling.md:59:485 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". _"]
+src/data/blog/substack-if-it-warms-up-it-cant-be-a-stress.md:29:25 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "s **"]
+src/data/blog/substack-if-it-warms-up-it-cant-be-a-stress.md:67:45 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "t **"]
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for-this.md:35:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for-this.md:37:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for-this.md:53:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for.md:35:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for.md:35:442 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-maybe-your-body-isnt-cut-out-for.md:51:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-not-the-worst-case-scenario.md:33:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-now.md:15:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-of-course-i-never-have-straightforward.md:35:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-of-course-i-never-have-straightforward.md:43:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-the-recovery-you-want-isnt-always.md:15:615 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: "t _"]
+src/data/blog/substack-the-recovery-you-want-isnt-always.md:15:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-the-recovery-you-want-isnt-always.md:47:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/substack-the-recovery-you-want-isnt-always.md:49:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:27:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:33:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:49:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:73:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:103:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:119:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:127:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/the-injury-commandments.md:129:547 error MD034/no-bare-urls Bare URL used [Context: "https://www.instagram.com/rest..."]
+src/data/blog/the-injury-commandments.md:149:2 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/therecoveryineeded.md:13:100 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/therecoveryineeded.md:23:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/therecoveryineeded.md:29:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/therecoveryineeded.md:37:79 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/therecoveryineeded.md:39:271 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/therecoveryineeded.md:39:576 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/therecoveryineeded.md:51:1 error MD045/no-alt-text Images should have alternate text (alt text)
+src/data/blog/therecoveryineeded.md:53:15 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/therecoveryineeded.md:69:682 error MD034/no-bare-urls Bare URL used [Context: "https://www.nytimes.com/2019/0..."]
+src/data/blog/therecoveryineeded.md:73:1087 error MD034/no-bare-urls Bare URL used [Context: "https://www.kristinabruce.com/..."]
+src/data/blog/therecoveryineeded.md:73:1235 error MD039/no-space-in-links Spaces inside link text [Context: "[ weight stigma]"]
+src/data/blog/therecoveryineeded.md:85:280 error MD034/no-bare-urls Bare URL used [Context: "https://www.athletebiz.us/blog..."]
+src/data/blog/thestateofthings.md:87:189 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/when-will-you-be-back.md:23:50 error MD039/no-space-in-links Spaces inside link text [Context: "[ like this]"]
+src/data/blog/when-will-you-be-back.md:43:366 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/when-will-you-be-back.md:45:357 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/when-will-you-be-back.md:45:591 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+src/data/blog/when-will-you-be-back.md:45:249 error MD039/no-space-in-links Spaces inside link text [Context: "[ freezing rivers]"]
+src/data/blog/worlds-toughest-mudder-2015-revolution.md:51:33 error MD037/no-space-in-emphasis Spaces inside emphasis markers [Context: ". **"]
+src/data/blog/year-return-running-logs.md:14:46 error MD034/no-bare-urls Bare URL used [Context: "http://www.ameliabooneracing.c..."]
+::error::markdownlint found problems
+
+== node-floor
+::notice::.github/workflows/ci.yml: node-version '[24]' is not a recognisable version or alias; not checked
+::notice::.github/workflows/ci.yml: node-version is an expression (${{ matrix.node-version }}); not checked
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed
