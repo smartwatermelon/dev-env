@@ -1,0 +1,150 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/changelog-apply-fixes.yml:69:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/changelog-apply-fixes.yml:218:121: [warning] line too long (127 > 120 characters) (line-length)
+.github/workflows/changelog-review.yml:157:121: [warning] line too long (180 > 120 characters) (line-length)
+.github/workflows/claude.yml:16:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:17:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:18:121: [warning] line too long (203 > 120 characters) (line-length)
+.github/workflows/claude.yml:19:121: [warning] line too long (236 > 120 characters) (line-length)
+.github/workflows/claude.yml:25:121: [warning] line too long (128 > 120 characters) (line-length)
+.github/workflows/dependabot-auto-merge.yml:13:121: [warning] line too long (155 > 120 characters) (line-length)
+.github/workflows/test.yml:54:121: [warning] line too long (127 > 120 characters) (line-length)
+.github/workflows/test.yml:116:121: [warning] line too long (140 > 120 characters) (line-length)
+.github/workflows/test.yml:273:121: [warning] line too long (140 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/changelog-apply-fixes.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/changelog-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/changelog-sanity-check.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/test.yml
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/changelog-apply-fixes.yml:28:9
+   |
+28 |         - name: Checkout repository
+   |  _________^
+29 | |         # persist-credentials is intentionally left at its default (true):
+30 | |         # the "Commit and push changes" step below pushes directly with
+31 | |         # `git push origin "$HEAD_REF"`, which relies on the credential
+...  |
+36 | |           ref: ${{ github.event.pull_request.head.ref }}
+37 | |           token: ${{ secrets.GITHUB_TOKEN }}
+   | |____________________________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/changelog-sanity-check.yml:22:9
+   |
+22 |         - name: Checkout PR branch
+   |  _________^
+23 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+24 | |         with:
+25 | |           ref: ${{ github.event.pull_request.head.sha }}
+   | |________________________________________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/test.yml:18:9
+   |
+18 |         - name: Checkout code
+   |  _________^
+19 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+   | |_____________________________________________________________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/test.yml:90:9
+   |
+90 |         - name: Checkout code
+   |  _________^
+91 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+   | |_____________________________________________________________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+   --> .github/workflows/test.yml:152:9
+    |
+152 |         - name: Checkout code
+    |  _________^
+153 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+    | |_____________________________________________________________________________^ does not set persist-credentials: false
+    |
+    = note: audit confidence → Low
+    = note: this finding has an auto-fix
+    = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+   --> .github/workflows/test.yml:222:9
+    |
+222 |         - name: Checkout code
+    |  _________^
+223 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+    | |_____________________________________________________________________________^ does not set persist-credentials: false
+    |
+    = note: audit confidence → Low
+    = note: this finding has an auto-fix
+    = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+   --> .github/workflows/test.yml:247:9
+    |
+247 |         - name: Checkout code
+    |  _________^
+248 | |         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+    | |_____________________________________________________________________________^ does not set persist-credentials: false
+    |
+    = note: audit confidence → Low
+    = note: this finding has an auto-fix
+    = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[excessive-permissions]: overly broad permissions
+  --> .github/workflows/test.yml:10:3
+   |
+10 |   pull-requests: write
+   |   ^^^^^^^^^^^^^^^^^^^^ pull-requests: write is overly broad at the workflow level
+   |
+   = note: audit confidence → High
+   = help: audit documentation → https://docs.zizmor.sh/audits/#excessive-permissions
+
+error[excessive-permissions]: overly broad permissions
+  --> .github/workflows/test.yml:11:3
+   |
+11 |   issues: write
+   |   ^^^^^^^^^^^^^ issues: write is overly broad at the workflow level
+   |
+   = note: audit confidence → High
+   = help: audit documentation → https://docs.zizmor.sh/audits/#excessive-permissions
+
+45 findings (1 ignored, 35 suppressed, 7 unsafe fixes): 0 informational, 0 low, 7 medium, 2 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .github/REVIEW_AGENT_README.md .github/claude-review-instructions.md CLAUDE.md MARKETING_POSTS.md README.md TESTING.md docs/security/npm-audit-baseline.md
+Linting: 7 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 1 linter(s) failed

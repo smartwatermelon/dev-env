@@ -1,0 +1,147 @@
+
+== shellcheck
+
+In .claude/hooks/extensions/example.sh.disabled line 33:
+check_business_hours() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 34:
+  local current_hour=$(date +%H)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 58:
+check_todo_comments() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 60:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 68:
+    echo "${staged_changes}" | grep -iE '^\+.*TODO(?! #[0-9])' | sed 's/^/  /'
+                               ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 81:
+check_hardcoded_secrets() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 83:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 111:
+check_formatting() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 113:
+  local staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 122:
+  local js_files=$(echo "${staged_files}" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+        ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 125:
+    local unformatted_files=$(echo "${js_files}" | xargs prettier --check 2>&1 | grep -E '^/' || true)
+          ^---------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 145:
+check_commit_message_format() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 153:
+  local commit_msg=$(cat "${commit_msg_file}")
+        ^--------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+  https://www.shellcheck.net/wiki/SC2329 -- This function is never invoked. C...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/ci.yml:18:9
+   |
+18 |       - uses: actions/checkout@v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/ci.yml:18:15
+   |
+18 |       - uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/ci.yml:20:15
+   |
+20 |       - uses: actions/setup-python@v7
+   |               ^^^^^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+15 findings (1 ignored, 11 suppressed, 3 unsafe fixes): 0 informational, 1 low, 0 medium, 2 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .claude/README.md CLAUDE.md LICENSE.md README.md SPEC-slack-mcp_1.md docs/plans/2026-03-18-implementation-design.md docs/plans/2026-03-18-slack-mcp-implementation.md
+Linting: 7 files
+Summary: 17 issues in 5 files
+.claude/README.md:15 error MD040/fenced-code-language Fenced code blocks should have a language specified [Context: "```"]
+docs/plans/2026-03-18-implementation-design.md:15 error MD040/fenced-code-language Fenced code blocks should have a language specified [Context: "```"]
+LICENSE.md:1 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "MIT License"]
+README.md:96:1 error MD060/table-column-style Table column style [Table pipe is missing space to the right for style "compact"]
+README.md:96:5 error MD060/table-column-style Table column style [Table pipe is missing space to the left for style "compact"]
+README.md:96:5 error MD060/table-column-style Table column style [Table pipe is missing space to the right for style "compact"]
+README.md:96:9 error MD060/table-column-style Table column style [Table pipe is missing space to the left for style "compact"]
+README.md:96:9 error MD060/table-column-style Table column style [Table pipe is missing space to the right for style "compact"]
+README.md:96:13 error MD060/table-column-style Table column style [Table pipe is missing space to the left for style "compact"]
+SPEC-slack-mcp_1.md:24 error MD040/fenced-code-language Fenced code blocks should have a language specified [Context: "```"]
+SPEC-slack-mcp_1.md:45 error MD040/fenced-code-language Fenced code blocks should have a language specified [Context: "```"]
+SPEC-slack-mcp_1.md:76:1 error MD029/ol-prefix Ordered list item prefix [Expected: 5; Actual: 4; Style: 1/2/3]
+SPEC-slack-mcp_1.md:77:1 error MD029/ol-prefix Ordered list item prefix [Expected: 6; Actual: 5; Style: 1/2/3]
+SPEC-slack-mcp_1.md:299:1 error MD060/table-column-style Table column style [Table pipe is missing space to the right for style "compact"]
+SPEC-slack-mcp_1.md:299:5 error MD060/table-column-style Table column style [Table pipe is missing space to the left for style "compact"]
+SPEC-slack-mcp_1.md:299:5 error MD060/table-column-style Table column style [Table pipe is missing space to the right for style "compact"]
+SPEC-slack-mcp_1.md:299:9 error MD060/table-column-style Table column style [Table pipe is missing space to the left for style "compact"]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 3 linter(s) failed

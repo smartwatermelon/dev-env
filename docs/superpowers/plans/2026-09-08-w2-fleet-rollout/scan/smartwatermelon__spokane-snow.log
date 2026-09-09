@@ -1,0 +1,131 @@
+
+== shellcheck
+
+In .claude/hooks/extensions/example.sh.disabled line 33:
+check_business_hours() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 34:
+  local current_hour=$(date +%H)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 58:
+check_todo_comments() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 60:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 68:
+    echo "${staged_changes}" | grep -iE '^\+.*TODO(?! #[0-9])' | sed 's/^/  /'
+                               ^-----------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 81:
+check_hardcoded_secrets() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 83:
+  local staged_changes=$(git diff --cached)
+        ^------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 111:
+check_formatting() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 113:
+  local staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+        ^----------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 122:
+  local js_files=$(echo "${staged_files}" | grep -E '\.(js|jsx|ts|tsx)$' || true)
+        ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 125:
+    local unformatted_files=$(echo "${js_files}" | xargs prettier --check 2>&1 | grep -E '^/' || true)
+          ^---------------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In .claude/hooks/extensions/example.sh.disabled line 145:
+check_commit_message_format() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In .claude/hooks/extensions/example.sh.disabled line 153:
+  local commit_msg=$(cat "${commit_msg_file}")
+        ^--------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2155 -- Declare and assign separately to ...
+  https://www.shellcheck.net/wiki/SC2312 -- Consider invoking this command se...
+  https://www.shellcheck.net/wiki/SC2329 -- This function is never invoked. C...
+::error::shellcheck found problems
+
+== yamllint
+.github/workflows/claude.yml:44:121: [warning] line too long (157 > 120 characters) (line-length)
+.github/workflows/claude.yml:51:1: [warning] too many blank lines (1 > 0) (empty-lines)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/claude.yml:25:9
+   |
+25 |         - name: Checkout repository
+   |  _________^
+26 | |         uses: actions/checkout@v7
+27 | |         with:
+28 | |           fetch-depth: 1
+   | |________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:26:15
+   |
+26 |         uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:32:15
+   |
+32 |         uses: anthropics/claude-code-action@v1
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+16 findings (1 ignored, 12 suppressed, 3 unsafe fixes): 0 informational, 1 low, 0 medium, 2 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .claude/README.md
+Linting: 1 file
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed
