@@ -147,7 +147,9 @@ Example extension showing the basic structure. Disabled by default (`.disabled` 
 To enable:
 
 1. Remove `.disabled` suffix: `mv example.sh.disabled my-check.sh`
-2. Customize validation logic
+2. Customize validation logic, and turn on the checks you want by setting the
+   matching `ENABLE_*` variable to `1` in `main()` (all default to `0`, so an
+   unmodified copy runs no checks)
 3. Ensure executable: `chmod +x .claude/hooks/extensions/my-check.sh`
 
 ## Next Steps
