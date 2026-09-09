@@ -1,0 +1,1328 @@
+
+== shellcheck
+
+In scripts/bump-version.sh line 74:
+  done < <(declared_files)
+           ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/bump-version.sh line 105:
+    done < <(declared_files) | sort | uniq -c | sort -rn | head -1 | awk '{print $2}'
+             ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/bump-version.sh line 120:
+  done < <(audit_excludes)
+           ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/bump-version.sh line 129:
+  done < <(declared_files)
+           ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/bump-version.sh line 137:
+    local rel_path="${match_file#$REPO_ROOT/}"
+                                 ^--------^ SC2295 (info): Expansions inside ${..} need to be quoted separately, otherwise they match as patterns.
+
+Did you mean:
+    local rel_path="${match_file#"$REPO_ROOT"/}"
+
+
+In scripts/bump-version.sh line 188:
+  done < <(declared_files)
+           ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/lint-shell.sh line 32:
+  case "$path" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In scripts/lint-shell.sh line 74:
+  done < <(git ls-files -z)
+           ^-------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/lint-shell.sh line 85:
+    done < <(git diff --name-only -z --diff-filter=ACMR HEAD)
+             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/lint-shell.sh line 89:
+    done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/lint-shell.sh line 96:
+  done < <(git ls-files --others --exclude-standard -z)
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/package-codex-plugin.sh line 248:
+  case "$FORMAT" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In scripts/package-codex-plugin.sh line 258:
+OUTPUT="$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")"
+          ^-----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                       ^-^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/package-codex-plugin.sh line 273:
+done < <(find "$STAGE/skills" -mindepth 1 -maxdepth 1 -type d -print | sort)
+         ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                       ^--^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/package-codex-plugin.sh line 292:
+case "$FORMAT" in
+^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In scripts/package-codex-plugin.sh line 325:
+case "$FORMAT" in
+^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In scripts/sync-to-codex-plugin.sh line 107:
+  [[ -n "$(git -C "$UPSTREAM" ls-files --cached -- "$path/")" ]]
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 122:
+  done < <(git -C "$UPSTREAM" ls-files --others --ignored --exclude-standard --directory -z)
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 131:
+  done < <(git -C "$UPSTREAM" ls-files --others --ignored --exclude-standard -z)
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 254:
+    git -C "$DEST_REPO" diff --name-only -z -- "$DEST_REL"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 257:
+    git -C "$DEST_REPO" diff --cached --name-only -z -- "$DEST_REL"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 260:
+    git -C "$DEST_REPO" ls-files --others --exclude-standard -z -- "$DEST_REL"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 263:
+    git -C "$DEST_REPO" ls-files --others --ignored --exclude-standard -z -- "$DEST_REL"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 268:
+  [[ -n "$(git -C "$DEST_REPO" status --porcelain=1 --untracked-files=all --ignored=matching -- "$DEST_REL")" ]]
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 304:
+  [[ -n "$(git -C "$PREVIEW_REPO" status --porcelain "$DEST_REL")" ]]
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 337:
+  done < <(find "$destination/skills" -path '*/agents/openai.yaml' -type f -print0)
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In scripts/sync-to-codex-plugin.sh line 411:
+if [[ -z "$(git status --porcelain "$DEST_REL")" ]]; then
+            ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/brainstorming/scripts/start-server.sh line 83:
+  case "${OSTYPE:-}" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In skills/brainstorming/scripts/start-server.sh line 91:
+  case "$uname_s" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In skills/brainstorming/scripts/start-server.sh line 139:
+  SERVER_ID="$(printf '%08x%08x%08x%08x' "$$" "$(date +%s)" "${RANDOM:-0}" "${RANDOM:-0}")"
+                                                 ^------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/brainstorming/scripts/start-server.sh line 156:
+OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
+             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/brainstorming/scripts/start-server.sh line 201:
+    grep "server-started" "$LOG_FILE" | head -1
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/brainstorming/scripts/stop-server.sh line 23:
+  printf '{"reason":"%s","timestamp":%s}\n' "$reason" "$(date +%s)" > "${STATE_DIR}/server-stopped"
+                                                         ^------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/subagent-driven-development/scripts/review-package line 29:
+  out="$dir/review-$(git rev-parse --short "$base")..$(git rev-parse --short "$head").diff"
+                     ^---------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/subagent-driven-development/scripts/review-package line 46:
+echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
+                                            ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                             ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/subagent-driven-development/scripts/task-brief line 41:
+echo "wrote ${out}: $(wc -l < "$out" | tr -d ' ') lines"
+                      ^------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                       ^-------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/systematic-debugging/find-polluter.sh line 27:
+TEST_FILES=$(find . \( -path "./$TEST_PATTERN" -o -path "./${TEST_PATTERN//\*\*\//}" \) | sort -u)
+             ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In skills/systematic-debugging/find-polluter.sh line 31:
+  TOTAL=$(printf '%s\n' "$TEST_FILES" | wc -l | tr -d ' ')
+                                        ^---^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/antigravity/test-antigravity-tools.sh line 33:
+grep -q '`self`' "$MAPPING" \
+        ^------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In tests/antigravity/test-antigravity-tools.sh line 35:
+grep -q '`research`' "$MAPPING" \
+        ^----------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 35:
+cleanup() {
+^-- SC2329 (info): This function is never invoked. Check usage (or ignored if invoked indirectly).
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 108:
+echo "Node: $(node --version 2>/dev/null || echo 'not found')"
+              ^------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 112:
+case "${OSTYPE:-}" in
+^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 142:
+  case "${OSTYPE:-}" in
+  ^-- SC2249 (info): Consider adding a default *) case, even if it just exits with error.
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 255:
+         "Server died. Log tail: $(tail -5 "$TEST_DIR/survival/.server.log" 2>/dev/null)"
+                                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 317:
+         "Server died unexpectedly. Log tail: $(tail -5 "$TEST_DIR/control/.server.log" 2>/dev/null)"
+                                                ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/brainstorm-server/windows-lifecycle.test.sh line 324:
+         "Log tail: $(tail -5 "$TEST_DIR/control/.server.log" 2>/dev/null)"
+                      ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/claude-code/run-skill-tests.sh line 13:
+echo "Repository: $(cd ../.. && pwd)"
+                    ^------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                ^-^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/claude-code/run-skill-tests.sh line 14:
+echo "Test time: $(date)"
+                   ^--^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/claude-code/run-skill-tests.sh line 15:
+echo "Claude version: $(claude --version 2>/dev/null || echo 'not found')"
+                        ^--------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/claude-code/test-helpers.sh line 10:
+    local output_file=$(mktemp)
+          ^---------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/claude-code/test-helpers.sh line 79:
+    local actual=$(echo "$output" | grep -ci "$pattern" || echo "0")
+          ^----^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/claude-code/test-helpers.sh line 103:
+    local line_a=$(echo "$output" | grep -ni "$pattern_a" | head -1 | cut -d: -f1)
+          ^----^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/claude-code/test-helpers.sh line 104:
+    local line_b=$(echo "$output" | grep -ni "$pattern_b" | head -1 | cut -d: -f1)
+          ^----^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/claude-code/test-helpers.sh line 134:
+    local test_dir=$(mktemp -d)
+          ^------^ SC2155 (warning): Declare and assign separately to avoid masking return values.
+
+
+In tests/claude-code/test-sdd-workspace.sh line 93:
+    if [[ -f "$repo/.superpowers/sdd/.gitignore" && "$(cat "$repo/.superpowers/sdd/.gitignore")" == "*" ]]; then
+                                                       ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/claude-code/test-subagent-driven-development-integration.sh line 18:
+source "$SCRIPT_DIR/test-helpers.sh"
+       ^---------------------------^ SC1091 (info): Not following: ./test-helpers.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/claude-code/test-subagent-driven-development-integration.sh line 40:
+trap "cleanup_test_project $TEST_PROJECT" EXIT
+                           ^-----------^ SC2064 (warning): Use single quotes, otherwise this expands now rather than when signalled.
+
+
+In tests/claude-code/test-subagent-driven-development-integration.sh line 167:
+cd "$TEST_PROJECT" && timeout 1800 claude -p "$PROMPT" --plugin-dir "$PLUGIN_DIR" --allowed-tools=all --permission-mode bypassPermissions 2>&1 | tee "$OUTPUT_FILE" || {
+                   ^-- SC2015 (info): Note that A && B || C is not if-then-else. C may run when A is true.
+
+
+In tests/claude-code/test-subagent-driven-development-integration.sh line 170:
+    echo "EXECUTION FAILED (exit code: $?)"
+                                       ^-- SC2320 (warning): This $? refers to echo/printf, not a previous command. Assign to variable to avoid it being overwritten.
+
+
+In tests/claude-code/test-subagent-driven-development-integration.sh line 189:
+SESSION_FILE=$(ls -t "$SESSION_DIR"/*.jsonl 2>/dev/null | head -1 || true)
+               ^-- SC2012 (info): Use find instead of ls to better handle non-alphanumeric filenames.
+
+
+In tests/claude-code/test-subagent-driven-development.sh line 13:
+source "$SCRIPT_DIR/test-helpers.sh"
+       ^---------------------------^ SC1091 (info): Not following: ./test-helpers.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/claude-code/test-worktree-native-preference.sh line 23:
+source "$SCRIPT_DIR/test-helpers.sh"
+       ^---------------------------^ SC1091 (info): Not following: ./test-helpers.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 50:
+assert_not_contains "$USING_SKILL" "~/.config/superpowers/worktrees" "using-git-worktrees does not mention old global path"
+                                    ^-----------------------------^ SC2088 (warning): Tilde does not expand in quotes. Use $HOME.
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 53:
+assert_contains "$USING_SKILL" 'default to `.worktrees/` at the project root' "using-git-worktrees defaults new manual worktrees to .worktrees/"
+                               ^-- SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 55:
+assert_not_contains "$FINISHING_SKILL" "~/.config/superpowers/worktrees" "finishing-a-development-branch does not treat old global path as owned"
+                                        ^-----------------------------^ SC2088 (warning): Tilde does not expand in quotes. Use $HOME.
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 56:
+assert_contains "$FINISHING_SKILL" '`.worktrees/` or `worktrees/`' "finishing-a-development-branch keeps project-local cleanup ownership"
+                                   ^-----------------------------^ SC2016 (info): Expressions don't expand in single quotes, use double quotes for that.
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 58:
+assert_not_contains "$ROTOTILL_SPEC" "~/.config/superpowers/worktrees" "rototill spec does not preserve old global path policy"
+                                      ^-----------------------------^ SC2088 (warning): Tilde does not expand in quotes. Use $HOME.
+
+
+In tests/claude-code/test-worktree-path-policy.sh line 59:
+assert_not_contains "$ROTOTILL_PLAN" "~/.config/superpowers/worktrees" "rototill plan does not preserve old global path policy"
+                                      ^-----------------------------^ SC2088 (warning): Tilde does not expand in quotes. Use $HOME.
+
+
+In tests/codex/test-package-codex-plugin.sh line 131:
+  done < <(find "$REPO_ROOT/skills" -mindepth 1 -maxdepth 1 -type d -print | sed 's#.*/##' | sort)
+           ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                             ^-----------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                                                             ^--^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-extended-multiturn-test.sh line 94:
+    grep '"type":"tool_use"' "$FINAL_LOG" | jq -r '.content[] | select(.type=="tool_use") | .name' 2>/dev/null | head -10 || \
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                            ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-extended-multiturn-test.sh line 95:
+    grep -o '"name":"[^"]*"' "$FINAL_LOG" | head -10 || echo "  (none found)"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-extended-multiturn-test.sh line 100:
+grep -o '"skill":"[^"]*"' "$FINAL_LOG" 2>/dev/null | sort -u || echo "  (none)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-extended-multiturn-test.sh line 104:
+grep '"type":"assistant"' "$FINAL_LOG" | head -1 | jq -r '.message.content[0].text // .message.content' 2>/dev/null | head -c 500 || echo "  (could not extract)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                         ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-haiku-test.sh line 126:
+    grep '"type":"tool_use"' "$FINAL_LOG" | grep -o '"name":"[^"]*"' | head -10 || echo "  (none)"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                            ^----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-haiku-test.sh line 131:
+grep -o '"skill":"[^"]*"' "$FINAL_LOG" 2>/dev/null | sort -u || echo "  (none)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-haiku-test.sh line 135:
+grep '"type":"assistant"' "$FINAL_LOG" | head -1 | jq -r '.message.content[0].text // .message.content' 2>/dev/null | head -c 500 || echo "  (could not extract)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                         ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-multiturn-test.sh line 102:
+grep -o '"skill":"[^"]*"' "$TURN3_LOG" 2>/dev/null | sort -u || echo "  (none)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-multiturn-test.sh line 107:
+FIRST_SKILL_LINE=$(grep -n '"name":"Skill"' "$TURN3_LOG" | head -1 | cut -d: -f1)
+                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                           ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-multiturn-test.sh line 124:
+    grep '"type":"tool_use"' "$TURN3_LOG" | grep -o '"name":"[^"]*"' | head -10 || echo "  (none)"
+    ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                            ^----------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-multiturn-test.sh line 130:
+grep '"type":"assistant"' "$TURN3_LOG" | head -1 | jq -r '.message.content[0].text // .message.content' 2>/dev/null | head -c 500 || echo "  (could not extract)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                         ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-test.sh line 95:
+grep -o '"skill":"[^"]*"' "$LOG_FILE" 2>/dev/null | sort -u || echo "  (none)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-test.sh line 103:
+FIRST_SKILL_LINE=$(grep -n '"name":"Skill"' "$LOG_FILE" | head -1 | cut -d: -f1)
+                   ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                          ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/explicit-skill-requests/run-test.sh line 126:
+grep '"type":"assistant"' "$LOG_FILE" | head -1 | jq -r '.message.content[0].text // .message.content' 2>/dev/null | head -c 500 || echo "  (could not extract)"
+^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                        ^-----^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                                  ^-- SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/opencode/run-tests.sh line 13:
+echo "Repository: $(cd ../.. && pwd)"
+                    ^------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+                                ^-^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/opencode/run-tests.sh line 14:
+echo "Test time: $(date)"
+                   ^--^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/opencode/test-bootstrap-caching.sh line 10:
+source "$SCRIPT_DIR/setup.sh"
+       ^--------------------^ SC1091 (info): Not following: ./setup.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/opencode/test-bootstrap-caching.sh line 14:
+    node "$SCRIPT_DIR/test-bootstrap-caching.mjs" "$SUPERPOWERS_PLUGIN_FILE" present
+                                                   ^----------------------^ SC2154 (warning): SUPERPOWERS_PLUGIN_FILE is referenced but not assigned.
+
+
+In tests/opencode/test-bootstrap-caching.sh line 18:
+    mv "$SUPERPOWERS_SKILLS_DIR/using-superpowers/SKILL.md" "$TEST_HOME/using-superpowers.SKILL.md.bak"
+        ^---------------------^ SC2154 (warning): SUPERPOWERS_SKILLS_DIR is referenced but not assigned.
+                                                             ^--------^ SC2154 (warning): TEST_HOME is referenced but not assigned.
+
+
+In tests/opencode/test-plugin-loading.sh line 11:
+source "$SCRIPT_DIR/setup.sh"
+       ^--------------------^ SC1091 (info): Not following: ./setup.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/opencode/test-plugin-loading.sh line 16:
+plugin_link="$OPENCODE_CONFIG_DIR/plugins/superpowers.js"
+             ^------------------^ SC2154 (warning): OPENCODE_CONFIG_DIR is referenced but not assigned.
+
+
+In tests/opencode/test-plugin-loading.sh line 28:
+if [ -f "$(readlink -f "$plugin_link")" ]; then
+           ^------------------------^ SC2312 (info): Consider invoking this command separately to avoid masking its return value (or use '|| true' to ignore).
+
+
+In tests/opencode/test-plugin-loading.sh line 37:
+skill_count=$(find "$SUPERPOWERS_SKILLS_DIR" -name "SKILL.md" | wc -l)
+                    ^---------------------^ SC2154 (warning): SUPERPOWERS_SKILLS_DIR is referenced but not assigned.
+
+
+In tests/opencode/test-plugin-loading.sh line 56:
+if node --check "$SUPERPOWERS_PLUGIN_FILE" 2>/dev/null; then
+                 ^----------------------^ SC2154 (warning): SUPERPOWERS_PLUGIN_FILE is referenced but not assigned.
+
+
+In tests/opencode/test-priority.sh line 15:
+source "$SCRIPT_DIR/setup.sh"
+       ^--------------------^ SC1091 (info): Not following: ./setup.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/opencode/test-priority.sh line 24:
+mkdir -p "$SUPERPOWERS_SKILLS_DIR/priority-test"
+          ^---------------------^ SC2154 (warning): SUPERPOWERS_SKILLS_DIR is referenced but not assigned.
+
+
+In tests/opencode/test-priority.sh line 38:
+mkdir -p "$OPENCODE_CONFIG_DIR/skills/priority-test"
+          ^------------------^ SC2154 (warning): OPENCODE_CONFIG_DIR is referenced but not assigned.
+
+
+In tests/opencode/test-priority.sh line 52:
+mkdir -p "$TEST_HOME/test-project/.opencode/skills/priority-test"
+          ^--------^ SC2154 (warning): TEST_HOME is referenced but not assigned.
+
+
+In tests/opencode/test-tools.sh line 14:
+source "$SCRIPT_DIR/setup.sh"
+       ^--------------------^ SC1091 (info): Not following: ./setup.sh: openBinaryFile: does not exist (No such file or directory)
+
+
+In tests/opencode/test-tools.sh line 73:
+run_opencode output "$TEST_HOME/test-project" "Call the skill tool with name \"personal-test\". Then print the PERSONAL_SKILL_MARKER_12345 marker."
+                     ^--------^ SC2154 (warning): TEST_HOME is referenced but not assigned.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2064 -- Use single quotes, otherwise this...
+  https://www.shellcheck.net/wiki/SC2088 -- Tilde does not expand in quotes. ...
+  https://www.shellcheck.net/wiki/SC2154 -- OPENCODE_CONFIG_DIR is referenced...
+::error::shellcheck found problems
+
+== yamllint
+.github/ISSUE_TEMPLATE/config.yml:5:121: [warning] line too long (131 > 120 characters) (line-length)
+
+== actionlint
+::notice::no workflows
+
+== zizmor
+::notice::no workflows
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .github/ISSUE_TEMPLATE/bug_report.md .github/ISSUE_TEMPLATE/feature_request.md .github/ISSUE_TEMPLATE/platform_support.md .github/PULL_REQUEST_TEMPLATE.md .opencode/INSTALL.md AGENTS.md CLAUDE.md CODE_OF_CONDUCT.md GEMINI.md README.md RELEASE-NOTES.md docs/README.kimi.md docs/README.opencode.md docs/plans/2025-11-22-opencode-support-design.md docs/plans/2025-11-22-opencode-support-implementation.md docs/plans/2025-11-28-skills-improvements-from-user-feedback.md docs/plans/2026-01-17-visual-brainstorming.md docs/porting-to-a-new-harness.md docs/superpowers/plans/2026-01-22-document-review-system.md docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md docs/superpowers/plans/2026-03-23-codex-app-compatibility.md docs/superpowers/plans/2026-04-06-worktree-rototill.md docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md docs/superpowers/plans/2026-06-09-visual-companion-issues.md docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md docs/superpowers/specs/2026-01-22-document-review-system-design.md docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md docs/superpowers/specs/2026-03-11-zero-dep-brainstorm-server-design.md docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md docs/superpowers/specs/2026-04-06-worktree-rototill-design.md docs/superpowers/specs/2026-05-05-platform-neutral-config-refs-design.md docs/superpowers/specs/2026-05-05-platform-neutral-prose-design.md docs/superpowers/specs/2026-05-05-platform-neutral-readme-design.md docs/superpowers/specs/2026-05-06-lift-drill-into-evals-design.md docs/superpowers/specs/2026-06-09-sdd-task-scoped-review-dispatch-design.md docs/superpowers/specs/2026-06-10-positive-instruction-redesign-design.md docs/superpowers/specs/2026-06-10-strict-cost-sdd-design.md docs/superpowers/specs/2026-06-10-visual-companion-auth-hardening-design.md docs/superpowers/specs/2026-06-11-visual-companion-final-hardening-fixup-design.md docs/superpowers/specs/2026-07-06-sdd-plan-scoped-workspace-eval-results.md docs/superpowers/specs/2026-07-06-sdd-plan-scoped-workspace.md docs/superpowers/specs/2026-07-15-sdd-fix-loop-redesign-design.md docs/testing.md docs/windows/polyglot-hooks.md skills/brainstorming/SKILL.md skills/brainstorming/spec-document-reviewer-prompt.md skills/brainstorming/visual-companion.md skills/dispatching-parallel-agents/SKILL.md skills/executing-plans/SKILL.md skills/finishing-a-development-branch/SKILL.md skills/receiving-code-review/SKILL.md skills/requesting-code-review/SKILL.md skills/requesting-code-review/code-reviewer.md skills/subagent-driven-development/SKILL.md skills/subagent-driven-development/implementer-prompt.md skills/subagent-driven-development/re-review-prompt.md skills/subagent-driven-development/task-reviewer-prompt.md skills/systematic-debugging/CREATION-LOG.md skills/systematic-debugging/SKILL.md skills/systematic-debugging/condition-based-waiting.md skills/systematic-debugging/defense-in-depth.md skills/systematic-debugging/root-cause-tracing.md skills/systematic-debugging/test-academic.md skills/systematic-debugging/test-pressure-1.md skills/systematic-debugging/test-pressure-2.md skills/systematic-debugging/test-pressure-3.md skills/test-driven-development/SKILL.md skills/test-driven-development/writing-good-tests.md skills/using-git-worktrees/SKILL.md skills/using-superpowers/SKILL.md skills/using-superpowers/references/antigravity-tools.md skills/using-superpowers/references/codex-tools.md skills/using-superpowers/references/gemini-tools.md skills/using-superpowers/references/pi-tools.md skills/verification-before-completion/SKILL.md skills/writing-plans/SKILL.md skills/writing-plans/plan-document-reviewer-prompt.md skills/writing-skills/SKILL.md skills/writing-skills/anthropic-best-practices.md skills/writing-skills/examples/CLAUDE_MD_TESTING.md skills/writing-skills/persuasion-principles.md skills/writing-skills/testing-skills-with-subagents.md tests/claude-code/README.md
+Linting: 89 files
+Summary: 775 issues in 64 files
+.github/ISSUE_TEMPLATE/bug_report.md:13 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "- [ ] I searched existing issu..."]
+.github/ISSUE_TEMPLATE/bug_report.md:41 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "## Steps to reproduce"]
+.github/ISSUE_TEMPLATE/bug_report.md:42 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1."]
+.github/ISSUE_TEMPLATE/feature_request.md:13 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "- [ ] I searched existing issu..."]
+.github/ISSUE_TEMPLATE/platform_support.md:12 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "- [ ] I searched existing issu..."]
+.github/PULL_REQUEST_TEMPLATE.md:7 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "> **This PR MUST target the `d..."]
+.github/PULL_REQUEST_TEMPLATE.md:57 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "## Existing PRs"]
+.github/PULL_REQUEST_TEMPLATE.md:58 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] I have reviewed all open..."]
+.github/PULL_REQUEST_TEMPLATE.md:109 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "## Evaluation"]
+.github/PULL_REQUEST_TEMPLATE.md:110 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- What was the initial prompt ..."]
+.github/PULL_REQUEST_TEMPLATE.md:130 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "## Human review"]
+.github/PULL_REQUEST_TEMPLATE.md:131 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] A human has reviewed the..."]
+.opencode/INSTALL.md:114:18 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+.opencode/INSTALL.md:115:23 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+CODE_OF_CONDUCT.md:63:1 error MD034/no-bare-urls Bare URL used [Context: "jesse@primeradiant.com"]
+CODE_OF_CONDUCT.md:119:1 error MD034/no-bare-urls Bare URL used [Context: "https://www.contributor-covena..."]
+CODE_OF_CONDUCT.md:127:1 error MD034/no-bare-urls Bare URL used [Context: "https://www.contributor-covena..."]
+CODE_OF_CONDUCT.md:128:1 error MD034/no-bare-urls Bare URL used [Context: "https://www.contributor-covena..."]
+docs/plans/2025-11-22-opencode-support-design.md:132 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+docs/plans/2025-11-22-opencode-support-implementation.md:18 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `lib/skills-core.js`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:100 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/skills-core.js`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:182 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/skills-core.js`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:261 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/skills-core.js`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:336 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.codex/superpowers-..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:363 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.codex/superpowers-..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:392 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.codex/superpowers-..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:419 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.codex/superpowers-..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:448 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `.opencode/plugin/su..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:502 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.opencode/plugin/su..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:592 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.opencode/plugin/su..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:658 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.opencode/plugin/su..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:763 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `.opencode/INSTALL.m..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:791 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `~/.config/opencode/superpow..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:874 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `TodoWrite` → use `update_pl..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:881:18 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:882 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Documentation: https://githu..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:882:18 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:883 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-22-opencode-support-implementation.md:902 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `README.md`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:939 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `RELEASE-NOTES.md`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:985 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Test: `.codex/superpowers-co..."]
+docs/plans/2025-11-22-opencode-support-implementation.md:1011 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Check: All new files exist"]
+docs/plans/2025-11-22-opencode-support-implementation.md:1016 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/plans/2025-11-22-opencode-support-implementation.md:1028 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-22-opencode-support-implementation.md:1044 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Check: `git status`"]
+docs/plans/2025-11-22-opencode-support-implementation.md:1059 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Total commits made"]
+docs/plans/2025-11-22-opencode-support-implementation.md:1068 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Push to remote"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:16 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. **Verification gaps** - We ..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:30 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Subagent tested "OpenAI inte..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:42 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Switch LLM provider → verify..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:51 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Multiple subagents dispatche..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:68 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Standard approach: give suba..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:78 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:96 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added self-reflection prompt..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:111 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:126 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:127 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Tests passed"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:143 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Code reviewer subagent dispa..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:158 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Implementer identifies bug d..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:173 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `testing-anti-patterns` skil..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:212 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:225:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:225 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "Request succeeded" without ..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:226:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:227:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:227 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Verifying no errors but not ..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:228 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:252 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:254 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Kill existing processes: pk..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:259 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Kill the process you starte..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:260 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "2. Verify cleanup: pgrep -f "<..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:261 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:265 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:270 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Kill any existing servers: p..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:274 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Kill the server you started"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:275 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Verify: pgrep -f 'node.*serv..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:276 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:287 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Adds boilerplate to prompts"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:298 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:303 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:308 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:310 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:314 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:323 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:337 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:443 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Mock encodes the bug into th..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:449 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:492 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Check if X is mocked"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:494 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "3. Look for method name mismat..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:495 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:533 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:538 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:665 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Risk: Prompt Bloat"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:668 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Phase implementation (don't ..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:672 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Risk: Analysis Paralysis"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:675 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Keep gate functions quick (s..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:679 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Risk: False Sense of Security"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:682 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Emphasize gate functions are..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:686 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Risk: Skill Divergence"]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:689 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Review changes across all sk..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:698 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- verification-before-completi..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:703 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Get feedback on self-reflect..."]
+docs/plans/2025-11-28-skills-improvements-from-user-feedback.md:708 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Lean context needs real-worl..."]
+docs/plans/2026-01-17-visual-brainstorming.md:16 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `lib/brainstorm-serv..."]
+docs/plans/2026-01-17-visual-brainstorming.md:146 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `lib/brainstorm-serv..."]
+docs/plans/2026-01-17-visual-brainstorming.md:267 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `tests/brainstorm-se..."]
+docs/plans/2026-01-17-visual-brainstorming.md:410 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/plans/2026-01-17-visual-brainstorming.md:428:52 error MD034/no-bare-urls Bare URL used [Context: "http://localhost:3333"]
+docs/plans/2026-01-17-visual-brainstorming.md:444 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **click**: User clicked butt..."]
+docs/plans/2026-01-17-visual-brainstorming.md:489 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-01-17-visual-brainstorming.md:490 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-01-17-visual-brainstorming.md:536 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Check if `.gitignore` needs ..."]
+docs/plans/2026-01-17-visual-brainstorming.md:545 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/plans/2026-01-17-visual-brainstorming.md:568 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Start server as background ..."]
+docs/README.opencode.md:161:18 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+docs/README.opencode.md:162:23 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+docs/README.opencode.md:163:18 error MD034/no-bare-urls Bare URL used [Context: "https://opencode.ai/docs/"]
+docs/superpowers/plans/2026-01-22-document-review-system.md:22 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/brainstormin..."]
+docs/superpowers/plans/2026-01-22-document-review-system.md:35 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-01-22-document-review-system.md:71 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-01-22-document-review-system.md:93 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/superpowers/plans/2026-01-22-document-review-system.md:140 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/writing-plan..."]
+docs/superpowers/plans/2026-01-22-document-review-system.md:153 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-01-22-document-review-system.md:191 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-01-22-document-review-system.md:213 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/writing-plan..."]
+docs/superpowers/plans/2026-01-22-document-review-system.md:277 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/writing-plan..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:33 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/brainstorm-serv..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:80 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:82 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:97 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/brainstorm-serv..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:126 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:148 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:190 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:205 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `lib/brainstorm-serv..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:284 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:342 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:357 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Delete: `lib/brainstorm-serv..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:362 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:378 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:393 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:457 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-02-19-visual-brainstorming-refactor.md:493 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md:35 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/brainstormin..."]
+docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md:54 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- payload < 126: 2-byte header..."]
+docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md:151 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md:408 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/superpowers/plans/2026-03-11-zero-dep-brainstorm-server.md:459:33 error MD034/no-bare-urls Bare URL used [Context: "http://localhost:9876"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:30 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/using-git-wo..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:64 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:88 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/using-git-wo..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:126 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/finishing-a-..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:180 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:205 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/finishing-a-..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:222 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:227 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:248 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:253 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:258 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:285 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:291 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:293 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:295 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:302 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:304 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:306 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:329 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/using-superp..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:369 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:393 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `tests/codex-app-com..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:526 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Read: all 5 modified skill f..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:539 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `skills/using-git-worktrees/..."]
+docs/superpowers/plans/2026-03-23-codex-app-compatibility.md:556 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:15 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h3]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:20 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `tests/claude-code/t..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:205 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/using-git-wo..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:249 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- On a branch: "Already in iso..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:281 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:284 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:413 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create a worktree when Step ..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:420 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Run Step 0 detection first"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:431 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **subagent-driven-developmen..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:436 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **finishing-a-development-br..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:436 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **finishing-a-development-br..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:437 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:466 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/finishing-a-..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:500 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:619 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:631 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:637 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:664 error MD024/no-duplicate-heading Multiple headings with the same content [Context: "Quick Reference"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:673 error MD024/no-duplicate-heading Multiple headings with the same content [Context: "Common Mistakes"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:676 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** Merge broken co..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:680 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** "What should I ..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:684 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** Remove worktree..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:688 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** `git branch -d`..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:692 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** Command fails s..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:696 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** Removing a work..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:700 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Problem:** Accidentally de..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:703 error MD024/no-duplicate-heading Multiple headings with the same content [Context: "Red Flags"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:706 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Proceed with failing tests"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:715 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Verify tests before offering..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:723 error MD024/no-duplicate-heading Multiple headings with the same content [Context: "Integration"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:726 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **subagent-driven-developmen..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:730 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **using-git-worktrees** - Cl..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:730 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **using-git-worktrees** - Cl..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:731 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:761 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/executing-pl..."]
+docs/superpowers/plans/2026-04-06-worktree-rototill.md:825 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Read: `tests/claude-code/run..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:86 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/` (entire dir..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:275 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `evals/drill/cli.py:..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:409 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `evals/backends/code..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:490 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `evals/tests/test_ba..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:545 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `evals/README.md` (d..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:557 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:558 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:569 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:578 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:581 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:589 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:591 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:693 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Delete: `tests/skill-trigger..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:750 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Inspect: 6 files in `tests/e..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:777 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Bash test content: `tests/ex..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:800 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Inspect: `tests/subagent-dri..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:965 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Possibly modify: `docs/testi..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:1013 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Remove the reference if the ..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:1067 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `docs/testing.md` — ..."]
+docs/superpowers/plans/2026-05-06-lift-drill-into-evals.md:1112 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:13 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h3]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:16 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `package.json`"]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:22 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- root `package.json` has `key..."]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:44 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- locates the package root fro..."]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:63 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/using-superp..."]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:89 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/backends/pi.y..."]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:99 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `load_backend("pi")` returns..."]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:128 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `README.md`"]
+docs/superpowers/plans/2026-05-07-pi-extension-and-evals.md:138 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:17 error MD001/heading-increment Heading levels should only increment by one level at a time [Expected: h2; Actual: h3]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:22 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Rewrite: `skills/subagent-dr..."]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:179 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:264 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:302 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:378 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:380 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:382 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:387 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:389 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:391 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:439 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/setup_helpers..."]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:577 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```python"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:579 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:581 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```python"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:586 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```python"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:588 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-06-09-sdd-task-scoped-review-dispatch.md:590 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```python"]
+docs/superpowers/plans/2026-06-09-visual-companion-issues.md:191 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `helper.js`: exponential bac..."]
+docs/superpowers/plans/2026-06-09-visual-companion-issues.md:213 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Raise the default to 4 hours..."]
+docs/superpowers/plans/2026-06-09-visual-companion-issues.md:229 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Browser-facing tombstone.*..."]
+docs/superpowers/plans/2026-06-09-visual-companion-issues.md:253 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Env var (e.g. `SUPERPOWERS_V..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:45 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:146 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:248 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:339 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:429 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:504 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:567 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:646 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `.gitignore`"]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:685 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- No code changes in this task..."]
+docs/superpowers/plans/2026-06-10-visual-companion-auth-hardening.md:737 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- No code changes in this task..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:54 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- No source edits"]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:103 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:301 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:513 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:780 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `tests/brainstorm-se..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:923 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/brainstormin..."]
+docs/superpowers/plans/2026-06-11-visual-companion-final-hardening-fixup.md:1003 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- No required source edits"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:28 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `docs/superpowers/sp..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:31 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: eval artifacts at ..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:70 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:76 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: nothing from other..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:468 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:471 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: script signatures ..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:479 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:481 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:483 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:490 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:496 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:498 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:509 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:513 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:515 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:524 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:528 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:530 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:539 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:552 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:554 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:585 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:588 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:590 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:597 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:599 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:601 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:609 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:612 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:614 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:621 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:627 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:629 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:663 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create (temp only, not commi..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:669 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: Task 1's evidence ..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:1091 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: any file the sweep c..."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:1094 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: everything prior."]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:1100 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:1105 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-06-sdd-plan-scoped-workspace.md:1118 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:34 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:41 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `src/setup-helpers/s..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:54 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:57 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Produces: template placehold..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:190 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:195 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: `re-review-prompt...."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:269 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `skills/subagent-dri..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:272 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: all three template..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:831 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Modify: `evals/src/setup-hel..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:836 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: `HelperContext`, `..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1192 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1208 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/scenarios/sdd..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1213 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: existing helper `s..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1333 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/scenarios/sdd..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1338 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: helper `scaffold_s..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1442 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/scenarios/sdd..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1447 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: helper `scaffold_s..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1561 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create: `evals/docs/experime..."]
+docs/superpowers/plans/2026-07-15-sdd-fix-loop-redesign.md:1564 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Consumes: everything from Ta..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:29 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:64 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. The plan document (or curre..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:72 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Writing-plans creates chunk..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:88 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Spec complete"]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:94 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Chunk N complete"]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:114 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- No hard iteration limit - lo..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:119 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Reviewers are advisory - the..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:124 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Controller should validate r..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:131 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `skills/brainstorming/spec-d..."]
+docs/superpowers/specs/2026-01-22-document-review-system-design.md:135 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `skills/brainstorming/SKILL...."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:73 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- The `feedback-footer` div (t..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:77 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `<!-- ....... -->` placehold..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:84 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Header bar with "Brainstorm ..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:92 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `sendToClaude()` function an..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:99 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- WebSocket connection, reconn..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:106 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Click handler: capture only ..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:109 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- On `data-choice` click, upda..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:112 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `brainstorm.sendToClaude` — ..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:117 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `wait-for-feedback.sh`"]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:123 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- The new loop (write HTML → e..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:128 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Server startup/shutdown inst..."]
+docs/superpowers/specs/2026-02-19-visual-brainstorming-refactor-design.md:140 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Test asserting `feedback-foo..."]
+docs/superpowers/specs/2026-03-11-zero-dep-brainstorm-server-design.md:23 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Small: payload < 126 bytes"]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:27 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `spawn_agent` subagents **sh..."]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:48 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- In a normal repo, both resol..."]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:71 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Skip to "Run Project Setup"..."]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:145 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:147 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/specs/2026-03-23-codex-app-compatibility-design.md:149 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+docs/superpowers/specs/2026-04-06-worktree-rototill-design.md:113 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Check the project's agent i..."]
+docs/superpowers/specs/2026-04-06-worktree-rototill-design.md:315 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. If Anthropic changes `Enter..."]
+docs/superpowers/specs/2026-06-10-strict-cost-sdd-design.md:240 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Scoped re-reviews** (verif..."]
+docs/superpowers/specs/2026-07-15-sdd-fix-loop-redesign-design.md:44:40 error MD056/table-column-count Table column count [Expected: 3; Actual: 6; Too many cells, extra data will be missing]
+docs/windows/polyglot-hooks.md:10 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **macOS/Linux**: bash or sh"]
+docs/windows/polyglot-hooks.md:110 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Do"]
+docs/windows/polyglot-hooks.md:111 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use pure bash builtins when ..."]
+docs/windows/polyglot-hooks.md:115 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Avoid"]
+docs/windows/polyglot-hooks.md:116 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Relying on PATH-dependent to..."]
+GEMINI.md:1 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "@./skills/using-superpowers/SK..."]
+README.md:5 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+README.md:12:227 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+README.md:14:120 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+README.md:16:309 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+README.md:24:170 error MD034/no-bare-urls Bare URL used [Context: "sales@primeradiant.com"]
+README.md:219 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **test-driven-development** ..."]
+README.md:222 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **systematic-debugging** - 4..."]
+README.md:225:18 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+README.md:226 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **brainstorming** - Socratic..."]
+README.md:237 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **writing-skills** - Create ..."]
+README.md:280:15 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+RELEASE-NOTES.md:86:156 error MD009/no-trailing-spaces Trailing spaces [Expected: 0 or 2; Actual: 1]
+RELEASE-NOTES.md:137 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+RELEASE-NOTES.md:234 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Codex and Copilot workarou..."]
+RELEASE-NOTES.md:684 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Renamed `.opencode/plugin/` ..."]
+RELEASE-NOTES.md:720:119 error MD038/no-space-in-code Spaces inside code span elements [Context: "`bash `"]
+RELEASE-NOTES.md:735 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated "The Rule" to say "I..."]
+RELEASE-NOTES.md:789 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Controller provides full tas..."]
+RELEASE-NOTES.md:795 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `implementer-prompt.md` - In..."]
+RELEASE-NOTES.md:802 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `root-cause-tracing.md` - Tr..."]
+RELEASE-NOTES.md:811 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Testing mock behavior instea..."]
+RELEASE-NOTES.md:825 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `go-fractals/` - CLI tool wi..."]
+RELEASE-NOTES.md:847 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `root-cause-tracing`, `defen..."]
+RELEASE-NOTES.md:941 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added unified `superpowers-c..."]
+RELEASE-NOTES.md:952 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Single unified script instea..."]
+RELEASE-NOTES.md:957 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Files Added"]
+RELEASE-NOTES.md:958 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `.codex/INSTALL.md` - Instal..."]
+RELEASE-NOTES.md:969 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Changed skill invocation ins..."]
+RELEASE-NOTES.md:976 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Files Changed"]
+RELEASE-NOTES.md:977 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated: `skills/using-super..."]
+RELEASE-NOTES.md:984 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added EXTREMELY-IMPORTANT bl..."]
+RELEASE-NOTES.md:998 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Files Changed"]
+RELEASE-NOTES.md:999 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated: `skills/using-super..."]
+RELEASE-NOTES.md:1006 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added `superpowers:code-revi..."]
+RELEASE-NOTES.md:1012 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Files Changed"]
+RELEASE-NOTES.md:1013 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- New: `agents/code-reviewer.m..."]
+RELEASE-NOTES.md:1022 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added Phase 4: Design Docume..."]
+RELEASE-NOTES.md:1031 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- All internal skill reference..."]
+RELEASE-NOTES.md:1040 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Design documents use `-desig..."]
+RELEASE-NOTES.md:1055 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- All skill frontmatter `name:..."]
+RELEASE-NOTES.md:1063 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added Quick Reference table ..."]
+RELEASE-NOTES.md:1071 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added `skills/writing-skills..."]
+RELEASE-NOTES.md:1078 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- All skill references now use..."]
+RELEASE-NOTES.md:1087 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Fixed description grammar an..."]
+RELEASE-NOTES.md:1105 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated cross-referencing gu..."]
+RELEASE-NOTES.md:1131 error MD025/single-title/single-h1 Multiple top-level headings in the same document [Context: "Superpowers v2.0.0 Release Not..."]
+RELEASE-NOTES.md:1160 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Your old `~/.config/superpo..."]
+RELEASE-NOTES.md:1174 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Clones obra/superpowers-skil..."]
+RELEASE-NOTES.md:1180 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Fetches from tracking remote..."]
+RELEASE-NOTES.md:1188 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **collision-zone-thinking** ..."]
+RELEASE-NOTES.md:1196 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **tracing-knowledge-lineages..."]
+RELEASE-NOTES.md:1199 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **preserving-productive-tens..."]
+RELEASE-NOTES.md:1204 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Renamed from getting-started..."]
+RELEASE-NOTES.md:1212 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Cross-referencing guidance m..."]
+RELEASE-NOTES.md:1217 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated for new branch-and-P..."]
+RELEASE-NOTES.md:1221 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Complete workflow for syncin..."]
+RELEASE-NOTES.md:1227 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Now outputs full paths with ..."]
+RELEASE-NOTES.md:1232 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Moved from scripts/ to skill..."]
+RELEASE-NOTES.md:1238 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Now loads from skills reposi..."]
+RELEASE-NOTES.md:1245 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `SUPERPOWERS_SKILLS_ROOT` se..."]
+RELEASE-NOTES.md:1257 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### README"]
+RELEASE-NOTES.md:1258 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Updated for new skills repos..."]
+RELEASE-NOTES.md:1264 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Testing Documentation"]
+RELEASE-NOTES.md:1265 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added comprehensive testing ..."]
+RELEASE-NOTES.md:1274 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `lib/initialize-skills.sh` -..."]
+RELEASE-NOTES.md:1279 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `skills/` directory (82 file..."]
+RELEASE-NOTES.md:1284 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `hooks/session-start.sh` - U..."]
+RELEASE-NOTES.md:1293 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- 20+ commits for skills repos..."]
+RELEASE-NOTES.md:1313 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+RELEASE-NOTES.md:1318 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+RELEASE-NOTES.md:1343:31 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+RELEASE-NOTES.md:1359:21 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+RELEASE-NOTES.md:1360:24 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+RELEASE-NOTES.md:1361:13 error MD034/no-bare-urls Bare URL used [Context: "https://github.com/obra/superp..."]
+skills/brainstorming/visual-companion.md:63 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/brainstorming/visual-companion.md:71 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/brainstorming/visual-companion.md:78 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/brainstorming/visual-companion.md:85 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/dispatching-parallel-agents/SKILL.md:37 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- 3+ test files failing with d..."]
+skills/dispatching-parallel-agents/SKILL.md:43 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Failures are related (fix on..."]
+skills/dispatching-parallel-agents/SKILL.md:52 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- File A tests: Tool approval ..."]
+skills/dispatching-parallel-agents/SKILL.md:61 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Specific scope:** One test..."]
+skills/dispatching-parallel-agents/SKILL.md:82 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Read each summary"]
+skills/dispatching-parallel-agents/SKILL.md:90 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. **Focused** - One clear pro..."]
+skills/dispatching-parallel-agents/SKILL.md:141 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- agent-tool-abort.test.ts: 3 ..."]
+skills/dispatching-parallel-agents/SKILL.md:148 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/dispatching-parallel-agents/SKILL.md:155 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Agent 1: Replaced timeouts w..."]
+skills/dispatching-parallel-agents/SKILL.md:164 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. **Review each summary** - U..."]
+skills/executing-plans/SKILL.md:18 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Step 1: Load and Review Plan"]
+skills/executing-plans/SKILL.md:19 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Ensure an isolated workspac..."]
+skills/executing-plans/SKILL.md:28 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Mark as in_progress"]
+skills/executing-plans/SKILL.md:36 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Announce: "I'm using the fin..."]
+skills/executing-plans/SKILL.md:43 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Hit a blocker (missing depen..."]
+skills/executing-plans/SKILL.md:53 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Partner updates the plan bas..."]
+skills/executing-plans/SKILL.md:58 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "## Remember"]
+skills/executing-plans/SKILL.md:59 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Review plan critically first"]
+skills/receiving-code-review/SKILL.md:30 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "You're absolutely right!" (..."]
+skills/receiving-code-review/SKILL.md:35 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Restate the technical requir..."]
+skills/receiving-code-review/SKILL.md:51 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:61 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### From your human partner"]
+skills/receiving-code-review/SKILL.md:62 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Trusted** - implement afte..."]
+skills/receiving-code-review/SKILL.md:67 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### From External Reviewers"]
+skills/receiving-code-review/SKILL.md:68 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:116 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Suggestion breaks existing f..."]
+skills/receiving-code-review/SKILL.md:124 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use technical reasoning, not..."]
+skills/receiving-code-review/SKILL.md:134 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:153 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:179 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:185 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:191 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/receiving-code-review/SKILL.md:197 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/requesting-code-review/code-reviewer.md:129 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `[DESCRIPTION]` — brief summ..."]
+skills/requesting-code-review/SKILL.md:15 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- After each task in subagent-..."]
+skills/requesting-code-review/SKILL.md:20 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- When stuck (fresh perspectiv..."]
+skills/requesting-code-review/SKILL.md:27 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/requesting-code-review/SKILL.md:37 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `{DESCRIPTION}` - Brief summ..."]
+skills/requesting-code-review/SKILL.md:43 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Fix Critical issues immediat..."]
+skills/requesting-code-review/SKILL.md:85 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Skip review because "it's si..."]
+skills/requesting-code-review/SKILL.md:91 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Push back with technical rea..."]
+skills/subagent-driven-development/re-review-prompt.md:95 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `[MODEL]` — REQUIRED: review..."]
+skills/subagent-driven-development/SKILL.md:40 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Same session (no context swi..."]
+skills/subagent-driven-development/SKILL.md:190 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Touches 1-2 files with a com..."]
+skills/subagent-driven-development/SKILL.md:245 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. If it's a context problem, ..."]
+skills/subagent-driven-development/task-reviewer-prompt.md:169 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `[MODEL]` — REQUIRED: review..."]
+skills/systematic-debugging/condition-based-waiting.md:25 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Tests have arbitrary delays ..."]
+skills/systematic-debugging/condition-based-waiting.md:31 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Testing actual timing behavi..."]
+skills/systematic-debugging/condition-based-waiting.md:61 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/systematic-debugging/condition-based-waiting.md:105 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. First wait for triggering c..."]
+skills/systematic-debugging/condition-based-waiting.md:112 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Fixed 15 flaky tests across ..."]
+skills/systematic-debugging/CREATION-LOG.md:8 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- 4-phase systematic process (..."]
+skills/systematic-debugging/CREATION-LOG.md:15 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Complete 4-phase framework w..."]
+skills/systematic-debugging/CREATION-LOG.md:21 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Project-specific context"]
+skills/systematic-debugging/CREATION-LOG.md:38 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Language Choices"]
+skills/systematic-debugging/CREATION-LOG.md:39 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "ALWAYS" / "NEVER" (not "sho..."]
+skills/systematic-debugging/CREATION-LOG.md:44 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Structural Defenses"]
+skills/systematic-debugging/CREATION-LOG.md:45 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **Phase 1 required** - Can't..."]
+skills/systematic-debugging/CREATION-LOG.md:50 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Redundancy"]
+skills/systematic-debugging/CREATION-LOG.md:51 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Root cause mandate in overvi..."]
+skills/systematic-debugging/CREATION-LOG.md:59 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Test 1: Academic Context (No Pressure)"]
+skills/systematic-debugging/CREATION-LOG.md:60 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Simple bug, no time pressure"]
+skills/systematic-debugging/CREATION-LOG.md:63 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Test 2: Time Pressure + Obvious Quick Fix"]
+skills/systematic-debugging/CREATION-LOG.md:64 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- User "in a hurry", symptom f..."]
+skills/systematic-debugging/CREATION-LOG.md:67 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Test 3: Complex System + Uncertainty"]
+skills/systematic-debugging/CREATION-LOG.md:68 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Multi-layer failure, unclear..."]
+skills/systematic-debugging/CREATION-LOG.md:71 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Test 4: Failed First Fix"]
+skills/systematic-debugging/CREATION-LOG.md:72 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Hypothesis doesn't work, tem..."]
+skills/systematic-debugging/CREATION-LOG.md:79 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Initial Version"]
+skills/systematic-debugging/CREATION-LOG.md:80 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Complete 4-phase framework"]
+skills/systematic-debugging/CREATION-LOG.md:84 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Enhancement 1: TDD Reference"]
+skills/systematic-debugging/CREATION-LOG.md:85 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Added link to skills/testing..."]
+skills/systematic-debugging/CREATION-LOG.md:92 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- ✅ Clearly mandates root caus..."]
+skills/systematic-debugging/CREATION-LOG.md:107 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Load skill: skills/debuggin..."]
+skills/systematic-debugging/defense-in-depth.md:15 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Entry validation catches mos..."]
+skills/systematic-debugging/defense-in-depth.md:22 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Layer 1: Entry Point Validation"]
+skills/systematic-debugging/defense-in-depth.md:40 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Layer 2: Business Logic Validation"]
+skills/systematic-debugging/defense-in-depth.md:52 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Layer 3: Environment Guards"]
+skills/systematic-debugging/defense-in-depth.md:72 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Layer 4: Debug Instrumentation"]
+skills/systematic-debugging/defense-in-depth.md:101 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Test setup → empty string"]
+skills/systematic-debugging/defense-in-depth.md:107 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Layer 1: `Project.create()` ..."]
+skills/systematic-debugging/defense-in-depth.md:117 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Different code paths bypasse..."]
+skills/systematic-debugging/root-cause-tracing.md:27 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Error happens deep in execut..."]
+skills/systematic-debugging/root-cause-tracing.md:34 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 1. Observe the Symptom"]
+skills/systematic-debugging/root-cause-tracing.md:35 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/systematic-debugging/root-cause-tracing.md:39 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 2. Find Immediate Cause"]
+skills/systematic-debugging/root-cause-tracing.md:41 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/systematic-debugging/root-cause-tracing.md:45 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 3. Ask: What Called This?"]
+skills/systematic-debugging/root-cause-tracing.md:46 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/systematic-debugging/root-cause-tracing.md:53 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 4. Keep Tracing Up"]
+skills/systematic-debugging/root-cause-tracing.md:55 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `projectDir = ''` (empty str..."]
+skills/systematic-debugging/root-cause-tracing.md:59 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 5. Find Original Trigger"]
+skills/systematic-debugging/root-cause-tracing.md:61 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/systematic-debugging/root-cause-tracing.md:88 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/systematic-debugging/root-cause-tracing.md:93 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Look for test file names"]
+skills/systematic-debugging/root-cause-tracing.md:114 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. `git init` runs in `process..."]
+skills/systematic-debugging/root-cause-tracing.md:125 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Layer 1: Project.create() va..."]
+skills/systematic-debugging/root-cause-tracing.md:166 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Found root cause through 5-l..."]
+skills/systematic-debugging/SKILL.md:25 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Test failures"]
+skills/systematic-debugging/SKILL.md:33 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Under time pressure (emergen..."]
+skills/systematic-debugging/SKILL.md:40 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Issue seems simple (simple b..."]
+skills/systematic-debugging/SKILL.md:75 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/systematic-debugging/SKILL.md:88 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/systematic-debugging/SKILL.md:217 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "Quick fix for now, investig..."]
+skills/systematic-debugging/SKILL.md:236 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "Is that not happening?" - Y..."]
+skills/systematic-debugging/test-pressure-1.md:10 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Error rate: 100%"]
+skills/systematic-debugging/test-pressure-1.md:17 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/systematic-debugging/test-pressure-1.md:24 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Read error messages careful..."]
+skills/systematic-debugging/test-pressure-1.md:31 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Add retry logic: 2 minutes"]
+skills/systematic-debugging/test-pressure-1.md:39 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Stop and investigate root ca..."]
+skills/systematic-debugging/test-pressure-1.md:45 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Add retry logic (5 minutes t..."]
+skills/systematic-debugging/test-pressure-1.md:51 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Quick 5-minute check of rece..."]
+skills/systematic-debugging/test-pressure-2.md:12 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/systematic-debugging/test-pressure-2.md:18 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Added `await sleep(100)` - ..."]
+skills/systematic-debugging/test-pressure-2.md:30 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Stop guessing with timeouts"]
+skills/systematic-debugging/test-pressure-2.md:38 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use `await sleep(5000)` - se..."]
+skills/systematic-debugging/test-pressure-2.md:47 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Another 2-3 hours minimum"]
+skills/systematic-debugging/test-pressure-2.md:54 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Stops the immediate bleeding"]
+skills/systematic-debugging/test-pressure-2.md:61 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Spend 30 more minutes lookin..."]
+skills/systematic-debugging/test-pressure-3.md:10 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Your senior engineer (10 yea..."]
+skills/systematic-debugging/test-pressure-3.md:33 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Phase 2: Compare against ref..."]
+skills/systematic-debugging/test-pressure-3.md:38 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Senior has way more experien..."]
+skills/systematic-debugging/test-pressure-3.md:47 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Insist on following systemat..."]
+skills/systematic-debugging/test-pressure-3.md:55 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- They have 10 years experienc..."]
+skills/systematic-debugging/test-pressure-3.md:62 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Quick 5-minute doc check"]
+skills/test-driven-development/SKILL.md:19 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- New features"]
+skills/test-driven-development/SKILL.md:25 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Throwaway prototypes"]
+skills/test-driven-development/SKILL.md:40 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Don't keep it as "reference""]
+skills/test-driven-development/SKILL.md:90 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/test-driven-development/SKILL.md:104 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/test-driven-development/SKILL.md:109 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- One behavior"]
+skills/test-driven-development/SKILL.md:122 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Test fails (not errors)"]
+skills/test-driven-development/SKILL.md:177 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Test passes"]
+skills/test-driven-development/SKILL.md:188 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Remove duplication"]
+skills/test-driven-development/SKILL.md:207 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Name the production change t..."]
+skills/test-driven-development/SKILL.md:251 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/test-driven-development/SKILL.md:259 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/test-driven-development/SKILL.md:265 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```typescript"]
+skills/test-driven-development/SKILL.md:275 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/using-git-worktrees/SKILL.md:36 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- On a branch: "Already in iso..."]
+skills/using-git-worktrees/SKILL.md:70 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/using-git-worktrees/SKILL.md:73 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/using-superpowers/references/codex-tools.md:1 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "## Subagent dispatch requires ..."]
+skills/using-superpowers/SKILL.md:6 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "<SUBAGENT-STOP>"]
+skills/verification-before-completion/SKILL.md:77 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/verification-before-completion/SKILL.md:83 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/verification-before-completion/SKILL.md:89 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/verification-before-completion/SKILL.md:95 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/verification-before-completion/SKILL.md:101 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/verification-before-completion/SKILL.md:109 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- ANY variation of success/com..."]
+skills/verification-before-completion/SKILL.md:117 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Exact phrases"]
+skills/writing-plans/SKILL.md:19 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- (User preferences for plan l..."]
+skills/writing-plans/SKILL.md:48 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "Write the failing test" - s..."]
+skills/writing-plans/SKILL.md:131 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "TBD", "TODO", "implement la..."]
+skills/writing-plans/SKILL.md:163 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **REQUIRED SUB-SKILL:** Use ..."]
+skills/writing-plans/SKILL.md:167 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **REQUIRED SUB-SKILL:** Use ..."]
+skills/writing-skills/anthropic-best-practices.md:149:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+skills/writing-skills/anthropic-best-practices.md:150:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+skills/writing-skills/anthropic-best-practices.md:192:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+skills/writing-skills/anthropic-best-practices.md:193:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+skills/writing-skills/anthropic-best-practices.md:194:1 error MD007/ul-indent Unordered list indentation [Expected: 0; Actual: 2]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:7 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Scenario 1: Time Pressure + Confidence"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:8 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:21 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Scenario 2: Sunk Cost + Works Already"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:22 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:38 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Scenario 3: Authority + Speed Bias"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:39 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:52 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Scenario 4: Familiarity + Efficiency"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:53 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:66 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### NULL (Baseline - no skills doc)"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:69 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Variant A: Soft Suggestion"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:70 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:77 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Variant B: Directive"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:78 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:88 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Variant C: Claude.AI Emphatic Style"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:89 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```xml"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:115 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Variant D: Process-Oriented"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:116 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:159 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Agent checks for skills unpr..."]
+skills/writing-skills/examples/CLAUDE_MD_TESTING.md:165 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Agent skips checking even wi..."]
+skills/writing-skills/persuasion-principles.md:11 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 1. Authority"]
+skills/writing-skills/persuasion-principles.md:15 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Imperative language: "YOU MU..."]
+skills/writing-skills/persuasion-principles.md:20 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Discipline-enforcing skills ..."]
+skills/writing-skills/persuasion-principles.md:25 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/persuasion-principles.md:30 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 2. Commitment"]
+skills/writing-skills/persuasion-principles.md:34 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Require announcements: "Anno..."]
+skills/writing-skills/persuasion-principles.md:39 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Ensuring skills are actually..."]
+skills/writing-skills/persuasion-principles.md:44 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/persuasion-principles.md:49 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 3. Scarcity"]
+skills/writing-skills/persuasion-principles.md:53 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Time-bound requirements: "Be..."]
+skills/writing-skills/persuasion-principles.md:58 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Immediate verification requi..."]
+skills/writing-skills/persuasion-principles.md:63 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/persuasion-principles.md:68 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 4. Social Proof"]
+skills/writing-skills/persuasion-principles.md:72 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Universal patterns: "Every t..."]
+skills/writing-skills/persuasion-principles.md:77 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Documenting universal practi..."]
+skills/writing-skills/persuasion-principles.md:82 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/persuasion-principles.md:87 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 5. Unity"]
+skills/writing-skills/persuasion-principles.md:91 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Collaborative language: "our..."]
+skills/writing-skills/persuasion-principles.md:95 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Collaborative workflows"]
+skills/writing-skills/persuasion-principles.md:100 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/persuasion-principles.md:105 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 6. Reciprocity"]
+skills/writing-skills/persuasion-principles.md:109 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use sparingly - can feel man..."]
+skills/writing-skills/persuasion-principles.md:113 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Almost always (other princip..."]
+skills/writing-skills/persuasion-principles.md:115 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### 7. Liking"]
+skills/writing-skills/persuasion-principles.md:119 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **DON'T USE for compliance**"]
+skills/writing-skills/persuasion-principles.md:124 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Always for discipline enforc..."]
+skills/writing-skills/persuasion-principles.md:138 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "YOU MUST" removes decision ..."]
+skills/writing-skills/persuasion-principles.md:143 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Clear triggers + required ac..."]
+skills/writing-skills/persuasion-principles.md:148 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Trained on human text contai..."]
+skills/writing-skills/persuasion-principles.md:156 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Ensuring critical practices ..."]
+skills/writing-skills/persuasion-principles.md:161 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Manipulating for personal ga..."]
+skills/writing-skills/persuasion-principles.md:170 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Seven principles of persuasi..."]
+skills/writing-skills/persuasion-principles.md:174 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Tested 7 principles with N=2..."]
+skills/writing-skills/SKILL.md:50 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Technique wasn't intuitively..."]
+skills/writing-skills/SKILL.md:56 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- One-off solutions"]
+skills/writing-skills/SKILL.md:63 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Technique"]
+skills/writing-skills/SKILL.md:66 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Pattern"]
+skills/writing-skills/SKILL.md:69 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Reference"]
+skills/writing-skills/SKILL.md:74 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+skills/writing-skills/SKILL.md:85 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. **Heavy reference** (100+ l..."]
+skills/writing-skills/SKILL.md:89 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Principles and concepts"]
+skills/writing-skills/SKILL.md:96 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Two required fields: `name` ..."]
+skills/writing-skills/SKILL.md:139 error MD012/no-multiple-blanks Multiple consecutive blank lines [Expected: 1; Actual: 2]
+skills/writing-skills/SKILL.md:175 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Use concrete triggers, sympt..."]
+skills/writing-skills/SKILL.md:202 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Error messages: "Hook timed ..."]
+skills/writing-skills/SKILL.md:210 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- ✅ `creating-skills` not `ski..."]
+skills/writing-skills/SKILL.md:218 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- getting-started workflows: <..."]
+skills/writing-skills/SKILL.md:225 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/writing-skills/SKILL.md:234 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/SKILL.md:244 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/SKILL.md:257 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Don't repeat what's in cross..."]
+skills/writing-skills/SKILL.md:262 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/writing-skills/SKILL.md:269 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- ✅ `condition-based-waiting` ..."]
+skills/writing-skills/SKILL.md:275 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `creating-skills`, `testing-..."]
+skills/writing-skills/SKILL.md:283 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- ✅ Good: `**REQUIRED SUB-SKIL..."]
+skills/writing-skills/SKILL.md:306 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Non-obvious decision points"]
+skills/writing-skills/SKILL.md:311 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Reference material → Tables,..."]
+skills/writing-skills/SKILL.md:319 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+skills/writing-skills/SKILL.md:329 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Testing techniques → TypeScr..."]
+skills/writing-skills/SKILL.md:334 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Complete and runnable"]
+skills/writing-skills/SKILL.md:341 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Implement in 5+ languages"]
+skills/writing-skills/SKILL.md:349 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Self-Contained Skill"]
+skills/writing-skills/SKILL.md:350 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:353 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:356 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Skill with Reusable Tool"]
+skills/writing-skills/SKILL.md:357 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:361 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:364 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Skill with Heavy Reference"]
+skills/writing-skills/SKILL.md:365 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:371 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:386 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Not for "simple additions""]
+skills/writing-skills/SKILL.md:404 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Academic questions: Do they ..."]
+skills/writing-skills/SKILL.md:416 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Application scenarios: Can t..."]
+skills/writing-skills/SKILL.md:427 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Recognition scenarios: Do th..."]
+skills/writing-skills/SKILL.md:438 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Retrieval scenarios: Can the..."]
+skills/writing-skills/SKILL.md:473 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- **No nuance clauses.** "Don'..."]
+skills/writing-skills/SKILL.md:499 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Don't keep it as "reference""]
+skills/writing-skills/SKILL.md:502 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Delete means delete"]
+skills/writing-skills/SKILL.md:503 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:559 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- What choices did they make?"]
+skills/writing-skills/SKILL.md:588 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- How to write pressure scenar..."]
+skills/writing-skills/SKILL.md:595 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### ❌ Narrative Example"]
+skills/writing-skills/SKILL.md:599 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### ❌ Multi-Language Dilution"]
+skills/writing-skills/SKILL.md:603 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### ❌ Code in Flowcharts"]
+skills/writing-skills/SKILL.md:604 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```dot"]
+skills/writing-skills/SKILL.md:607 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/SKILL.md:610 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### ❌ Generic Labels"]
+skills/writing-skills/SKILL.md:619 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Create multiple skills in ba..."]
+skills/writing-skills/SKILL.md:632 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Create pressure scenario..."]
+skills/writing-skills/SKILL.md:637 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Name uses only letters, ..."]
+skills/writing-skills/SKILL.md:651 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Identify NEW rationaliza..."]
+skills/writing-skills/SKILL.md:658 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Small flowchart only if ..."]
+skills/writing-skills/SKILL.md:665 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Commit skill to git and ..."]
+skills/writing-skills/testing-skills-with-subagents.md:20 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Enforce discipline (TDD, tes..."]
+skills/writing-skills/testing-skills-with-subagents.md:26 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Pure reference skills (API d..."]
+skills/writing-skills/testing-skills-with-subagents.md:75 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "I already manually tested i..."]
+skills/writing-skills/testing-skills-with-subagents.md:99 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:101 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/testing-skills-with-subagents.md:105 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:108 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/testing-skills-with-subagents.md:112 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:168 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- "This case is different beca..."]
+skills/writing-skills/testing-skills-with-subagents.md:195 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Don't keep it as "reference""]
+skills/writing-skills/testing-skills-with-subagents.md:198 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Delete means delete"]
+skills/writing-skills/testing-skills-with-subagents.md:199 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```"]
+skills/writing-skills/testing-skills-with-subagents.md:232 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Choose correct option"]
+skills/writing-skills/testing-skills-with-subagents.md:277 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Agent finds new rationalizat..."]
+skills/writing-skills/testing-skills-with-subagents.md:284 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Initial Test (Failed)"]
+skills/writing-skills/testing-skills-with-subagents.md:285 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:291 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Iteration 1 - Add Counter"]
+skills/writing-skills/testing-skills-with-subagents.md:292 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:298 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Iteration 2 - Add Foundational Principle"]
+skills/writing-skills/testing-skills-with-subagents.md:299 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```markdown"]
+skills/writing-skills/testing-skills-with-subagents.md:313 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Created pressure scenari..."]
+skills/writing-skills/testing-skills-with-subagents.md:318 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Wrote skill addressing s..."]
+skills/writing-skills/testing-skills-with-subagents.md:323 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- [ ] Identified NEW rationali..."]
+skills/writing-skills/testing-skills-with-subagents.md:380 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- 6 RED-GREEN-REFACTOR iterati..."]
+tests/claude-code/README.md:16 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Run all fast tests (recommended):"]
+tests/claude-code/README.md:16:37 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']
+tests/claude-code/README.md:17 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:21 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Run integration tests (slow, 10-30 minutes):"]
+tests/claude-code/README.md:21:48 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']
+tests/claude-code/README.md:22 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:26 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Run specific test:"]
+tests/claude-code/README.md:26:22 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']
+tests/claude-code/README.md:27 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:31 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Run with verbose output:"]
+tests/claude-code/README.md:31:28 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']
+tests/claude-code/README.md:32 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:36 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Set custom timeout:"]
+tests/claude-code/README.md:36:23 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']
+tests/claude-code/README.md:37 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:43 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### test-helpers.sh"]
+tests/claude-code/README.md:45 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- `run_claude "prompt" [timeou..."]
+tests/claude-code/README.md:56 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Sources `test-helpers.sh`"]
+tests/claude-code/README.md:85 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### test-subagent-driven-development.sh"]
+tests/claude-code/README.md:87 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Skill loading and accessibil..."]
+tests/claude-code/README.md:97 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### test-subagent-driven-development-integration.sh"]
+tests/claude-code/README.md:99 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- Creates real test project wi..."]
+tests/claude-code/README.md:113 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- The workflow actually works ..."]
+tests/claude-code/README.md:118 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "#### test-worktree-native-preference.sh"]
+tests/claude-code/README.md:120 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "- RED: skill without Step 1a —..."]
+tests/claude-code/README.md:143 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+tests/claude-code/README.md:152 error MD031/blanks-around-fences Fenced code blocks should be surrounded by blank lines [Context: "```bash"]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed
