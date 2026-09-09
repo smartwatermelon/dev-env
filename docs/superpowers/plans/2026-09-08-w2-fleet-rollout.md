@@ -33,7 +33,7 @@
 
 | Claim | Evidence |
 | --- | --- |
-| `standards-check-v1` tag not on remote | `git ls-remote --tags origin 'standards-check*'` empty at 14:20 PDT; Andrew pushes it by hand (human-only floating-tag policy). **Tasks 3+ block on this.** |
+| `standards-check-v1` tag not on remote | `git ls-remote --tags origin 'standards-check*'` empty at 14:20 PDT; Andrew pushes it by hand (human-only floating-tag policy). **Tasks 3+ block on this.** **Resolved:** Andrew pushed the tag during execution; Task 2's SHA-match check confirmed cross-repo tag resolution and Tasks 3–9 ran. |
 | `enforce_admins` off on protected branches | `false` on repo-template, pr-review, lock-sync, nightowlstudiollc/.github, kebab-tax, personify, homebrew-tap. Direct Contents-API put to `main` is therefore not blocked by the required-check rule. |
 | Required context today | `claude-review / run-review` on every sampled repo (personify also `validate`). Standards check will be `standards-check / run-standards-check`. Not changed in W2. |
 | `smartwatermelon/headroom` | 404. Dead entry in `.claude-review-ignore`; do not carry it forward. |
@@ -45,6 +45,8 @@
 
 Merge locks are the only recurring ask. Estimated count: tooling 1, pilots 4, node-floor 3, zizmor ~16, combined lint ~28, docs 1. **About 53 locks.** Remediation PRs are staged in rounds of no more than 10 open at once so locks come in sittings. The fleet stub install is 0 locks by decision.
 
+**Actual: 2 locks typed** (dev-env#99, github-workflows#164). Every other Task 1–8 merge was done from the GitHub UI instead of a typed lock; `dev-env#101` tracks a merge-lock TUI improvement to make that the normal path going forward. The round limit ("no more than 10 open at once") was still followed for PR volume, and was briefly exceeded during wave 2 — see plan-corrections #6.
+
 ## File Structure
 
 In `smartwatermelon/github-workflows` (new files):
@@ -55,7 +57,7 @@ In `smartwatermelon/github-workflows` (new files):
 - `tests/test-bulk-install-standards-check.sh` — hermetic stub-`gh` tests.
 - `tests/stub-gh/gh` — the stub.
 
-In `smartwatermelon/dev-env` (this repo): this plan; `docs/STATUS.md` update in Task 10; scan output under `.superpowers/sdd/2026-09-08-w2-fleet-rollout/`.
+In `smartwatermelon/dev-env` (this repo): this plan; `docs/STATUS.md` update in Task 10; scan output under `docs/superpowers/plans/2026-09-08-w2-fleet-rollout/` (relocated from the originally planned `.superpowers/sdd/2026-09-08-w2-fleet-rollout/` — that tree is gitignored by `.superpowers/sdd/.gitignore`'s blanket `*`; see plan-corrections #12).
 
 ---
 
@@ -75,7 +77,7 @@ In `smartwatermelon/dev-env` (this repo): this plan; `docs/STATUS.md` update in 
 - Produces: `bulk-install-standards-check.sh [--apply] [--mode=pr|push] [--only owner/repo] [--owners a,b] [--extra-repos owner/repo,...]`. Exit 0 when every repo classified without `ERROR`; exit 1 otherwise. One line per repo: `<CLASS>  owner/repo  <note>`. Classes: `MISSING`, `CURRENT`, `DIFFERS`, `IGNORED`, `ARCHIVED`, `ERROR`.
 - Env for tests: `BULK_GH=<path>` overrides the `gh` binary; `BULK_STUB_FILE=<path>` overrides the canonical stub path.
 
-- [ ] **Step 1: Branch**
+- [x] **Step 1: Branch**
 
 ```bash
 git -C /Users/andrewrich/Developer/github-workflows switch main
@@ -83,7 +85,7 @@ git -C /Users/andrewrich/Developer/github-workflows pull --ff-only
 git -C /Users/andrewrich/Developer/github-workflows switch -c claude/feat-bulk-install-standards-check-019HDRKL
 ```
 
-- [ ] **Step 2: Write the canonical stub**
+- [x] **Step 2: Write the canonical stub**
 
 `standards/caller-stub.yml`, exactly (this must byte-match the README Setup block at `README.md:412-424` and the header comment in `.github/workflows/standards-check.yml`; if they differ, the stub file wins and the other two are corrected in Step 9):
 
@@ -99,7 +101,7 @@ jobs:
     uses: smartwatermelon/github-workflows/.github/workflows/standards-check.yml@standards-check-v1
 ```
 
-- [ ] **Step 3: Write the ignore file**
+- [x] **Step 3: Write the ignore file**
 
 `.standards-check-ignore`:
 
@@ -109,7 +111,7 @@ jobs:
 nightowlstudiollc/networth-agent
 ```
 
-- [ ] **Step 4: Write the stub `gh`**
+- [x] **Step 4: Write the stub `gh`**
 
 `tests/stub-gh/gh`. It answers the exact `gh api` / `gh repo list` / `gh pr create` shapes the script uses, driven by a fixture directory `STUB_DIR`, and appends every invocation to `${STUB_DIR}/calls.log`.
 
@@ -172,7 +174,7 @@ esac
 
 `chmod +x tests/stub-gh/gh`.
 
-- [ ] **Step 5: Write the failing tests**
+- [x] **Step 5: Write the failing tests**
 
 `tests/test-bulk-install-standards-check.sh`:
 
@@ -255,12 +257,12 @@ echo "${pass} passed, ${fail} failed"
 [[ "${fail}" -eq 0 ]]
 ```
 
-- [ ] **Step 6: Run the tests; observe failure**
+- [x] **Step 6: Run the tests; observe failure**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/tests/test-bulk-install-standards-check.sh`
 Expected: FAIL on every case (script does not exist).
 
-- [ ] **Step 7: Write the script**
+- [x] **Step 7: Write the script**
 
 `bulk-install-standards-check.sh`:
 
@@ -412,7 +414,7 @@ exit "${rc}"
 
 `chmod +x bulk-install-standards-check.sh`.
 
-- [ ] **Step 8: Run the tests; observe pass. Shellcheck.**
+- [x] **Step 8: Run the tests; observe pass. Shellcheck.**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/tests/test-bulk-install-standards-check.sh`
 Expected: `N passed, 0 failed`.
@@ -423,7 +425,7 @@ Expected: no output.
 Run: `bash /Users/andrewrich/Developer/github-workflows/tests/run-tests.sh`
 Expected: `0 test file(s) failed`.
 
-- [ ] **Step 9: Byte-match the three stub copies**
+- [x] **Step 9: Byte-match the three stub copies**
 
 ```bash
 diff <(sed -n '/^```yaml$/,/^```$/p' /Users/andrewrich/Developer/github-workflows/README.md | sed -n '/^name: Standards Check$/,/@standards-check-v1$/p' | head -9) /Users/andrewrich/Developer/github-workflows/standards/caller-stub.yml
@@ -431,12 +433,14 @@ diff <(sed -n '/^```yaml$/,/^```$/p' /Users/andrewrich/Developer/github-workflow
 
 Expected: no diff. If there is one, edit the README block (and the header comment in `.github/workflows/standards-check.yml`, stripping its `#` prefixes when comparing) to match the stub file. Add a sentence to README's `standards-check.yml` Setup section: "The canonical copy is `standards/caller-stub.yml`; `bulk-install-standards-check.sh` installs it fleet-wide."
 
-- [ ] **Step 10: Live dry run against the real fleet**
+- [x] **Step 10: Live dry run against the real fleet**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/bulk-install-standards-check.sh > /private/tmp/claude-501/-Users-andrewrich-Developer-dev-env/fdd1b816-abbd-4693-807f-764faa0394c7/scratchpad/w2-dryrun.txt; grep -c MISSING $_`
 Expected: no `ERROR` lines; `github-workflows` itself reports `CURRENT` (it already carries the self-applying caller; if it reports `DIFFERS`, that is a real drift between the self-caller and the canonical stub, fix the self-caller in this PR); every other fleet repo `MISSING`; `networth-agent` `IGNORED`. Save the file; Task 5 diffs against it.
 
-- [ ] **Step 11: Commit, push, PR**
+**Actual:** `github-workflows` reports `DIFFERS`, not `CURRENT` — correctly, by design, not drift. `.github/workflows/standards-check.yml` in that repo holds the reusable workflow itself, not a caller stub, so it will never byte-match `standards/caller-stub.yml`. That repo gets its own W1-era self-check (`Self Standards Check` workflow) instead of the fleet stub. See plan-corrections #1.
+
+- [x] **Step 11: Commit, push, PR**
 
 ```bash
 git -C /Users/andrewrich/Developer/github-workflows add standards/caller-stub.yml .standards-check-ignore bulk-install-standards-check.sh tests/stub-gh/gh tests/test-bulk-install-standards-check.sh README.md
@@ -459,12 +463,12 @@ Then Protocol 4 checks, push, `gh pr create --repo smartwatermelon/github-workfl
 
 **Files:** none locally; one PR on `smartwatermelon/repo-template` created by the script, then two hand edits pushed to the same branch.
 
-- [ ] **Step 1: Install via PR mode**
+- [x] **Step 1: Install via PR mode**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/bulk-install-standards-check.sh --apply --mode=pr --only smartwatermelon/repo-template`
 Expected: one `MISSING smartwatermelon/repo-template -> https://github.com/smartwatermelon/repo-template/pull/N` line.
 
-- [ ] **Step 2: Verify the check ran at the tag's commit**
+- [x] **Step 2: Verify the check ran at the tag's commit**
 
 ```bash
 tag_sha="$(git -C /Users/andrewrich/Developer/github-workflows rev-parse standards-check-v1^{commit})"
@@ -474,7 +478,7 @@ gh run view "${run_id}" --repo smartwatermelon/repo-template --log | grep -E 'wo
 
 Expected: the log's resolved SHA equals `${tag_sha}`, the sparse checkout step succeeded, and the final line is `standards-check: all linters passed` (or the runner's equivalent success line). Conclusion `success`. This is the one property the W1 self-check could not exercise; record the SHA match in the task report.
 
-- [ ] **Step 3: Add the README fix and the pin float to the same PR**
+- [x] **Step 3: Add the README fix and the pin float to the same PR**
 
 ```bash
 gh repo clone smartwatermelon/repo-template /private/tmp/claude-501/-Users-andrewrich-Developer-dev-env/fdd1b816-abbd-4693-807f-764faa0394c7/scratchpad/repo-template -- -q
@@ -502,7 +506,7 @@ Commit (message: `docs: name standards-check as the required check; float review
 
 **Gate:** Task 2 Step 2 recorded a SHA match.
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 ```bash
 for r in smartwatermelon/pr-review smartwatermelon/claude-code-workflows-agents nightowlstudiollc/.github; do
@@ -510,7 +514,7 @@ for r in smartwatermelon/pr-review smartwatermelon/claude-code-workflows-agents 
 done
 ```
 
-- [ ] **Step 2: Capture the failure bodies**
+- [x] **Step 2: Capture the failure bodies**
 
 For each PR, once the run finishes:
 
@@ -520,17 +524,19 @@ gh run view "${run_id}" --repo "$r" --log-failed > /Users/andrewrich/Developer/d
 
 Expected: `pr-review` red on shellcheck + zizmor; `claude-code-workflows-agents` red on shellcheck + zizmor + markdownlint; `.github` red on zizmor. A red run here is the expected result, not a rollout failure; the check is non-required and the PRs are mergeable. Surface all three PRs for locks with that sentence in the message.
 
+**Deviation:** Andrew asked that these three red pilots get their remediation PRs before the fleet waves ran, not after. Done ahead of Tasks 7–9: `pr-review#17`/`#18`, `claude-code-workflows-agents#21`, `nightowlstudiollc/.github#13`. All three pilots are green on `standards-check` as of Task 10. See plan-corrections #3.
+
 ---
 
 ### Task 4: Direct-push rehearsal on one clean, low-stakes repo
 
 **Gate:** All four pilot PRs merged (Andrew's locks).
 
-- [ ] **Step 1: Apply to exactly one repo**
+- [x] **Step 1: Apply to exactly one repo**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/bulk-install-standards-check.sh --apply --mode=push --only smartwatermelon/homebrew-tap`
 
-- [ ] **Step 2: Read the commit back from the default branch (not the script's own line)**
+- [x] **Step 2: Read the commit back from the default branch (not the script's own line)**
 
 ```bash
 gh api repos/smartwatermelon/homebrew-tap/commits --jq '.[0] | .sha + " " + .commit.message' -F path=.github/workflows/standards-check.yml
@@ -545,16 +551,16 @@ Expected: the newest commit on that path is the stub commit; the diff is empty. 
 
 **Gate:** Task 4 all three checks passed.
 
-- [ ] **Step 1: Fresh dry run, diff against Task 1's**
+- [x] **Step 1: Fresh dry run, diff against Task 1's**
 
 Run the script with no flags into `w2-dryrun-2.txt`; `diff` against `w2-dryrun.txt`. Expected differences: the five repos done in Tasks 2–4 now `CURRENT`. Any new `DIFFERS`/`ERROR` is investigated before apply.
 
-- [ ] **Step 2: Apply**
+- [x] **Step 2: Apply**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/bulk-install-standards-check.sh --apply --mode=push | tee /Users/andrewrich/Developer/dev-env/.superpowers/sdd/2026-09-08-w2-fleet-rollout/fleet-push.txt`
 Expected: exit 0; every previously `MISSING` line now ends `-> pushed to main` (or the repo's default branch).
 
-- [ ] **Step 3: Verify idempotency and count**
+- [x] **Step 3: Verify idempotency and count**
 
 Run the dry run again. Expected: zero `MISSING`, zero `ERROR`; `CURRENT` count equals the fleet size minus ignored/archived. Record counts in the task report.
 
@@ -562,9 +568,9 @@ Run the dry run again. Expected: zero `MISSING`, zero `ERROR`; `CURRENT` count e
 
 ### Task 6: Re-measure lint debt with retained output
 
-**Files:** Create `dev-env/.superpowers/sdd/2026-09-08-w2-fleet-rollout/scan/<owner>__<repo>.log` per repo, and `scan/summary.tsv` (`owner/repo<TAB>exit<TAB>failing-linters`).
+**Files:** Create `dev-env/docs/superpowers/plans/2026-09-08-w2-fleet-rollout/scan/<owner>__<repo>.log` per repo, and `scan/summary.tsv` (`owner/repo<TAB>exit<TAB>failing-linters`). (Written during execution to the working scratch path `.superpowers/sdd/2026-09-08-w2-fleet-rollout/scan/` and copied here for Task 10's commit, since that scratch tree is gitignored — see plan-corrections #12.)
 
-- [ ] **Step 1: Scan**
+- [x] **Step 1: Scan**
 
 For every non-archived repo in the fleet (same enumeration as the script; use `gh repo list <owner> --json name,isArchived,diskUsage --limit 200` and skip `diskUsage > 200000`):
 
@@ -574,11 +580,11 @@ bash /Users/andrewrich/Developer/github-workflows/standards/run-standards.sh --r
 rm -rf "$d"
 ```
 
-- [ ] **Step 2: zizmor root cause, once**
+- [x] **Step 2: zizmor root cause, once**
 
 `grep -h -A2 'zizmor' scan/*.log | grep -oE '[a-z-]+\[[^]]*\]|unpinned-uses|dangerous-triggers|template-injection|[a-z-]+: ' | sort | uniq -c | sort -rn` → write `scan/zizmor-findings.md`: rule → repo list → the fix per rule. Expected dominant rule: `unpinned-uses` (third-party actions at a floating tag; fix = pin to a full SHA with a `# vX.Y.Z` comment, Dependabot keeps the comment current). If a rule needs a policy change (e.g. `dangerous-triggers` on `pull_request_target` callers that already carry the `# zizmor: ignore[...]` comment), note it; do not silence rules in `zizmor.yml` without Andrew.
 
-- [ ] **Step 3: Report**
+- [x] **Step 3: Report**
 
 The task report lists: pass count, per-linter counts, the zizmor rule table, and the three node-floor repos with their exact offending lines (from the logs). Commit the `scan/` directory to a dev-env docs branch together with Task 10's STATUS update.
 
@@ -590,21 +596,21 @@ Also closes N1b: the live N1b set is these three (`tensegrity` has no sub-floor 
 
 One PR per repo. For each:
 
-- [ ] **Step 1: Clone, branch**
+- [x] **Step 1: Clone, branch**
 
 ```bash
 gh repo clone "$r" "$d" -- -q
 git -C "$d" switch -c claude/chore-node-floor-019HDRKL
 ```
 
-- [ ] **Step 2: Edit every offending pin from the scan log**
+- [x] **Step 2: Edit every offending pin from the scan log**
 
 - `.nvmrc`: `24` (matches the local default `lts/krypton`, v24.19.0).
 - `node-version: 20` / `'20'` / `20.x` in workflows: `24`.
 - `package.json` `engines.node`: `>=22.0.0` (the floor; do not raise engines above what the runtime supports).
 - Known targets from the 2026-09-08 scan: `nightowlstudiollc/kebab-tax` (`.nvmrc`, `ci.yml` ×2, `deploy-workers.yml` ×3, `publish-changelog.yml` via `.nvmrc`, `release-gate.yml`), `nightowlstudiollc/reliquarist` (`package.json` engines, `ci.yml`), `smartwatermelon/gmail-newsletter-filter` (`package.json` engines). Re-read the scan log; the list may have changed.
 
-- [ ] **Step 3: Verify locally, then in CI**
+- [x] **Step 3: Verify locally, then in CI**
 
 Run: `bash /Users/andrewrich/Developer/github-workflows/standards/run-standards.sh --repo "$d" 2>&1 | grep -E 'node-floor|Node'`
 Expected: no `::error::` lines mentioning Node.
@@ -623,16 +629,50 @@ Dispatch in batches of 4 repos per implementer; at most 10 PRs open at once.
 
 For each repo:
 
-- [ ] **Step 1: Clone, branch `claude/ci-pin-actions-019HDRKL`**
-- [ ] **Step 2: Fix per rule** (from `zizmor-findings.md`). For `unpinned-uses`: replace `uses: owner/action@vN` with `uses: owner/action@<40-char sha> # vN.N.N`, resolving the SHA with `gh api repos/owner/action/git/ref/tags/vN.N.N --jq .object.sha` (dereference annotated tags via `git/tags/<sha>` if `.object.type == "tag"`). Do not pin `smartwatermelon/github-workflows/...@vN` reusable-workflow refs; those are first-party and Dependabot-managed by tag (see `docs/plans/2026-04-18-v2-rollout-playbook.md`).
-- [ ] **Step 3: Verify:** `run-standards.sh --repo "$d" 2>&1 | grep -A20 '== zizmor'` shows no findings; `actionlint` still clean.
-- [ ] **Step 4: Commit (`ci: pin third-party actions to SHAs (zizmor unpinned-uses)`), push, PR.** The non-required `standards-check` on the PR must show zizmor green.
+- [x] **Step 1: Clone, branch `claude/ci-pin-actions-019HDRKL`**
+- [x] **Step 2: Fix per rule** (from `zizmor-findings.md`). For `unpinned-uses`: replace `uses: owner/action@vN` with `uses: owner/action@<40-char sha> # vN.N.N`, resolving the SHA with `gh api repos/owner/action/git/ref/tags/vN.N.N --jq .object.sha` (dereference annotated tags via `git/tags/<sha>` if `.object.type == "tag"`). Do not pin `smartwatermelon/github-workflows/...@vN` reusable-workflow refs; those are first-party and Dependabot-managed by tag (see `docs/plans/2026-04-18-v2-rollout-playbook.md`).
+- [x] **Step 3: Verify:** `run-standards.sh --repo "$d" 2>&1 | grep -A20 '== zizmor'` shows no findings; `actionlint` still clean.
+- [x] **Step 4: Commit (`ci: pin third-party actions to SHAs (zizmor unpinned-uses)`), push, PR.** The non-required `standards-check` on the PR must show zizmor green.
+
+**Deviations from this task as written (see plan-corrections.md for the full list):**
+
+- **Branch and title differ (#4).** Actual branch: `claude/ci-zizmor-019HDRKL`, not `claude/ci-pin-actions-019HDRKL`. Actual commit/PR title:
+  `ci: pin third-party actions to SHAs, persist-credentials: false, seed zizmor.yml`.
+- **zizmor.yml is seeded in every PR, not just where missing (#2).** A repo
+  with no root `zizmor.yml` blocks local commits touching a first-party
+  `@vN` ref, because the global pre-commit hook runs zizmor without the
+  canonical config. Seeding the canonical `zizmor.yml` at repo root became a
+  standard part of every wave-2 PR.
+- **Pin comments must be the exact tag (#5).** `# v7.0.1`, not `# v7` — the
+  pre-commit hook's online ref-version-mismatch audit fails on major-only
+  comments.
+- **The four "policy decision" zizmor cases resolved as standard fixes, no
+  policy change needed (#7):** `kebab-tax-netlify` scopes
+  `pull-requests: write` / `issues: write` to the job; `swift-progress-indicator`
+  passes `SHA256` via `env:` and uses `"$SHA256"`; `huddle-transcribe` gains
+  the canonical stub's `# zizmor: ignore[dangerous-triggers]` comment;
+  `claude-config` gets `persist-credentials: false`.
+- **Wave 2 was interrupted by a session rate limit** at 2026-09-08 18:03
+  (#9). Nine of fourteen PRs had landed; `archive-resolver` and the four
+  round-2 repos were re-dispatched after 18:20. All landed by end of day.
 
 ---
 
 ### Task 9: Wave 3, combined lint (shellcheck + markdownlint + yamllint)
 
-**Gate:** Waves 1 and 2 merged, AND Andrew has not objected since this plan was surfaced. Before dispatching, post one line: "Starting wave 3 (~28 lint PRs in rounds of 10) unless you say otherwise."
+**Status: ON HOLD by Andrew's decision, 2026-09-08 18:45 PDT. Not started.**
+Waves 1 and 2 are merged (the gate condition), but Andrew asked to hold
+before dispatch rather than proceed straight from wave 2. Scope as of this
+measurement: 26 repos — every `scan/summary.tsv` row with
+`shellcheck`/`markdownlint`/`yamllint` in its failing set, minus `pr-review`
+and `claude-code-workflows-agents` (cleared by the pilot-fix PRs, see the
+Task 3/4 deviation note), minus `nightowlstudiollc/networth-agent` (install
+exclusion). Also found during pilots and not yet actioned: `superpowers`,
+`x-thread-reader`, `superpowers-marketplace`, `claude-config-backup` lack a
+`dependabot.yml` (`reliquarist` got its in wave 1, `pr-review` in #18); the
+remaining gaps ride wave 3 (plan-corrections #10).
+
+**Gate:** Waves 1 and 2 merged, AND Andrew has not objected since this plan was surfaced. Before dispatching, post one line: "Starting wave 3 (~28 lint PRs in rounds of 10) unless you say otherwise." (Reminder recorded during execution, plan-corrections #11: do not start this on the heels of wave 2 — give Andrew a real window to object.)
 
 Repos: every `scan/summary.tsv` row whose failing set includes `shellcheck`, `markdownlint`, or `yamllint`. One PR per repo carrying all three. Branch `claude/chore-lint-debt-019HDRKL`. Same batch/round limits as Task 8.
 
@@ -651,13 +691,29 @@ Per repo:
 **Files:**
 
 - Modify: `dev-env/docs/STATUS.md` (Fleet row; N1b bullet; "Critical path" section)
-- Create: `dev-env/.superpowers/sdd/2026-09-08-w2-fleet-rollout/w3-readiness.tsv` — `owner/repo<TAB>standards-check green? (y/n)<TAB>blocking linters`
+- Create: `dev-env/docs/superpowers/plans/2026-09-08-w2-fleet-rollout/w3-readiness.tsv` — `owner/repo<TAB>standards-check green? (y/n)<TAB>blocking linters` (relocated from the plan's original `.superpowers/sdd/...` path; see plan-corrections #12)
 
-- [ ] **Step 1:** Regenerate the readiness table from the latest `standards-check` run on each repo's default branch: `gh run list --repo $r --workflow 'Standards Check' --branch main --limit 1 --json conclusion`. (If a repo has had no PR since install, the check has never run; mark `never-ran`, and W3 opens a no-op PR to trigger it.)
-- [ ] **Step 2:** STATUS.md: Fleet row → `W0, W1, W2 done. W3 open — critical path.`; N1b → done, with the Gmail-MCP-Server/tensegrity note; add the lock count actually spent and the readiness summary (green N of M).
+- [x] **Step 1:** Regenerate the readiness table from the latest `standards-check` run on each repo's default branch: `gh run list --repo $r --workflow 'Standards Check' --branch main --limit 1 --json conclusion`. (If a repo has had no PR since install, the check has never run; mark `never-ran`, and W3 opens a no-op PR to trigger it.)
+
+  **Deviation (plan-corrections #13):** the `--branch main` filter as written returns nothing for every repo — the caller stub's trigger is `pull_request` only, never `push`, so no run is ever attached to `main`. Used the latest `standards-check.yml` run on any branch per repo instead (typically its remediation-wave PR branch), per this task's own execution guidance. Result: green 9 of 41, red 15 (all wave-3-linter-only: shellcheck/markdownlint/yamllint — zizmor and node-floor are clean on every repo that has run), never-ran 17. Table: `w3-readiness.tsv`.
+
+- [x] **Step 2:** STATUS.md: Fleet row → `W0, W1, W2 done. W3 open — critical path.`; N1b → done, with the Gmail-MCP-Server/tensegrity note; add the lock count actually spent and the readiness summary (green N of M).
 - [ ] **Step 3:** Commit, push, PR (docs only). Surface it.
 
 ---
+
+## Execution record (2026-09-08)
+
+Tasks 1–8 executed and merged this date; Task 9 is on hold (see its section
+above); Task 10 is this docs PR. Full deviation list: `plan-corrections.md`
+(in this same directory). One item doesn't belong to any single task above:
+
+- **Open follow-up: the company machine (`arich-mac.local`) needs its own
+  runbook section** for the `smartwatermelon` → `twistedmelonman` `gh`
+  re-login. That machine runs dual `gh` identities; Andrew runs auth changes
+  there himself, and nothing about this rollout propagates to it
+  automatically. Not actioned in W2; flagged for whoever picks this up next
+  (plan-corrections #8).
 
 ## Self-review
 
