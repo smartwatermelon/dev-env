@@ -392,6 +392,103 @@ Total: ~1 hour of work, no new tooling, no new dependencies, no cost increase.
 
 ---
 
+## Option 5: Built-in slash commands (`/code-review`, `/security-review`, …)
+
+**Evaluated 2026-09-09 for dev-env#100 on Claude Code 2.1.266.** Question asked:
+do the newer built-in review commands obviate the hook-enforced pipeline
+(`run-review.sh`) or any installed plugin?
+
+**Answer: no, not for the enforcement layer.** They are a good in-session tool
+and a poor gate. The measurements below are the reason.
+
+### The measurement
+
+A 10-line known-bad shell fixture with four planted defects — unquoted
+`rm -rf $dir/*`, `eval "$2"` on caller input, `((count++))` under `set -e`
+(the footgun named in `CLAUDE.md`), and no argument validation.
+
+| | `claude -p "/code-review high"` | `run-review.sh` (incumbent) |
+| --- | --- | --- |
+| Defects found | 4 of 4 | 4 of 4 |
+| Exit code | **0** | **1** |
+| Wall clock | 109 s | **27 s** |
+| Models | opus, effort high | haiku + sonnet, in parallel |
+| Output | markdown prose in `.result` | `VERDICT:`/`SEVERITY:` lines |
+| Gateable by a hook | no | yes |
+
+**Finding quality is not the differentiator — both caught everything, and the
+slash command additionally noticed the fixture was a fixture.** The
+differentiator is plumbing.
+
+### Three blockers for hook use
+
+1. **Always exits 0.** Findings or none, the process returns success. A hook
+   has nothing to branch on.
+2. **`--json-schema` is silently discarded for slash commands.** This is the
+   sharpest result. Running
+   `claude -p "/code-review high" --output-format json --json-schema '<schema>'`
+   billed $0.93 over 112 s — the full review ran — and returned
+   `"result": "Command completed"`, **no `structured_output` field, no
+   findings, `is_error: false`, exit 0.** The identical schema against a plain
+   prompt (no slash command) returns a populated `structured_output` with
+   `verdict: BLOCK` and all five findings. The command's findings go to
+   `ReportFindings`, a host-app channel, and never reach the JSON envelope.
+   `--output-format stream-json --verbose` does not expose them either: a
+   $1.06 review emitted zero `tool_use` events.
+3. **Permission denials read as clean.** Under `-p`, verification commands are
+   auto-denied; the review proceeds without them and still exits 0.
+
+Blocker 2 is a textbook entry in this repo's own false-OK catalog: a command
+that runs, bills, reports success, and does nothing observable. Any hook built
+on it would pass every commit while looking healthy. `run-review.sh` fails
+_closed_ on unparseable output — the opposite default, and the correct one.
+
+Note that `run-review.sh:1290` already uses `--json-schema` successfully — with
+`--agent`, not a slash command. The structured-output mechanism works; slash
+commands are what bypass it.
+
+### What they are good for
+
+Genuinely useful _in session_, where a human reads the output:
+
+- `/code-review` at `high`/`max` before a push, as a second opinion.
+- `/security-review` on a branch before opening a PR.
+- `/simplify` and `/code-review --fix` for cleanup (both write to the working
+  tree — never appropriate in a pre-commit hook).
+- `/code-review ultra` is cloud-executed and separately billed; it conflicts
+  with the local-first principle for routine use.
+
+### Deprecation review
+
+`/skill-doctor` (2026-09-09) reports usage per skill, but **it counts only
+in-session invocations.** Agents launched by a git hook via
+`claude --agent … --no-session-persistence` are invisible to it. Two plugins it
+flags as unused are load-bearing:
+
+| Component | skill-doctor says | Verdict | Why |
+| --- | --- | --- | --- |
+| `comprehensive-review` | 0 uses, prunable | **Keep** | `run-review.sh` invokes `comprehensive-review:comprehensive-review-code-reviewer` on every commit |
+| `code-critic` | not listed | **Keep** | Supplies `adversarial-reviewer`; no built-in equivalent |
+| `dumbify` | 0 uses, 21 days | **Keep** | `pr-review` phase 5 chains into it |
+| `asd-ste100` | 0 uses, never | **Keep** | `CLAUDE.md` applies it as a standing preference without invoking it |
+| `ci-workflows` | 65 uses, 19 days | **Keep** | `/autofix-pr` is web-session-only, not a replacement |
+| `pr-review` | 1 use, ~340 ctx | **Review** | Overlaps `/code-review <PR#>`, but adds pending-review staging and the personify/dumbify chain |
+| `calibrate-register` | 0 uses, never | **Candidate** | User skill, never invoked |
+
+**Disabling a plugin on a 0-use reading would break the enforcement layer while
+the report reads clean.** This is the repo's standing rule — resolve the thing,
+don't match its label — applied to the tooling that measures the tooling.
+
+### Verdict
+
+Nothing is deprecated by the built-ins. Adopt the slash commands as in-session
+supplements; keep `run-review.sh` as the gate. Revisit if a future release adds
+either a non-zero exit on findings or `structured_output` support for slash
+commands — those two changes alone would make a hook migration worth costing
+out.
+
+---
+
 ## Comparison Matrix
 
 | Criterion | CodeRabbit CLI | PR-Agent | Semgrep | Enhanced Adversarial |
