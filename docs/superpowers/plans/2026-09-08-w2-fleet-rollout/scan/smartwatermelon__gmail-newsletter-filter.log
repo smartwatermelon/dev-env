@@ -1,0 +1,34 @@
+
+== shellcheck
+::notice::no shell files
+
+== yamllint
+.github/workflows/claude.yml:22:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:23:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:24:121: [warning] line too long (203 > 120 characters) (line-length)
+.github/workflows/claude.yml:25:121: [warning] line too long (236 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+No findings to report. Good job! (1 ignored, 12 suppressed)
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md LICENSE.md README.md
+Linting: 3 files
+Summary: 1 issue in 1 file
+LICENSE.md:1 error MD041/first-line-heading/first-line-h1 First line in a file should be a top-level heading [Context: "MIT License"]
+::error::markdownlint found problems
+
+== node-floor
+::error::package.json engines.node: >=20.0.0: Node 20 is below the supported floor (22)
+::error::1 Node pin(s) below floor 22. Node 20 reached EOL 2026-04-30.
+::error::node-floor found problems
+
+::error::standards-check: 2 linter(s) failed

@@ -1,0 +1,64 @@
+
+== shellcheck
+::notice::no shell files
+
+== yamllint
+.github/workflows/claude.yml:44:121: [warning] line too long (157 > 120 characters) (line-length)
+.github/workflows/claude.yml:51:1: [warning] too many blank lines (1 > 0) (empty-lines)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+help[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/claude.yml:25:9
+   |
+25 |         - name: Checkout repository
+   |  _________^
+26 | |         uses: actions/checkout@v7
+27 | |         with:
+28 | |           fetch-depth: 1
+   | |________________________^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:26:15
+   |
+26 |         uses: actions/checkout@v7
+   |               ^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/claude.yml:32:15
+   |
+32 |         uses: anthropics/claude-code-action@v1
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+8 findings (5 suppressed, 3 unsafe fixes): 0 informational, 1 low, 0 medium, 2 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: CLAUDE.md README.md profile/README.md
+Linting: 3 files
+Summary: 3 issues in 1 file
+README.md:12 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### FUNDING.yml"]
+README.md:15 error MD022/blanks-around-headings Headings should be surrounded by blank lines [Expected: 1; Actual: 0; Below] [Context: "### Claude Blocking Review"]
+README.md:17 error MD032/blanks-around-lists Lists should be surrounded by blank lines [Context: "1. Go to Actions tab"]
+::error::markdownlint found problems
+
+== node-floor
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed

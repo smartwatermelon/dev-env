@@ -1,0 +1,23 @@
+
+== shellcheck
+::notice::no shell files
+
+== yamllint
+::notice::no YAML files
+
+== actionlint
+::notice::no workflows
+
+== zizmor
+::notice::no workflows
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: .githooks-disabled/README.md README.md
+Linting: 2 files
+Summary: 0 issues in 0 files
+
+== node-floor
+Node floor 22: OK
+
+standards-check: all enabled linters clean

@@ -1,0 +1,26 @@
+
+== shellcheck
+::notice::no shell files
+
+== yamllint
+.github/workflows/claude.yml:22:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:23:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:24:121: [warning] line too long (203 > 120 characters) (line-length)
+.github/workflows/claude.yml:25:121: [warning] line too long (236 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+No findings to report. Good job! (1 ignored, 9 suppressed)
+
+== markdownlint
+::notice::no Markdown files
+
+== node-floor
+Node floor 22: OK
+
+standards-check: all enabled linters clean

@@ -1,0 +1,75 @@
+
+== shellcheck
+
+== yamllint
+.github/workflows/claude.yml:20:121: [warning] line too long (199 > 120 characters) (line-length)
+.github/workflows/claude.yml:21:121: [warning] line too long (213 > 120 characters) (line-length)
+.github/workflows/claude.yml:22:121: [warning] line too long (200 > 120 characters) (line-length)
+
+== actionlint
+
+== zizmor
+ INFO zizmor: 🌈 zizmor v1.30.0
+ INFO audit: zizmor: 🌈 completed .github/workflows/ci.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude-blocking-review.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/claude.yml
+ INFO audit: zizmor: 🌈 completed .github/workflows/dependabot-auto-merge.yml
+warning[artipacked]: credential persistence through GitHub Actions artifacts
+  --> .github/workflows/ci.yml:21:9
+   |
+21 |       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ does not set persist-credentials: false
+   |
+   = note: audit confidence → Low
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#artipacked
+
+error[unpinned-uses]: unpinned action reference
+  --> .github/workflows/ci.yml:36:15
+   |
+36 |         uses: codecov/codecov-action@v7
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^ action is not pinned to a hash (required by blanket policy)
+   |
+   = note: audit confidence → High
+   = note: this finding has an auto-fix
+   = help: audit documentation → https://docs.zizmor.sh/audits/#unpinned-uses
+
+14 findings (1 ignored, 11 suppressed, 2 unsafe fixes): 0 informational, 0 low, 1 medium, 1 high
+::error::zizmor found problems
+
+== markdownlint
+markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+Finding: AUDIO_REQUIREMENTS.md CLAUDE.md CRITICAL_FINDINGS.md LAUNCH.md PHYSICS_TESTING_GUIDE.md README.md TOUCH_HANDLING_RESEARCH.md assets/audio/CREDITS.md docs/PHASE2_TESTING_GUIDE.md docs/plans/2026-01-10-audio-polish-design.md docs/plans/2026-01-10-expo-scaffold-implementation.md docs/plans/2026-01-10-physics-engine-design.md docs/plans/2026-01-10-physics-engine-implementation.md docs/plans/2026-01-10-react-native-scaffold-design.md docs/plans/2026-01-11-touch-interaction-design.md docs/plans/2026-01-21-phase2-tutorial-implementation.md docs/plans/2026-01-21-tutorial-system-design.md docs/plans/2026-01-22-engineering-drawing-theme-design.md docs/plans/2026-01-22-interactive-tutorial-implementation.md docs/plans/2026-01-22-interactive-tutorial-system-design.md docs/plans/2026-01-23-interactive-tutorial-redesign.md docs/plans/2026-01-23-tutorial-modules-2-6-implementation.md docs/plans/2026-01-27-3d-pivot-plan.md docs/plans/2026-01-28-orbit-controls-redesign.md docs/plans/2026-02-02-beta-launch-design.md docs/plans/2026-02-02-beta-launch-implementation.md docs/proposals/2026-01-11-minimal-github-actions-ci.md
+Linting: 27 files
+Summary: 23 issues in 9 files
+AUDIO_REQUIREMENTS.md:124:15 error MD034/no-bare-urls Bare URL used [Context: "https://sfxr.me/"]
+AUDIO_REQUIREMENTS.md:125:18 error MD034/no-bare-urls Bare URL used [Context: "https://sfbgames.itch.io/chipt..."]
+AUDIO_REQUIREMENTS.md:126:17 error MD034/no-bare-urls Bare URL used [Context: "https://suno.com"]
+AUDIO_REQUIREMENTS.md:127:16 error MD034/no-bare-urls Bare URL used [Context: "https://mubert.com"]
+CLAUDE.md:110:19 error MD034/no-bare-urls Bare URL used [Context: "https://expo.dev/accounts/andr..."]
+docs/PHASE2_TESTING_GUIDE.md:164:29 error MD026/no-trailing-punctuation Trailing punctuation in heading [Punctuation: '!']
+docs/plans/2026-01-10-audio-polish-design.md:125:72 error MD034/no-bare-urls Bare URL used [Context: "https://freesound.org"]
+docs/plans/2026-01-10-audio-polish-design.md:126:72 error MD034/no-bare-urls Bare URL used [Context: "http://ccmixter.org"]
+docs/plans/2026-01-10-audio-polish-design.md:127:72 error MD034/no-bare-urls Bare URL used [Context: "https://incompetech.com"]
+docs/plans/2026-01-10-audio-polish-design.md:128:72 error MD034/no-bare-urls Bare URL used [Context: "https://opengameart.org"]
+docs/plans/2026-01-10-audio-polish-design.md:129:72 error MD034/no-bare-urls Bare URL used [Context: "https://freemusicarchive.org"]
+docs/plans/2026-01-10-audio-polish-design.md:130:72 error MD034/no-bare-urls Bare URL used [Context: "https://zapsplat.com"]
+docs/plans/2026-01-10-audio-polish-design.md:634:30 error MD034/no-bare-urls Bare URL used [Context: "https://docs.expo.dev/versions..."]
+docs/plans/2026-01-10-audio-polish-design.md:635:22 error MD034/no-bare-urls Bare URL used [Context: "https://freesound.org"]
+docs/plans/2026-01-10-audio-polish-design.md:636:17 error MD034/no-bare-urls Bare URL used [Context: "http://ccmixter.org"]
+docs/plans/2026-01-10-audio-polish-design.md:637:20 error MD034/no-bare-urls Bare URL used [Context: "https://incompetech.com"]
+docs/plans/2026-01-10-audio-polish-design.md:638:24 error MD034/no-bare-urls Bare URL used [Context: "https://opengameart.org"]
+docs/plans/2026-01-10-physics-engine-design.md:398:23 error MD034/no-bare-urls Bare URL used [Context: "https://en.wikipedia.org/wiki/..."]
+docs/plans/2026-01-10-physics-engine-design.md:399:23 error MD034/no-bare-urls Bare URL used [Context: "https://www.cs.cmu.edu/~baraff..."]
+docs/plans/2026-01-22-engineering-drawing-theme-design.md:167:12 error MD034/no-bare-urls Bare URL used [Context: "https://www.3qmachining.com/wp..."]
+docs/plans/2026-02-02-beta-launch-design.md:199:28 error MD034/no-bare-urls Bare URL used [Context: "https://tensegrity3d.xyz/priva..."]
+docs/plans/2026-02-02-beta-launch-implementation.md:2305:9 error MD034/no-bare-urls Bare URL used [Context: "https://tensegrity3d.xyz/priva..."]
+LAUNCH.md:101:19 error MD034/no-bare-urls Bare URL used [Context: "https://expo.dev/accounts/andr..."]
+::error::markdownlint found problems
+
+== node-floor
+::notice::.github/workflows/ci.yml: node-version '[18.x]' is not a recognisable version or alias; not checked
+::notice::.github/workflows/ci.yml: node-version is an expression (${{ matrix.node-version }}); not checked
+Node floor 22: OK
+
+::error::standards-check: 2 linter(s) failed
