@@ -49,12 +49,12 @@ permissions, and classic branch-protection rules (required status checks, requir
 reviews, `enforce_admins`, push restrictions).
 
 **Org-wide defaults**: if installed at the org level and `smartwatermelon/.github`
-carries a `.github/settings.yml`, that file becomes the *default* applied to every
+carries a `.github/settings.yml`, that file becomes the _default_ applied to every
 repo that doesn't ship its own override — array fields (labels, branch rules) merge
 by name rather than replacing wholesale. This is a direct, better-fitting answer to
 what `.github` already does for `FUNDING.yml`.
 
-**What it does *not* cover**: Actions permissions
+**What it does _not_ cover**: Actions permissions
 (`default_workflow_permissions`, `can_approve_pull_request_reviews`, allowed-actions
 policy), Actions/Dependabot secrets and variables, environments, webhooks, GitHub
 Pages, and the newer repository **rulesets** feature (a distinct, more capable
@@ -82,7 +82,7 @@ options, feature toggles) that's genuinely useful, but does so by installing a
 permanently-running, admin-scoped, third-party-hosted webhook service across the
 entire org. That's a materially larger and more persistent trust surface than
 anything currently in the fleet — and directly cuts against the fleet's own
-recent direction (the 2026-03-25 infrastructure consolidation deliberately *removed*
+recent direction (the 2026-03-25 infrastructure consolidation deliberately _removed_
 remote dependencies — Sentry/Seer, `claude-code-review.yml`'s per-commit remote
 calls — in favor of local, deterministic, self-hosted automation). Adopting a
 standing admin-privileged external app to save a handful of `gh api` calls at repo
@@ -146,13 +146,13 @@ next increment given what already exists.
 **What it is**: Declarative repo-settings-as-code, run transiently in CI (plan on
 PR, apply on merge) rather than via a permanently-installed webhook app. Covers
 everything Options 1 and 2 cover, plus Actions permissions, environments, rulesets,
-and secret *existence* (not values) — using a token minted per-run rather than a
+and secret _existence_ (not values) — using a token minted per-run rather than a
 standing installation.
 
 **Fit for our workflow**: This is the option that actually matches the fleet's
 stated philosophy — "one repo, one source of truth" — extended from local
 dev-machine config (`install.sh`) to org-wide repo config. It's also the only option
-here that could reconcile drift across the *existing* fleet, not just new repos. The
+here that could reconcile drift across the _existing_ fleet, not just new repos. The
 cost is real, though: authoring HCL, an initial `terraform import` pass across
 ~30+ active repos, and picking a state backend. This is a larger, separate project,
 not a drop-in replacement for `repo-template`/`.github` — worth its own design doc if

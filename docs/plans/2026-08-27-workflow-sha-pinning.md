@@ -16,10 +16,12 @@ The propagation-without-manual-review problem is already solved end to end; only
 
 - `smartwatermelon/github-workflows` publishes reusable workflows, tagged (`v3`, etc.) — a separate repo, not attached to this session.
 - Every consumer repo (16, per `docs/plans/2026-04-28-dependabot-auto-merge-c2.md`) references reusable workflows by **floating tag**:
+
   ```yaml
   # .github/workflows/claude-blocking-review.yml:21
   uses: smartwatermelon/github-workflows/.github/workflows/claude-blocking-review.yml@v3
   ```
+
   This is what zizmor flags — the ref is mutable, not a pin.
 - Every consumer repo has `.github/dependabot.yml` (github-actions ecosystem, `directory: "/"`, weekly) which already watches these `uses:` lines and opens bump PRs automatically.
 - Every consumer repo has its own copy of `.github/workflows/dependabot-auto-merge.yml`, which auto-approves and auto-merges patch/minor bumps, and — per the C2 rollout — major bumps too, as long as every dependency in the bump is in a trusted namespace (`dependabot/`, `actions/`, `smartwatermelon/`).
@@ -33,15 +35,19 @@ Net effect today: a new `github-workflows` release already reaches all 16 repos 
 ## Target State
 
 1. Consumer `uses:` lines are pinned to a full commit SHA, with a trailing version comment for humans and for Dependabot's resolver:
+
    ```yaml
    uses: smartwatermelon/github-workflows/.github/workflows/claude-blocking-review.yml@<40-char-sha> # v3.0.1
    ```
+
    Dependabot's github-actions updater reads the comment to resolve the semantic version, and on a new `github-workflows` release opens a PR bumping both the SHA and the comment — the same weekly job already running, now producing a ref zizmor accepts as pinned (it checks the literal ref, not the comment).
 
 2. The auto-merge policy itself becomes a single reusable workflow in `github-workflows`, called by SHA-pinned reference from each consumer, instead of 16 copies of the policy logic:
+
    ```yaml
    uses: smartwatermelon/github-workflows/.github/workflows/dependabot-auto-merge.yml@<sha> # v1.0.0
    ```
+
    Editing the merge policy becomes one PR + release in `github-workflows`, which then propagates itself the same Dependabot-driven way.
 
 3. `.github/dependabot.yml` needs no changes — it already covers this.
@@ -92,9 +98,11 @@ Consistent with how the C2 rollout was sequenced (dev-env validated end-to-end b
 
 - Resolve the commit SHA behind the current `v3` tag on `github-workflows`.
 - Edit `dev-env/.github/workflows/claude-blocking-review.yml:21`:
+
   ```yaml
   uses: smartwatermelon/github-workflows/.github/workflows/claude-blocking-review.yml@<sha> # v3.0.1
   ```
+
 - Preserve the existing comment above it explaining the floating-@v3-not-a-job-level-if rationale — that reasoning is unrelated to the pin format and still applies.
 
 ### Task 2.2: Point `dependabot-auto-merge.yml` at the new reusable workflow
