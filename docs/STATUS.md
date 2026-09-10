@@ -134,6 +134,14 @@ eventually.
   substring matching and would classify `claude-review-haiku` as required
   wherever `claude-review` was.
 
+  **The LLM verdict path is not yet validated.** 25 unit assertions and a
+  live-data run cover the classifier and the required-contexts fetch, but the
+  block itself is LLM-mediated: nothing has confirmed the rewritten prompt
+  actually returns `SAFE_TO_MERGE` when red non-required checks are present.
+  The first real `gh pr merge` on `projectinsomnia#161` is that test. A
+  `BLOCK_MERGE` citing `build` or `standards-check` there is a #106
+  regression, not a #161 problem.
+
   This was a **prerequisite for wave 3**, not merely adjacent to it.
 
 - **Secret-leak PreToolUse hook** — shipped as `claude-config#484` (merge
@@ -223,8 +231,19 @@ proceed by Andrew 2026-09-09.** It is the main path to moving repos out of
 
 Progress as of 2026-09-09:
 
-- **Green:** `dev-env`, `scripts`, `archive-resolver`, `claude-config`
-  (claude-config cleared 90 findings in `#483`, merge `97e44ba`).
+- **Green — 13 repos merged 2026-09-09** (each verified via `gh pr view`,
+  not from notes):
+  - Pilot and hand-edit path: `dev-env` (`#107`), `scripts` (`#173`),
+    `archive-resolver` (`#34`), `claude-config` (`#483`, 90 findings,
+    merge `97e44ba`).
+  - Round 1: `cleanroom#14`, `gmail-newsletter-filter#7`,
+    `smartwatermelon/.github#13`, `tensegrity#101`.
+  - Round 2: `spokane-snow#16`, `personify#77`, `dumbify#8`,
+    `lock-sync#39`, `slack-mcp#33`. Round 2 collapsed on one finding —
+    the "shellcheck debt" in all six was a single stale copy of
+    `.claude/hooks/extensions/example.sh.disabled`, already fixed upstream
+    by `#102`. `repo-template` carries the same stale copy, so new repos
+    are born failing `standards-check` (filed as `#62`).
 - **`nightowlstudiollc/kebab-tax-netlify#279`** — npm advisories 9 → 0,
   lockfile only. This is what made its `validate-audit` job red; that check
   now passes.
@@ -235,6 +254,12 @@ Progress as of 2026-09-09:
   and `standards-check` remain red on **pre-existing, unrelated** debt (npm
   advisories, already failing on `main` at `7bbdbde`; and shellcheck findings
   in `.claude/hooks/extensions/example.sh.disabled`).
+
+**Not started: the 17 `never-ran` repos.** These are the bulk of what remains
+and no work has begun on them. Each needs a local `run-standards.sh` under a
+fake `HOME` first (an absolute `# shellcheck source=` path on this laptop made
+a local run pass while CI failed — see `project_wave3_pilot`); if the run is
+red, ship the lint fix as the PR instead of the plan's no-op PR.
 
 **The "must go fully green in one PR" constraint is lifted.** It came from
 `pre-merge-review.sh` blocking on non-required checks (dev-env#106), which is
