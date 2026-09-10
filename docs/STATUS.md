@@ -94,8 +94,8 @@ record and corrections folded in). `standards-check.yml` (deterministic
 linters, no judgment reviewer) is installed as a **non-required** check on
 every non-archived, non-ignored fleet repo. Waves 1 (node-floor) and 2
 (zizmor pins) are merged everywhere they applied; wave 3 (shellcheck/
-markdownlint/yamllint) is scoped and on hold — see the Critical path section
-below. W3 (flip to required, per repo) is next.
+markdownlint/yamllint) is scoped and **in progress as of 2026-09-09** — see
+the Critical path section below. W3 (flip to required, per repo) is next.
 
 **N1b — done, with a correction.** The live node-floor set was
 `kebab-tax`, `reliquarist`, `gmail-newsletter-filter`, not the plan's
@@ -111,6 +111,56 @@ policy file (same `unpinned-uses`/`excessive-permissions` rules, missing
 three later ignore blocks). It passes zizmor regardless, so no action is
 needed now, but it is config drift from the canonical file worth fixing
 eventually.
+
+### 2026-09-09 — merge gate, secret-leak hook, wave-3 start
+
+- **#106 — `pre-merge-review.sh` blocked on non-required checks.** Fixed in
+  `twistedmelonman/claude-config#487` (merge `4a109d3`), closed 2026-09-09.
+  The hook fed the whole `statusCheckRollup` to the analysis prompt with no
+  required/non-required distinction, so any red check read as blocking —
+  stricter than GitHub itself. It now fetches the base branch's required
+  contexts and splits the sections, blocking only on required checks.
+
+  Fails closed: 404 (unprotected), 403 (token without `Administration:read`),
+  or any other failure treats every check as required. The mode is logged
+  each run and 403 is distinguished from 404 — **if a rotated PAT loses that
+  permission this silently reverts to the old behavior while looking fixed,**
+  and the log line is how it gets noticed.
+
+  Two traps, both caught against live API data: the rollup has two node
+  shapes (`CheckRun` `.name`/`.conclusion` vs `StatusContext`
+  `.context`/`.state` — Netlify deploys are the latter and rendered as null
+  before), and membership must be an equality scan, since jq `index` does
+  substring matching and would classify `claude-review-haiku` as required
+  wherever `claude-review` was.
+
+  **The LLM verdict path is not yet validated.** 25 unit assertions and a
+  live-data run cover the classifier and the required-contexts fetch, but the
+  block itself is LLM-mediated: nothing has confirmed the rewritten prompt
+  actually returns `SAFE_TO_MERGE` when red non-required checks are present.
+  The first real `gh pr merge` on `projectinsomnia#161` is that test. A
+  `BLOCK_MERGE` citing `build` or `standards-check` there is a #106
+  regression, not a #161 problem.
+
+  This was a **prerequisite for wave 3**, not merely adjacent to it.
+
+- **Secret-leak PreToolUse hook** — shipped as `claude-config#484` (merge
+  `4348f1b`). Blocks commands that would print a live secret into the
+  transcript. Runs first in `hook-block-all.sh` so a secret-carrying command
+  cannot be logged in full by a sibling hook. Details:
+  `reference_secret_leak_hook_design`. Not yet deployed to
+  TILSIT/MIMOLETTE/ASIAGO — `~/.claude/scripts` uses per-file symlinks and
+  the dispatcher skips a missing hook **silently**, so `install.sh` must run
+  on each.
+
+- **`870728f` "add AGENTS.md" was pushed directly to `dev-env` main** and is
+  not otherwise recorded here. Per dev-env#104 the file is agent context, not
+  project content: `AGENTS.md` is now in `.git/info/exclude` across all 45
+  repos under `~/Developer`, and untracked in the two repos with open PRs
+  (`kebab-tax-netlify#279`, `projectinsomnia#161`). It remains tracked in 12
+  others pending a later batch, by decision. One deliberate exception:
+  `claude-code-workflows-agents`, where `AGENTS.md` is the canonical project
+  doc and `CLAUDE.md` is a symlink to it — excluded but left tracked.
 
 ### Starter set — L1, N1a, F3 (2026-09-02/03)
 
@@ -175,10 +225,46 @@ yamllint) — zizmor and node-floor are clean everywhere a check has run,
 confirming waves 1–2 landed cleanly. Full table:
 `docs/superpowers/plans/2026-09-08-w2-fleet-rollout/w3-readiness.tsv`.
 
-**Wave 3 (combined shellcheck/markdownlint/yamllint, ~26 repos) is ON HOLD
-by Andrew's decision as of 2026-09-08 18:45 PDT — not started.** It is the
-main path to moving repos out of `never-ran`/red before W3 flips checks to
-required.
+**Wave 3 (combined shellcheck/markdownlint/yamllint, ~26 repos) — cleared to
+proceed by Andrew 2026-09-09.** It is the main path to moving repos out of
+`never-ran`/red before W3 flips checks to required.
+
+Progress as of 2026-09-09:
+
+- **Green — 13 repos merged 2026-09-09** (each verified via `gh pr view`,
+  not from notes):
+  - Pilot and hand-edit path: `dev-env` (`#107`), `scripts` (`#173`),
+    `archive-resolver` (`#34`), `claude-config` (`#483`, 90 findings,
+    merge `97e44ba`).
+  - Round 1: `cleanroom#14`, `gmail-newsletter-filter#7`,
+    `smartwatermelon/.github#13`, `tensegrity#101`.
+  - Round 2: `spokane-snow#16`, `personify#77`, `dumbify#8`,
+    `lock-sync#39`, `slack-mcp#33`. Round 2 collapsed on one finding —
+    the "shellcheck debt" in all six was a single stale copy of
+    `.claude/hooks/extensions/example.sh.disabled`, already fixed upstream
+    by `#102`. `repo-template` carries the same stale copy, so new repos
+    are born failing `standards-check` (filed as `#62`).
+- **`nightowlstudiollc/kebab-tax-netlify#279`** — npm advisories 9 → 0,
+  lockfile only. This is what made its `validate-audit` job red; that check
+  now passes.
+- **`twistedmelonman/projectinsomnia#161`** — 60 markdownlint findings → 0.
+  58 were MD001 in `src/content/`, a uniform artifact of the Medium
+  scrape → Markdown → Astro pipeline, grandfathered via a repo-local
+  `.markdownlint-cli2.jsonc`; the 2 real findings fixed by hand. Its `build`
+  and `standards-check` remain red on **pre-existing, unrelated** debt (npm
+  advisories, already failing on `main` at `7bbdbde`; and shellcheck findings
+  in `.claude/hooks/extensions/example.sh.disabled`).
+
+**Not started: the 17 `never-ran` repos.** These are the bulk of what remains
+and no work has begun on them. Each needs a local `run-standards.sh` under a
+fake `HOME` first (an absolute `# shellcheck source=` path on this laptop made
+a local run pass while CI failed — see `project_wave3_pilot`); if the run is
+red, ship the lint fix as the PR instead of the plan's no-op PR.
+
+**The "must go fully green in one PR" constraint is lifted.** It came from
+`pre-merge-review.sh` blocking on non-required checks (dev-env#106), which is
+fixed — a wave-3 PR that clears one linter no longer blocks itself on the
+others.
 
 ### Runs in parallel with W
 
@@ -193,10 +279,15 @@ required.
 - **#85** — full-history secret audit of `scripts`, then stop and report.
 - **#94** — Netlify publish verification for six sites (needs the Netlify
   dashboard as the inventory of record).
-- `nightowlstudiollc/kebab-tax-netlify`'s `validate-audit` job (in its
-  `Test` workflow) fails on 7 new npm advisories (`fast-uri` x4, `toml` x2,
-  `extract-zip` x1, published 2026-08-17..09-03), found during the wave-2
-  scan. Unrelated to the rollout; left untouched.
+- ~~`nightowlstudiollc/kebab-tax-netlify`'s `validate-audit` job fails on new
+  npm advisories.~~ **Fixed in `#279`** (2026-09-09). The "7" here counted
+  advisories *outside the accepted baseline*, which is what
+  `check-audit-baseline.sh` fails on; `npm audit` reported **9** in total.
+  Both numbers were right about different things.
+  `npm audit fix --package-lock-only` took it to 0, lockfile only. The one
+  accepted advisory (`GHSA-jmr9-qjv8-65gv`, extract-zip) retired by *removal*,
+  not by patch — there is still no upstream fix, but the `netlify-cli`
+  27.4.0 → 27.5.2 bump dropped the dependency path that reached it.
 
 ### Filed 2026-09-05
 
