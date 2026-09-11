@@ -21,7 +21,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `.Codex/` — Project-specific Codex configuration templates
   - `.Codex/config.sh.template` — Template for project configuration (Node version, required tools, deployment secrets, build/deploy hooks)
-  - `.Codex/hooks/extensions/` — Project-specific git hook extensions (discovered and run by global hooks at `~/.config/git/hooks/`)
+  - `.project-hooks/pre-commit` and `.project-hooks/pre-push` — Project-specific git hook extensions, run by the global hooks at `~/.config/git/hooks/` when executable
   - `.Codex/README.md` — Setup guide for using the `.Codex/` directory in other projects
 
 ## Key Concepts
@@ -34,5 +34,5 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
 
 - Documents are Markdown — no build step required
 - When editing design plans, preserve the existing structure and status markers
-- Hook extensions follow the contract: exit 0 = pass, exit 1 = block; see `example.sh.disabled` for the template
+- Hook extensions follow the contract: exit 0 = pass, exit 1 = block. They live in `.project-hooks/`, named for the hook they extend, and must be executable to run
 - `config.sh.template` is a reference template — don't add project-specific values to it
