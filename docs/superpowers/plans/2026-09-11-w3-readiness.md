@@ -28,22 +28,55 @@ What remains is ordinary per-repo readiness, below.
 | Stub present, no PR since rollout | 5 | Unexercised, not broken |
 | Stub present, no PRs ever | 1 | `claude-config-backup` |
 | Stub present, newest PR red | 1 | `kebab-tax` — deferred by decision |
-| **No stub** | 3 | Needs the stub before W3 applies |
+| **No stub** | 3 | 1 ignored by decision, 2 forks — see below |
 
 `standards-check` is required on **zero** repos today, so W3 has not started
-anywhere.
+anywhere. That zero was validated against a positive case rather than trusted:
+the same query returns `["claude-review / run-review"]` for `dotfiles`,
+`claude-config` and `dev-env`, so it demonstrably *can* report a required
+check, and reads empty for `standards-check` because it genuinely is.
+
+### Why 44 here and 41 in the 2026-09-10 evaluation
+
+The earlier document measured "all 41 fleet repos". The three additional repos
+are **exactly the three with no stub** — but for three different reasons, and
+only one of them is a gap:
+
+| Repo | Why no stub |
+| --- | --- |
+| `nightowlstudiollc/networth-agent` | **On the ignore list, deliberately** |
+| `twistedmelonman/homebrew-brew` | Fork, created 2026-08-24 |
+| `twistedmelonman/Instapaper-MCP` | Fork, created 2026-07-29 |
+
+`bulk-install-standards-check.sh` enumerates live (`gh repo list --limit 200`);
+it has no fixed inventory. It reads `.standards-check-ignore`, which contains
+exactly one entry: `nightowlstudiollc/networth-agent`. So that repo is not an
+oversight — someone decided it should never receive the stub, and this document
+should not quietly reverse that.
+
+The two forks are not on the ignore list and the script does not filter forks,
+so their absence is unexplained by configuration. Whether forks *should* carry
+the check is a real question — they are not where this fleet's work happens —
+but it is a decision, not a gap to close silently.
 
 ### No stub (3)
 
-- `nightowlstudiollc/networth-agent` — created after the bulk rollout, so the
-  sweep never reached it. Has an active PR history (newest 2026-09-10), so it
-  would exercise the check immediately once seeded.
-- `twistedmelonman/homebrew-brew` — no PRs ever.
-- `twistedmelonman/Instapaper-MCP` — newest PR 2026-08-07.
+- `nightowlstudiollc/networth-agent` — **on `.standards-check-ignore`.** It has
+  live PR traffic (newest 2026-09-10) and would exercise the check immediately,
+  which makes it tempting to seed; do not, without reversing that decision
+  explicitly. The ignore file is the only record of the reasoning, and it does
+  not state one.
+- `twistedmelonman/homebrew-brew` — fork, no PRs ever.
+- `twistedmelonman/Instapaper-MCP` — fork, newest PR 2026-08-07.
 
-`smartwatermelon/github-workflows` correctly has **no** `standards-check.yml`
-stub; it cannot call its own tag, and runs `self-standards-check.yml` instead.
-That is by design, not a gap — it is counted as ready.
+`smartwatermelon/github-workflows` is a special case worth stating precisely,
+because a naive contents query gets it backwards. It **does** have
+`.github/workflows/standards-check.yml` — but that is the reusable *definition*
+(`on: workflow_call`), not a caller stub. It cannot call its own tag, so it
+dogfoods itself through `self-standards-check.yml`, which invokes the local
+path on its own PRs. That caller produces a check-run named
+`standards-check / run-standards-check`, identical to every other repo's, so it
+is counted as ready and W3 applies to it normally.
 
 ### Stub present, unexercised (5)
 
@@ -74,8 +107,9 @@ is out of scope here rather than unresolved.
    several PRs without a surprise.
 3. **Exercise the 5 unexercised repos first**, then flip them. Do not flip an
    unexercised check.
-4. **Seed the 3 missing stubs**; `networth-agent` first, since it has live PR
-   traffic and will self-verify quickly.
+4. **Do not seed the 3 missing stubs without a decision.** `networth-agent` is
+   on `.standards-check-ignore` deliberately; the other two are forks. Each
+   needs Andrew's call, not a sweep. See the table above.
 5. **`kebab-tax`** rejoins whenever its deferral lifts.
 
 Steps 1–2 are the bulk of the value and carry the least risk. Steps 3–5 are
@@ -85,9 +119,21 @@ cleanup that does not block them.
 
 Branch protection is **per repo**, not org rulesets — `nightowlstudiollc`'s org
 ruleset is `enforcement=disabled`, so the exemplar settings live on individual
-repos. Each flip adds
-`standards-check / run-standards-check` to that repo's
+repos. Each flip adds `standards-check / run-standards-check` to that repo's
 `required_status_checks.contexts`.
+
+**This is an add, not a replace.** All three pilot repos today require exactly
+one check:
+
+| Repo | `required_status_checks.contexts` |
+| --- | --- |
+| `twistedmelonman/dotfiles` | `claude-review / run-review` |
+| `twistedmelonman/claude-config` | `claude-review / run-review` |
+| `smartwatermelon/dev-env` | `claude-review / run-review` |
+
+W3 adds a second entry alongside `claude-review`; it does not displace it. Any
+decision to *remove* `claude-review / run-review` is separate work and is not
+part of W3.
 
 Five repos have **no branch protection at all**: `claude-config-backup`,
 `superpowers`, `superpowers-marketplace`, `homebrew-brew`, and
@@ -126,6 +172,20 @@ genuinely missing — including `networth-agent`, which is what exposed the bug:
 its stub-commit history came back empty while the stub check said present. Two
 signals disagreeing is what caught it; a single signal would have shipped.
 
+**3. A near-miss worth more than either.** The first draft of this document
+told a plausible story about the 41→44 delta — that the bulk-install sweep
+worked from a stale 41-repo inventory — and recommended seeding
+`networth-agent` first. Both were wrong. The script enumerates live
+(`gh repo list --limit 200`) and has no inventory; and `networth-agent` is on
+`.standards-check-ignore` **deliberately**. Acting on that recommendation would
+have reversed someone's explicit decision while believing it was closing a gap.
+
+The story was coherent, consistent with every number on the page, and invented.
+It survived until the script was actually opened. Chesterton's Fence applies to
+absences too: a missing file is a decision until proven otherwise.
+
 The general rule, which the withdrawn fallback finding also illustrates: a
 measurement that cannot return a negative has not been validated. Check it
-against a case you know should come back the other way.
+against a case you know should come back the other way — and when you explain
+*why* a number is what it is, read the mechanism rather than constructing an
+explanation that fits.
