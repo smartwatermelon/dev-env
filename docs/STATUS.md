@@ -1,6 +1,6 @@
 # Infrastructure project status
 
-**As of 2026-09-08.** Point-in-time snapshot of the infrastructure backlog
+**As of 2026-09-10.** Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
@@ -12,6 +12,11 @@ live query on the date shown, and the fleet drifts.
 
 The identity and migration layers are done. The fleet layer has one item
 left, W3. Runtime EOL is done. Local review has not started beyond L1.
+
+**Two things now rank ahead of W3** (2026-09-10 evaluation): credential
+rotation, which is off-plan entirely, and the reliability of the local
+reviewer, which the 09-08 decision made the sole judgment gate. W3 itself is
+cheaper than recorded — wave 3 no longer gates it.
 
 | Layer | State |
 | --- | --- |
@@ -234,6 +239,32 @@ for org-owned repos until Andrew re-runs Part D there.
 
 ## Open work, in priority order
 
+> **Re-evaluated 2026-09-10.** See
+> `docs/superpowers/plans/2026-09-10-backlog-evaluation.md` for the live
+> measurements behind the ordering below, including two items that sit
+> outside this backlog entirely.
+
+### Ahead of the W track: credential rotation (off-plan)
+
+Not part of the infrastructure design, and more urgent than anything in W.
+All four are `nightowlstudiollc`:
+
+- `kebab-tax#1258` — expiring `CHANGELOG_PUBLISHER_PAT`, marked HIGH PRIORITY.
+  An expiring credential carries a deadline the backlog does not.
+- `kebab-tax#1264`, `kebab-tax#1265` — RevenueCat and Brevo keys stored in
+  plaintext; rotation pending.
+- `amelia-boone#79` — CI red since 2026-08-30, four advisories outside the
+  accepted baseline, one critical.
+
+### Unowned: local-reviewer reliability
+
+The 2026-09-08 decision to remove judgment review from CI still looks right —
+`dev-env#116` shows CI structurally cannot review workflow-touching PRs. But
+it leaves the local reviewer as the **sole** judgment gate, and five
+correctness bugs against it are open with no owner in L2–L5:
+`claude-config#488` (fabricated a blocking finding against a nonexistent
+file), `#455`, `#489`, `#481`, `#496`. This should become an explicit L item.
+
 ### Critical path: W1 → W2 → W3
 
 W1 and W2 are done; W3 (flip `standards-check` to required per repo) is the
@@ -260,13 +291,25 @@ are archived.
 Every other W2 merge was done from the GitHub UI; dev-env#101 tracks a
 merge-lock TUI improvement to make that the normal path.
 
-**W3 readiness** (latest `standards-check` PR run per repo, measured
-2026-09-08; a repo with no PR since install shows `never-ran` and needs a
-no-op PR in W3 to get a first run): **green 9 of 41, red 15, never-ran 17.**
-All 15 red repos fail only on wave-3 linters (shellcheck/markdownlint/
-yamllint) — zizmor and node-floor are clean everywhere a check has run,
-confirming waves 1–2 landed cleanly. Full table:
+**W3 readiness — re-measured live 2026-09-10: green 33 of 41, failure 1,
+never-ran 7.** The 2026-09-08 measurement below (green 9, red 15, never-ran
+17) is superseded; roughly 13 repos were swept on 2026-09-10 and merged.
+Current data:
+`docs/superpowers/plans/2026-09-10-backlog-evaluation/w3-readiness-live.tsv`;
+the 09-08 table is kept for history at
 `docs/superpowers/plans/2026-09-08-w2-fleet-rollout/w3-readiness.tsv`.
+
+The single `failure` is `nightowlstudiollc/kebab-tax`, whose two latest runs
+both predate the changed-files scoping fix — a stale red needing a fresh run,
+not a fix. zizmor and node-floor remain clean everywhere a check has run,
+confirming waves 1–2 landed cleanly.
+
+**`standards-check` is required on zero repos, so W3 has not started
+anywhere.** Wave 3 no longer gates it: after `github-workflows#165` the
+required-check contract is "no new debt in files this PR touches", not "this
+repo is clean". The actual gate is the base-SHA whole-repo fallback, measured
+firing in **4 of 15 sampled runs (~27%)** — harmless only while the check is
+non-required. See `docs/superpowers/plans/2026-09-10-backlog-evaluation.md`.
 
 **Wave 3 (combined shellcheck/markdownlint/yamllint, ~26 repos) — cleared to
 proceed by Andrew 2026-09-09.** It is the main path to moving repos out of
@@ -286,7 +329,10 @@ Progress as of 2026-09-09:
     the "shellcheck debt" in all six was a single stale copy of
     `.claude/hooks/extensions/example.sh.disabled`, already fixed upstream
     by `#102`. `repo-template` carries the same stale copy, so new repos
-    are born failing `standards-check` (filed as `#62`).
+    are born failing `standards-check` (filed as `#110`, closed 2026-09-10
+    by removing the tracked `.claude/hooks/extensions/` copies fleet-wide;
+    an earlier revision of this file misattributed it to `#62`, which is
+    the unrelated `.claude/` tracking-reconcile issue).
 - **`nightowlstudiollc/kebab-tax-netlify#279`** — npm advisories 9 → 0,
   lockfile only. This is what made its `validate-audit` job red; that check
   now passes.
@@ -298,11 +344,16 @@ Progress as of 2026-09-09:
   advisories, already failing on `main` at `7bbdbde`; and shellcheck findings
   in `.claude/hooks/extensions/example.sh.disabled`).
 
-**Not started: the 17 `never-ran` repos.** These are the bulk of what remains
-and no work has begun on them. Each needs a local `run-standards.sh` under a
-fake `HOME` first (an absolute `# shellcheck source=` path on this laptop made
-a local run pass while CI failed — see `project_wave3_pilot`); if the run is
-red, ship the lint fix as the PR instead of the plan's no-op PR.
+**`never-ran` is down to 7** (was 17): `nightowlstudiollc/vpn-lan-bridge`,
+`claude-config-backup`, `crazy-larry`, `github-workflows`, `homebrew-tap`,
+`superpowers-marketplace`, `x-thread-reader`. Each still needs a local
+`run-standards.sh` under a fake `HOME` first (an absolute
+`# shellcheck source=` path on this laptop made a local run pass while CI
+failed — see `project_wave3_pilot`); if the run is red, ship the lint fix as
+the PR instead of the plan's no-op PR.
+
+Note that under changed-files scoping a first run no longer has to be clean
+whole-repo to unblock W3, so these 7 are hygiene, not a blocker.
 
 **The "must go fully green in one PR" constraint is lifted.** It came from
 `pre-merge-review.sh` blocking on non-required checks (dev-env#106), which is
