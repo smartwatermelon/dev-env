@@ -15,11 +15,11 @@ The `.claude/` directory provides project-specific configuration and extensions 
 ```
 .claude/
 ├── README.md                  # This file
-├── config.sh.template         # Template for project configuration
-└── hooks/
-    └── extensions/            # Project-specific git hook extensions
-        └── example.sh.disabled  # Example extension (disabled by default)
+└── config.sh.template         # Template for project configuration
 ```
+
+Project-specific hook extensions do **not** live here. They go in
+`.project-hooks/` at the repository root — see Option 3 below.
 
 ## Quick Start
 
@@ -66,12 +66,20 @@ If you need project-specific settings:
 
 If you need project-specific validation:
 
-1. Create a new file in `.claude/hooks/extensions/`:
+Extensions live in `.project-hooks/` at the repository root, named for the
+git hook they extend. The global hooks run exactly two paths:
+`.project-hooks/pre-commit` and `.project-hooks/pre-push`.
+
+1. Create the file, named for its hook:
 
    ```bash
-   touch .claude/hooks/extensions/my-validation.sh
-   chmod +x .claude/hooks/extensions/my-validation.sh
+   mkdir -p .project-hooks
+   touch .project-hooks/pre-commit
+   chmod +x .project-hooks/pre-commit
    ```
+
+   The executable bit is the activation switch — a non-executable file is
+   silently skipped.
 
 2. Write your validation logic:
 
@@ -80,7 +88,6 @@ If you need project-specific validation:
    # Extension contract:
    #   - Exit 0: Check passed (allow git operation)
    #   - Exit 1: Check failed (block git operation)
-   #   - Can use functions from ~/.claude/hooks/lib/hook-common.sh
 
    # Your validation logic here
    if [[ condition_fails ]]; then
@@ -91,7 +98,8 @@ If you need project-specific validation:
    exit 0
    ```
 
-3. Extensions run automatically on relevant git operations (commit, push, etc.)
+3. The extension then runs on every commit or push, after the global lint
+   pass and before the AI review.
 
 ## Common Patterns
 
@@ -116,7 +124,7 @@ export DEPLOYMENT_REQUIRED_SECRETS=(
 ### Custom Security Check
 
 ```bash
-# .claude/hooks/extensions/security.sh
+# .project-hooks/pre-commit
 #!/usr/bin/env bash
 
 # Block commits with hardcoded API keys
@@ -130,7 +138,14 @@ exit 0
 
 ## Integration with Global Infrastructure
 
-Global hooks at `~/.config/git/hooks/` automatically discover and run extensions in this directory. No configuration needed - just add your `.sh` files and make them executable.
+Global hooks at `~/.config/git/hooks/` run project extensions from
+`.project-hooks/`, not from this directory. They look for exactly two paths —
+`.project-hooks/pre-commit` and `.project-hooks/pre-push` — and run each only
+if it is executable.
+
+Earlier versions of this file claimed the hooks discovered extensions inside
+`.claude/hooks/extensions/`. They never did. That scaffold was inert in every
+repo that carried it (smartwatermelon/dev-env#110).
 
 **Global Infrastructure Documentation**: `~/.claude/docs/INFRASTRUCTURE.md`
 
@@ -140,17 +155,10 @@ Global hooks at `~/.config/git/hooks/` automatically discover and run extensions
 
 Template for project configuration. Copy to `config.sh` and customize with your project's requirements.
 
-### hooks/extensions/example.sh.disabled
-
-Example extension showing the basic structure. Disabled by default (`.disabled` suffix prevents execution).
-
-To enable:
-
-1. Remove `.disabled` suffix: `mv example.sh.disabled my-check.sh`
-2. Customize validation logic, and turn on the checks you want by setting the
-   matching `ENABLE_*` variable to `1` in `main()` (all default to `0`, so an
-   unmodified copy runs no checks)
-3. Ensure executable: `chmod +x .claude/hooks/extensions/my-check.sh`
+There is deliberately no example extension file here. This directory once
+shipped `hooks/extensions/example.sh.disabled`, which nothing ever executed;
+it was removed fleet-wide (smartwatermelon/dev-env#110). Write extensions
+directly in `.project-hooks/` instead — see Option 3 above.
 
 ## Next Steps
 
@@ -170,12 +178,16 @@ To enable:
 ### Extensions not running?
 
 ```bash
-# Check extensions are executable
-ls -la .claude/hooks/extensions/
+# Check the extension exists and is executable
+ls -la .project-hooks/
 
-# Make executable if needed
-chmod +x .claude/hooks/extensions/*.sh
+# Make executable if needed — this is the activation switch, and a
+# non-executable extension is skipped silently
+chmod +x .project-hooks/pre-commit .project-hooks/pre-push
 ```
+
+Check the filename too: only `pre-commit` and `pre-push` are run, and only at
+the repository root. Any other name is ignored.
 
 ### Config not being used?
 

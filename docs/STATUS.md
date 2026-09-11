@@ -112,6 +112,49 @@ three later ignore blocks). It passes zizmor regardless, so no action is
 needed now, but it is config drift from the canonical file worth fixing
 eventually.
 
+### 2026-09-10 — standards-check scoped to changed files; #110 scaffold removed
+
+- **standards-check failed PRs for debt in files their author never opened.**
+  Of 54 runs fleet-wide, 24 failed, and **every one** was markdownlint and/or
+  shellcheck — yamllint, actionlint, zizmor and node-floor have never failed
+  once. The markdownlint findings concentrate in three whitespace rules: MD032
+  (46), MD031 (36), MD049 (30) — 112 of 119.
+
+  Fixed in `github-workflows#165`: `--changed-since REF` narrows the four
+  linters that enumerate through `_tracked` (shellcheck, yamllint, zizmor,
+  markdownlint) to a branch's own changes. actionlint and node-floor find
+  their own inputs and stay whole-repo. A whole-repo sweep is still available
+  via the **`standards:hygiene`** PR label, and is what any non-`pull_request`
+  trigger does.
+
+  **The retag is the deploy step.** Callers pin `@standards-check-v1`, a
+  manually-moved annotated tag; merging alone changed nothing. It now
+  dereferences to `a446889`. Rollback:
+  `git push -f origin standards-check-v1.0.0:standards-check-v1`.
+
+  Verified before/after on one PR (`claude-config#497`, same commit): 25 files
+  linted → 4, FAILURE → SUCCESS. Two false-OK paths closed deliberately — an
+  unresolvable ref exits 2 rather than linting zero files, and a base-SHA
+  fetch failure falls back to a whole-repo sweep rather than an empty diff.
+
+- **The local `markdownlint --fix` hook was never the gap.** It already runs
+  globally and works (verified against the exact file that failed
+  `claude-config` run 34548182880). A staged-file hook simply cannot repair a
+  file the commit never staged. Separately, `claude-config` had opted out of
+  it entirely via a repo-local `.pre-commit-config.yaml` — 6 of 10 failures,
+  all markdownlint — restored in `claude-config#497`.
+
+- **CI cannot AI-review a workflow change, by design.** `claude-code-action`
+  refuses to run on any PR touching `.github/workflows/`, so the
+  `claude-review` job skips the review step and the required check still
+  reports SUCCESS (observed on `github-workflows#165`,
+  `DOC_SKIP_REASON: workflow-self-modification`). The deferral — "real review
+  will run on the next non-workflow PR" — reviews a different diff after the
+  risky one has landed. This is independent support for the recorded decision
+  that **no judgment reviewer stays in CI** (see line 203): the class of
+  change most worth reviewing is the class CI structurally cannot review.
+  Local hooks have no such constraint and did review that diff.
+
 ### 2026-09-09 — merge gate, secret-leak hook, wave-3 start
 
 - **#106 — `pre-merge-review.sh` blocked on non-required checks.** Fixed in
