@@ -63,21 +63,43 @@ Three repos have no branch protection at all (`claude-config-backup`,
 `superpowers`, `superpowers-marketplace`) — consistent with the dev-env#89
 decision to leave them ungated.
 
-### The real W3 gate: the whole-repo fallback rate
+### The whole-repo fallback rate — measured at zero (corrected 2026-09-11)
 
 When the base-SHA fetch fails, `standards-check` falls back to a whole-repo
 sweep rather than linting zero files. That was a deliberate fail-closed choice
-and it is the correct default. But it is not rare:
+and it is the correct default.
 
-**The fallback fired in 4 of 15 recent runs sampled across 8 repos (~27%)** —
-`twistedmelonman/claude-config` three times, `smartwatermelon/dev-env` once.
-All four runs passed, so the behavior is currently invisible.
+> **Correction.** This section previously reported the fallback firing in 4 of
+> 15 sampled runs (~27%) and named that the real W3 gate. **That measurement
+> was wrong and the conclusion built on it does not stand.** Re-measured
+> 2026-09-11 against 20 runs across 5 repos: the fallback fired **zero**
+> times. Every run that carried the scoping step narrowed correctly.
 
-It stops being invisible the moment the check becomes required: on a repo still
-carrying whole-repo debt, a fallback turns a routine PR into a hard block for
-reasons its author cannot see in the diff. **Measure and address the fallback
-rate before flipping W3, not after.** This is the gate; whole-repo cleanliness
-is not.
+Two errors produced the bad number:
+
+1. **The classifier matched the script, not its output.** `gh run view --log`
+   echoes each `run:` block's source before executing it, so every run's log
+   contains the literal strings `no pull_request base sha` and `could not fetch
+   base` whether or not that branch ever ran. Grepping for them matches 100% of
+   runs by construction. Filtering to real output lines shows all 13 scoped runs
+   printing `scoping to files changed since <sha>`.
+2. **Runs predating the tag move were counted as fallbacks.** The remaining 7
+   runs have no "Resolve scope" step at all — they ran a `@standards-check-v1`
+   that pointed at a pre-#165 commit. The annotated tag moved to `a446889` at
+   **2026-09-11T01:25:44Z**; every unscoped run started before that timestamp
+   and every scoped run after it, with no exceptions. The apparent "21-minute
+   cluster" was the tag move itself, not a transient.
+
+The general lesson is the one already in CLAUDE.md: *resolve the thing, don't
+match its label* — and validate against a known-bad case, which here would have
+meant confirming the classifier could report a non-fallback at all.
+
+**Consequence for W3: there is no fallback gate to clear.** The item below that
+ranked this as the blocker is withdrawn. What remains before flipping any check
+to required is the ordinary question of per-repo readiness, plus one real
+diagnostic gap: line 141's warning is emitted with the fetch's stderr discarded
+(`2>/dev/null`), so a genuine future failure would say *that* it happened but
+never *why*. Worth fixing on its own merits, not as a W3 blocker.
 
 ## 3. "Local hooks are the only judgment pass" still holds, but its subject is unowned
 
@@ -157,7 +179,7 @@ design session. Backlog ordering is left alone here rather than pre-empted.
 | Order | Work | Why it is here |
 | --- | --- | --- |
 | 1 | Credentials: `#1258`/`#1264`/`#1265`, `#79` | Has a deadline; off-plan |
-| 2 | Investigate the ~27% whole-repo fallback rate | The actual W3 gate |
+| ~~2~~ | ~~Whole-repo fallback rate~~ | Withdrawn — measured zero |
 | 3 | **W3** — `standards-check` required | Wave 3 no longer gates it |
 | 4 | New L item: local-reviewer reliability | Sole judgment gate, unowned |
 | 5 | `dev-env#109` + `#101` — mobile merge auth | Makes the merge gate real |
@@ -173,9 +195,15 @@ Both disciplines paid out again in this evaluation:
 **Resolve the thing; don't match its label.** A `standards-check` run reporting
 `success` is a claim about changed files, not about the repository. `null` in a
 jq-rendered readiness table is a stringified absent record, not a state. `#62`
-names a different issue than the document citing it assumes.
+names a different issue than the document citing it assumes. And — added
+2026-09-11, at this document's own expense — a workflow log containing the
+string `could not fetch base` is not a run that could not fetch the base. The
+log echoes the script before running it, so the label appears in every run.
 
-**Validate every fix against a known-bad case.** The fallback path is the open
-instance: it is correct by construction and has never been observed failing a
-PR, because nothing has yet made it block one. Its 27% firing rate is only
-harmless while the check is non-required.
+**Validate every fix against a known-bad case.** The withdrawn fallback finding
+is now the worked example rather than the open instance. The classifier that
+produced "~27%" was never checked against a run known *not* to have fallen
+back; had it been, it would have reported a fallback there too and exposed
+itself immediately. A measurement that cannot return a negative is not a
+measurement. This document asserted the discipline in one section while
+violating it in another — which is the failure mode worth remembering.
