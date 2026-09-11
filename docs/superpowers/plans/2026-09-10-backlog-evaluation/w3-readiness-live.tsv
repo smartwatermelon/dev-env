@@ -1,0 +1,42 @@
+owner/repo	latest standards-check run	standards-check required?
+nightowlstudiollc/.github	success	no
+nightowlstudiollc/amelia-boone	success	no
+nightowlstudiollc/cleanroom	success	no
+nightowlstudiollc/financial-agent	success	no
+nightowlstudiollc/kebab-tax	failure	no
+nightowlstudiollc/kebab-tax-netlify	success	no
+nightowlstudiollc/night-owl-studio	success	no
+nightowlstudiollc/reliquarist	success	no
+nightowlstudiollc/tensegrity	success	no
+nightowlstudiollc/tnjcleaning	success	no
+nightowlstudiollc/vpn-lan-bridge	never-ran	no
+smartwatermelon/.github	success	no
+smartwatermelon/archive-resolver	success	no
+smartwatermelon/claude-code-workflows-agents	success	no
+smartwatermelon/claude-config-backup	never-ran	no (branch unprotected)
+smartwatermelon/claude-wrapper	success	no
+smartwatermelon/crazy-larry	never-ran	no
+smartwatermelon/dev-env	success	no
+smartwatermelon/dumbify	success	no
+smartwatermelon/github-workflows	never-ran	no
+smartwatermelon/gmail-newsletter-filter	success	no
+smartwatermelon/homebrew-tap	never-ran	no
+smartwatermelon/lock-sync	success	no
+smartwatermelon/mac-dev-server-setup	success	no
+smartwatermelon/mac-server-setup	success	no
+smartwatermelon/pr-review	success	no
+smartwatermelon/qwen-sidebar	success	no
+smartwatermelon/repo-template	success	no
+smartwatermelon/scripts	success	no
+smartwatermelon/slack-mcp	success	no
+smartwatermelon/smartwatermelon-marketplace	success	no
+smartwatermelon/spokane-snow	success	no
+smartwatermelon/superpowers	success	no (branch unprotected)
+smartwatermelon/superpowers-marketplace	never-ran	no (branch unprotected)
+smartwatermelon/swift-progress-indicator	success	no
+smartwatermelon/x-thread-reader	never-ran	no
+twistedmelonman/claude-config	success	no
+twistedmelonman/dotfiles	success	no
+twistedmelonman/huddle-transcribe	success	no
+twistedmelonman/personify	success	no
+twistedmelonman/projectinsomnia	success	no
