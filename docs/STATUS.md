@@ -307,9 +307,16 @@ confirming waves 1–2 landed cleanly.
 **`standards-check` is required on zero repos, so W3 has not started
 anywhere.** Wave 3 no longer gates it: after `github-workflows#165` the
 required-check contract is "no new debt in files this PR touches", not "this
-repo is clean". The actual gate is the base-SHA whole-repo fallback, measured
-firing in **4 of 15 sampled runs (~27%)** — harmless only while the check is
-non-required. See `docs/superpowers/plans/2026-09-10-backlog-evaluation.md`.
+repo is clean".
+
+An earlier revision of this line named the base-SHA whole-repo fallback as the
+remaining gate, firing in "4 of 15 sampled runs (~27%)". **That measurement was
+wrong; re-measured 2026-09-11 the fallback rate is zero** — the classifier had
+matched the script text that `gh run view --log` echoes before execution, and
+counted pre-tag-move runs (which have no scoping step at all) as fallbacks. No
+fallback gate exists. See
+`docs/superpowers/plans/2026-09-10-backlog-evaluation.md` for the full
+correction.
 
 **Wave 3 (combined shellcheck/markdownlint/yamllint, ~26 repos) — cleared to
 proceed by Andrew 2026-09-09.** It is the main path to moving repos out of
