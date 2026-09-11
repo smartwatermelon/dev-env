@@ -47,3 +47,22 @@ version's cache directory.
 Tracked as [dev-env#126](https://github.com/smartwatermelon/dev-env/issues/126),
 which asks the real question: build something that defeats the injection
 durably, or stop using superpowers.
+
+## Related issues, closed by this work
+
+- [dev-env#63](https://github.com/smartwatermelon/dev-env/issues/63) asked why
+  two superpowers repos existed and which was authoritative. Answered: both
+  were detached forks of `obra/superpowers`, proven by shared root commit
+  `dd013f6`. Nothing ever flowed upstream — `obra` returns 422 for the fork's
+  own commits.
+- [dev-env#64](https://github.com/smartwatermelon/dev-env/issues/64) held ten
+  review findings that could not be filed because Issues was disabled on both
+  repos. Archiving made them permanently unactionable, which closes the issue
+  by construction rather than by fixing them.
+
+Both issues carried a caveat that proved load-bearing: attributing findings by
+the local checkout would have been wrong, because that checkout tracked
+*upstream*, whose tree still has the `hooks/` directory. The same trap caught
+this work from the other direction — the marketplace manifest points at
+`obra/superpowers.git`, which reads as proof that nothing loads from the fork,
+while the installed plugin's `gitCommitSha` was a fork-only commit.
