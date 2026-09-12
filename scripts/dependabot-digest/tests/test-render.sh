@@ -31,6 +31,26 @@ for f in "${DIR}"/*.sh "${HERE}"/*.sh; do
   fi
 done
 
+# Every jq program embedded in these scripts must parse, and the ones that
+# format diagnostics must also say what they mean. `+` binds tighter than `//`
+# in jq, so `.type // "?" + ": " + .message` silently parses as
+# `.type // ("?: " + .message)` and prints a bare "FORBIDDEN" with the message
+# dropped — the failure is invisible until the moment you need the message.
+# Extract the error formatter from collect.sh and run it against a real error
+# body rather than eyeballing the source.
+gql_fmt="$(grep -o "jq -r '\.errors[^']*'" "${DIR}/collect.sh" | head -1 | sed "s/^jq -r '//; s/'$//")"
+if [[ -z "${gql_fmt}" ]]; then
+  _fail "could not find the GraphQL error formatter in collect.sh"
+else
+  sample='{"errors":[{"type":"FORBIDDEN","message":"Resource not accessible by integration"}]}'
+  formatted="$(jq -r "${gql_fmt}" <<<"${sample}" 2>/dev/null)"
+  if [[ "${formatted}" == *"FORBIDDEN"* && "${formatted}" == *"not accessible"* ]]; then
+    _pass "the GraphQL error formatter keeps both the type and the message"
+  else
+    _fail "the error formatter dropped part of the error: '${formatted}'"
+  fi
+fi
+
 body="${WORK}/body.md"
 cat "${FIX}/synthetic.ndjson" "${FIX}/live-2026-09-11.ndjson" \
   | bash "${DIR}/classify.sh" \
