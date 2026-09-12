@@ -64,7 +64,13 @@ jobs:
           # repo per owner lets the collector prove it can still see private
           # repositories, so an incomplete digest fails loudly rather than
           # reporting an empty queue.
+          #
+          # All three owners have private repositories (verified 2026-09-11 via
+          # `gh repo view --json isPrivate`), so all three carry a probe. An
+          # owner without one would be silently exempt from this check.
+          DIGEST_PROBE_SMARTWATERMELON: smartwatermelon/scripts
           DIGEST_PROBE_NIGHTOWLSTUDIOLLC: nightowlstudiollc/cleanroom
+          DIGEST_PROBE_TWISTEDMELONMAN: twistedmelonman/ralph-burndown
           # Used only to write the issue in this repository.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

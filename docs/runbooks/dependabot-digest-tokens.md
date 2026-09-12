@@ -71,23 +71,47 @@ free plan (see `docs/token-rotation.md`).
 Trigger a run by hand — a scheduled workflow only runs on the default branch,
 so this is also how the very first digest gets created:
 
+First capture what the answer should be, using your own credentials as the
+reference. Your local `gh` login can read all three owners, so this is the
+known-good result the workflow must reproduce:
+
+```bash
+bash scripts/dependabot-digest/run-digest.sh --dry-run > /tmp/digest-local.md
+grep -c '^| ' /tmp/digest-local.md   # rows in the queue table
+```
+
+Then trigger a run by hand — a scheduled workflow only runs on the default
+branch, so this is also how the very first digest gets created:
+
 ```bash
 gh workflow run dependabot-digest.yml --repo smartwatermelon/dev-env
 sleep 30
 gh run list --workflow dependabot-digest.yml --repo smartwatermelon/dev-env --limit 1
 ```
 
-Then confirm the issue exists and reads correctly:
+**Do not trigger a second run within a few minutes of the first.** The digest
+finds its issue partly through GitHub's body-search index, which lags creation
+by an unbounded amount. A second run landing before the index catches up is
+covered by an unindexed issue listing, but there is no reason to lean on the
+fallback while verifying.
+
+Then compare the published issue against the local reference:
 
 ```bash
 gh issue list --repo smartwatermelon/dev-env --search 'dependabot-digest in:body' --state open
+gh issue view <number> --repo smartwatermelon/dev-env --json body --jq '.body' > /tmp/digest-ci.md
+diff /tmp/digest-local.md /tmp/digest-ci.md
 ```
 
-A green run is not sufficient evidence on its own. Open the issue and check
-that PRs from **all three owners** appear. A token that lost private-repo
-access still answers searches successfully while returning only public results;
-the collector asserts against a known private repo to catch exactly that, but
-reading the issue is the check that matters.
+Differences in counts and timestamps are expected — the queue moves between the
+two runs. What must **not** differ is which owners appear. A fine-grained token
+is restricted to a single resource owner, and an owner whose token is missing a
+permission can still return an empty result set rather than an error.
+
+The comparison, not the green run, is the evidence. A green run means the
+scripts did not crash; only the diff shows the workflow saw the same fleet you
+can see. The collector's private-repo probe catches a token that lost private
+access, but it cannot catch a token that was scoped to the wrong owner.
 
 ## After installing
 
