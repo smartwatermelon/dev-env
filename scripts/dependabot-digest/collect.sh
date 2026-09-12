@@ -140,17 +140,37 @@ while IFS=$'\t' read -r nwo number; do
   [[ -z "${nwo}" ]] && continue
   repo="${nwo#*/}"
   base_red="$(base_red_for "${nwo}")"
+  # Keep stderr: GraphQL reports the reason a read failed (a permission the
+  # token lacks, a rate limit, a repo it cannot see), and that reason is the
+  # only thing that makes this failure diagnosable. Discarding it once cost an
+  # hour of guessing at token grants on 2026-09-11.
+  detail_err="$(mktemp)"
   # Capture the exit status on its own line: testing $? after a [[ ]] would
   # read the test's status, not gh's.
   detail="$(gh api graphql \
     -f query="${pr_detail_query}" \
-    -F owner="${owner}" -F repo="${repo}" -F number="${number}" 2>/dev/null)"
+    -F owner="${owner}" -F repo="${repo}" -F number="${number}" 2>"${detail_err}")"
   detail_rc=$?
   if [[ "${detail_rc}" -ne 0 ]] \
     || ! jq -e '.data.repository.pullRequest' >/dev/null 2>&1 <<<"${detail}"; then
-    echo "collect.sh: ${nwo}#${number}: could not read PR detail" >&2
+    echo "collect.sh: ${nwo}#${number}: could not read PR detail (exit ${detail_rc})" >&2
+    # GraphQL returns errors in the body with HTTP 200, so both streams matter.
+    if [[ -s "${detail_err}" ]]; then
+      detail_err_text="$(tr '\n' ' ' <"${detail_err}")"
+      echo "collect.sh:   stderr: ${detail_err_text}" >&2
+    fi
+    # Parenthesize each alternative: `+` binds tighter than `//`, so
+    # `.type // "?" + ": " + .message` parses as `.type // ("?: " + .message)`
+    # and yields a bare "FORBIDDEN" with the message dropped — exactly the
+    # detail this block exists to print. Verified against a sample error body.
+    gql_errors="$(jq -r '.errors // [] | map((.type // "?") + ": " + (.message // "?")) | join("; ")' <<<"${detail}" 2>/dev/null)"
+    if [[ -n "${gql_errors}" && "${gql_errors}" != "null" ]]; then
+      echo "collect.sh:   graphql: ${gql_errors}" >&2
+    fi
+    rm -f "${detail_err}"
     exit 1
   fi
+  rm -f "${detail_err}"
   jq -c --arg nwo "${nwo}" --argjson base_red "${base_red}" '
     .data.repository.pullRequest as $pr
     | ([$pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
