@@ -257,11 +257,23 @@ differ, and the difference is the point: all four long-stalled PRs are
 MERGEABLE with every required check green while their builds genuinely fail, so
 a classifier built on branch protection would recommend merging them.
 
-**Blocked until three fine-grained tokens are minted and installed by hand.** A
-fine-grained PAT is limited to one resource owner, so three owners need three
-tokens, each carrying only Pull requests: read and Metadata: read. Procedure in
-`docs/runbooks/dependabot-digest-tokens.md`. Until they exist the workflow fails
-loudly rather than publishing a digest that understates the queue.
+**Blocked on migrating to a GitHub App** (decided 2026-09-11). Three
+fine-grained tokens were minted and installed, and they cannot do the job: a
+fine-grained PAT has no `Checks` permission at all
+([community#129512](https://github.com/orgs/community/discussions/129512)), so
+it cannot read GitHub Actions results on a private repo. GitHub does not error —
+it returns `statusCheckRollup` with HTTP 200 and nulls every CheckRun, which
+turns failing builds into "nothing failing".
+
+Measured on `nightowlstudiollc/kebab-tax-netlify#280`: 11 of 12 contexts nulled,
+seven failing builds reading as one. PR #134 makes the digest refuse such a
+response in three layers rather than under-report it, so the workflow fails
+loudly instead of recommending merges it cannot verify.
+
+Apps do have a Checks permission, and one app installs on all three owners —
+which also removes the reason there are three credentials. Plan:
+`docs/plans/2026-09-11-dependabot-digest-github-app.md`. The migration is
+workflow-only; no digest script changes.
 
 `dev-env#120` (soak-then-accept: auto-merge majors after a week of green CI)
 stays open until the first real run exists to link from its closing comment.
