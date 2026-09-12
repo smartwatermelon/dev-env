@@ -50,12 +50,22 @@ jobs:
         env:
           # One token per owner: a fine-grained PAT is "limited to access
           # resources owned by a single user or organization" (GitHub docs), so
-          # three owners need three tokens. Each needs only Pull requests: read
-          # and Metadata: read, on all repositories for that owner.
+          # three owners need three tokens. Each needs Pull requests, Contents,
+          # Commit statuses and Metadata — all read-only, on all repositories
+          # for that owner.
           #
-          # The alternative, a single classic PAT, would carry write access to
-          # every repository in every org — far more than a read-only digest
-          # should hold.
+          # Those four are the most a fine-grained token can be given, and they
+          # are NOT enough to survey private repos: a fine-grained PAT has no
+          # Checks permission at all
+          # (github.com/orgs/community/discussions/129512), so it cannot read
+          # GitHub Actions results there. GitHub does not error — it returns
+          # statusCheckRollup with HTTP 200 and nulls every CheckRun, which
+          # would turn failing builds into "nothing failing". collect.sh
+          # refuses such a response rather than under-report.
+          #
+          # Resolving that needs a classic PAT (write access fleet-wide), a
+          # GitHub App (which does have Checks), or accepting public-repo-only
+          # coverage. See docs/runbooks/dependabot-digest-tokens.md.
           DIGEST_TOKEN_SMARTWATERMELON: ${{ secrets.DIGEST_TOKEN_SMARTWATERMELON }}
           DIGEST_TOKEN_NIGHTOWLSTUDIOLLC: ${{ secrets.DIGEST_TOKEN_NIGHTOWLSTUDIOLLC }}
           DIGEST_TOKEN_TWISTEDMELONMAN: ${{ secrets.DIGEST_TOKEN_TWISTEDMELONMAN }}
