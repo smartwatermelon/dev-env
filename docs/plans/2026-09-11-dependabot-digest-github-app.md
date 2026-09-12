@@ -1,7 +1,7 @@
 # Dependabot digest: move from fine-grained PATs to a GitHub App
 
 **Status**: planned, not started. Decided 2026-09-11.
-**Prerequisite**: PR #134 merged (the nulled-checks guard).
+**Prerequisite**: PR #134 (the nulled-checks guard) — merged 2026-09-11.
 
 ## Why
 
@@ -123,7 +123,7 @@ No installation IDs are needed — the action resolves them from `owner`.
 
 ### 4. Workflow and script changes — AGENT
 
-One PR, branched from main after #134 merges.
+One PR, branched from current main.
 
 **`.github/workflows/dependabot-digest.yml`** — add three token-minting steps
 before the digest step, keeping mint and use in one job so the tokens are
@@ -244,10 +244,8 @@ Keep as-is: the verification section, the "if the digest goes stale" section
 
 - **dev-env#120** stays open until the digest produces a real run; Andrew's
   instruction was to close it on the grounds that surfacing was the fix.
-- **PR #133** (the FGT runbook correction) is largely superseded by step 8.
-  Recommend closing it unmerged when the app PR opens, carrying the "why not a
-  fine-grained PAT" paragraph across. Less churn than merging a runbook that is
-  then rewritten.
-- Until the app PR lands, **main's runbook is wrong** — it still says "exactly
-  two" permissions. #134's guard makes that safe: the digest refuses to publish
-  rather than under-report.
+- **PRs #133 and #134 are merged** (2026-09-11). Main's runbook now states the
+  fine-grained limit correctly, and the nulled-checks guard is live. Step 8
+  therefore rewrites a runbook that is accurate rather than one that is wrong —
+  it condenses the fine-grained material to one paragraph rather than
+  correcting it.
