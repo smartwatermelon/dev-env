@@ -133,6 +133,16 @@ else
   _pass "known-bad capture form is caught by the drop guard"
 fi
 
+# An empty queue is a real state. classify.sh must emit nothing at all for it:
+# a lone newline would be counted downstream as one record, so the digest would
+# report a PR that does not exist and the "queue: clear" title would never fire.
+empty_out="$(: | bash "${CLASSIFY}" 2>/dev/null; printf 'rc=%s' "$?")"
+if [[ "${empty_out}" == "rc=0" ]]; then
+  _pass "empty input produces no output and exits 0"
+else
+  _fail "empty input should emit nothing and exit 0, got '${empty_out}'"
+fi
+
 # The real fleet state on 2026-09-11, recorded before it changed. All four of
 # these were MERGEABLE with every required check green, which is exactly why a
 # bucket built on branch protection alone would have recommended merging PRs

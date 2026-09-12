@@ -53,7 +53,24 @@ neutral_ok='["Pages changed","Header rules","Redirect rules","Seer"]'
 # The whole value of this digest is that nothing goes unseen; losing a PR
 # silently is the one failure it must not have.
 input="$(cat)"
+
+# grep -c exits 1 when it matches nothing and 2 when it cannot read: an empty
+# queue is a legitimate state, an unreadable one is not, so the two must not be
+# collapsed. A here-string always supplies a trailing newline, so empty input
+# still presents one (blank) line to grep.
 in_count="$(grep -c . <<<"${input}")"
+in_rc=$?
+if [[ "${in_rc}" -gt 1 ]]; then
+  echo "classify.sh: could not read the input stream (grep exit ${in_rc})" >&2
+  exit 1
+fi
+[[ -z "${in_count}" ]] && in_count=0
+
+# Nothing in, nothing out — and specifically not the single newline that
+# printf would otherwise emit, which downstream counts would read as one PR.
+if [[ "${in_count}" -eq 0 ]]; then
+  exit 0
+fi
 
 output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_ok}" '
   # A check counts as failed only on a conclusive negative. SKIPPED and NEUTRAL
@@ -148,7 +165,12 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
 jq_rc=$?
 
 out_count="$(grep -c . <<<"${output}")"
-[[ -z "${output}" ]] && out_count=0
+out_rc=$?
+if [[ "${out_rc}" -gt 1 ]]; then
+  echo "classify.sh: could not count the classified records (grep exit ${out_rc})" >&2
+  exit 1
+fi
+[[ -z "${output}" || -z "${out_count}" ]] && out_count=0
 
 if [[ "${jq_rc}" -ne 0 ]]; then
   echo "classify.sh: jq failed (exit ${jq_rc})" >&2
