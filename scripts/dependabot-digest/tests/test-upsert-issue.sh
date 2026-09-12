@@ -76,7 +76,11 @@ case "$1" in
         exit 0 ;;
     esac ;;
 esac
-echo '[]'
+# Any gh call this stub does not model is a test defect, not a pass. Returning
+# an empty JSON array here would let an unmodelled call read as "nothing found"
+# — the same false-OK shape this whole script exists to prevent.
+echo "stub gh: unexpected call: $*" >&2
+exit 90
 STUB
 chmod +x "${BIN}/gh"
 
@@ -126,7 +130,11 @@ case "$1" in
       create) echo "CREATE" >>"${log}"; echo "https://github.com/o/r/issues/8"; exit 0 ;;
     esac ;;
 esac
-echo '[]'
+# Any gh call this stub does not model is a test defect, not a pass. Returning
+# an empty JSON array here would let an unmodelled call read as "nothing found"
+# — the same false-OK shape this whole script exists to prevent.
+echo "stub gh: unexpected call: $*" >&2
+exit 90
 STUB
 chmod +x "${BIN}/gh"
 : >"${STUB_LOG}"
@@ -149,7 +157,11 @@ case "$1" in
       create) echo "CREATE" >>"${STUB_LOG}"; echo "https://github.com/o/r/issues/9"; exit 0 ;;
     esac ;;
 esac
-echo '[]'
+# Any gh call this stub does not model is a test defect, not a pass. Returning
+# an empty JSON array here would let an unmodelled call read as "nothing found"
+# — the same false-OK shape this whole script exists to prevent.
+echo "stub gh: unexpected call: $*" >&2
+exit 90
 STUB
 chmod +x "${BIN}/gh"
 : >"${STUB_LOG}"
