@@ -41,12 +41,28 @@ For each of the three owners, at
    installing* below.
 4. **Repository access**: **All repositories**. The digest must see every repo
    under the owner, including ones created after the token was minted.
-5. **Repository permissions** — exactly two, both read-only:
+5. **Repository permissions** — exactly three, all read-only:
    - **Pull requests**: Read-only
+   - **Contents**: Read-only
    - **Metadata**: Read-only (mandatory; GitHub selects it automatically)
 
    Grant nothing else. The digest never writes to any surveyed repository.
+
+   **Contents: Read-only is not optional**, though the reason is not obvious.
+   The collector reads each PR's check results through
+   `pullRequest.commits(last:1)`, and GitHub gates the *commit* behind
+   Contents, not Pull requests. Without it the PR itself reads fine — title,
+   mergeability, labels — and only the `commits` field returns
+   `FORBIDDEN: Resource not accessible by personal access token`, with the
+   error path `["repository","pullRequest","commits","nodes",0]`. Measured
+   2026-09-11: `pulls` returned 200 on a repo whose `commits` returned 403 for
+   the same token.
 6. For the two org tokens, the request may need org approval before it works.
+   Approval can be **per repository**: a token minted for "All repositories"
+   can still answer for some repos and return 403 for others, which looks
+   exactly like a permissions error and is not one. If one repo fails while
+   its neighbours succeed, check the org's Settings → Personal access tokens →
+   Active tokens for that token's actual repository list before re-minting.
 
 ## Install the secrets
 
@@ -112,6 +128,52 @@ The comparison, not the green run, is the evidence. A green run means the
 scripts did not crash; only the diff shows the workflow saw the same fleet you
 can see. The collector's private-repo probe catches a token that lost private
 access, but it cannot catch a token that was scoped to the wrong owner.
+
+## If a run fails with FORBIDDEN
+
+The run log names the repo, the PR, and GitHub's own reason:
+
+```
+collect.sh: nightowlstudiollc/kebab-tax-netlify#280: could not read PR detail (exit 1)
+collect.sh:   stderr: gh: Resource not accessible by personal access token
+collect.sh:   graphql: FORBIDDEN: Resource not accessible by personal access token
+```
+
+The collector stops at the first failure and publishes nothing, so a later repo
+succeeding is **not** evidence its access is fine — it was never attempted.
+Diagnose by probing the token directly rather than reasoning from which repos
+appear to work.
+
+Paste the token into this at the prompt; it echoes nothing and writes nothing
+to disk. Replace the repo names with the one that failed and a neighbour that
+did not:
+
+```bash
+read -r -s -p "token: " GH_TOKEN; echo; export GH_TOKEN
+for r in <failing-repo> <working-repo>; do
+  for path in "pulls?state=open&per_page=1" "commits?per_page=1"; do
+    if gh api "repos/<owner>/${r}/${path}" >/dev/null 2>&1; then
+      echo "  ${r} ${path%%\?*}: ok"
+    else
+      echo "  ${r} ${path%%\?*}: DENIED"
+    fi
+  done
+done
+unset GH_TOKEN
+```
+
+Read the result this way:
+
+| `pulls` | `commits` | Meaning |
+| --- | --- | --- |
+| ok | DENIED | Missing **Contents: Read-only** — see *Mint each token* step 5 |
+| DENIED | DENIED | The token has no access to that repo at all |
+| ok on one repo, DENIED on another | — | Per-repository approval, not a permission type |
+
+The third row is the trap, because it contradicts "All repositories": the token
+was minted org-wide but approved for a subset. Check the org's
+Settings → Personal access tokens → Active tokens and read that token's actual
+repository list. Re-minting with the same settings will not fix it.
 
 ## After installing
 
