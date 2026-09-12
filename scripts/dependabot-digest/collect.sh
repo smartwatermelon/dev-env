@@ -50,9 +50,15 @@ GRAPHQL
 verify_private_visibility() {
   local probe="$1"
   [[ -z "${probe}" ]] && return 0
-  if ! gh api "repos/${probe}" --jq '.name' >/dev/null 2>&1; then
-    echo "collect.sh: ${owner}: cannot read private probe repo ${probe};" \
-      "token lacks private-repo access, so results would be silently incomplete" >&2
+  # Probe `commits`, not `repos/<name>`. Repository metadata answers under the
+  # Metadata permission alone, so a metadata probe passes for a token that
+  # cannot read a single commit — and the survey reads every PR's checks
+  # through `pullRequest.commits`. Measured 2026-09-11: this probe passed on
+  # nightowlstudiollc while every PR detail read returned FORBIDDEN, which is
+  # exactly the silent incompleteness it exists to prevent.
+  if ! gh api "repos/${probe}/commits?per_page=1" --jq '.[0].sha' >/dev/null 2>&1; then
+    echo "collect.sh: ${owner}: cannot read commits on private probe repo ${probe};" \
+      "token lacks the access this survey needs, so results would be silently incomplete" >&2
     return 1
   fi
   return 0
@@ -163,7 +169,7 @@ while IFS=$'\t' read -r nwo number; do
     # `.type // "?" + ": " + .message` parses as `.type // ("?: " + .message)`
     # and yields a bare "FORBIDDEN" with the message dropped — exactly the
     # detail this block exists to print. Verified against a sample error body.
-    gql_errors="$(jq -r '.errors // [] | map((.type // "?") + ": " + (.message // "?")) | join("; ")' <<<"${detail}" 2>/dev/null)"
+    gql_errors="$(jq -r '.errors // [] | map((.type // "?") + " at " + ((.path // []) | map(tostring) | join(".")) + ": " + (.message // "?")) | join("; ")' <<<"${detail}" 2>/dev/null)"
     if [[ -n "${gql_errors}" && "${gql_errors}" != "null" ]]; then
       echo "collect.sh:   graphql: ${gql_errors}" >&2
     fi

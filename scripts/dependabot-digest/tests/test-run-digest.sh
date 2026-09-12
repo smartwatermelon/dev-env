@@ -88,7 +88,7 @@ PATH="${BIN}:${PATH}" DIGEST_OWNERS="one" DIGEST_TOKEN_ONE="t" \
   DIGEST_PROBE_ONE="one/private" \
   bash "${DIR}/run-digest.sh" --dry-run >/dev/null 2>"${WORK}/probe.err"
 probe_rc=$?
-if [[ "${probe_rc}" -ne 0 ]] && grep -q "cannot read private probe repo" "${WORK}/probe.err"; then
+if [[ "${probe_rc}" -ne 0 ]] && grep -q "cannot read commits on private probe repo" "${WORK}/probe.err"; then
   _pass "an unreadable private probe fails the run"
 else
   _fail "an unreadable private probe did not fail the run (exit ${probe_rc})"
