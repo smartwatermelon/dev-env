@@ -244,6 +244,28 @@ for org-owned repos until Andrew re-runs Part D there.
 > measurements behind the ordering below, including two items that sit
 > outside this backlog entirely.
 
+### Blocked on a human step: Dependabot digest (dev-env#130)
+
+A daily workflow surveys open Dependabot PRs across all three owners and
+rewrites a single dev-env issue describing the queue, bucketed by what a human
+must actually do about each PR. Built because auto-merge policy declines majors
+and grouped updates by design and then produces **no notification at all** — 20
+accumulated unseen, and 16 merged as soon as someone looked.
+
+The buckets mirror `pre-merge-review.sh`, not GitHub branch protection. Those
+differ, and the difference is the point: all four long-stalled PRs are
+MERGEABLE with every required check green while their builds genuinely fail, so
+a classifier built on branch protection would recommend merging them.
+
+**Blocked until three fine-grained tokens are minted and installed by hand.** A
+fine-grained PAT is limited to one resource owner, so three owners need three
+tokens, each carrying only Pull requests: read and Metadata: read. Procedure in
+`docs/runbooks/dependabot-digest-tokens.md`. Until they exist the workflow fails
+loudly rather than publishing a digest that understates the queue.
+
+`dev-env#120` (soak-then-accept: auto-merge majors after a week of green CI)
+stays open until the first real run exists to link from its closing comment.
+
 ### Ahead of the W track: credential rotation (off-plan)
 
 Not part of the infrastructure design, and more urgent than anything in W.
