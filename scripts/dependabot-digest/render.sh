@@ -52,7 +52,10 @@ else
       # The one fact that explains this row. Naming the specific check beats a
       # generic status: "build" sends someone to a file, "UNSTABLE" does not.
       def reason:
-        if .bucket == "needs-work" then "required check failed: " + (.blockingFailures | join(", "))
+        if .bucket == "checks-unreadable" then
+          "CHECK DATA INCOMPLETE: " + (.unreadableChecks | tostring)
+          + " check(s) unreadable — treat nothing here as green"
+        elif .bucket == "needs-work" then "required check failed: " + (.blockingFailures | join(", "))
         elif .bucket == "hook-blocked" then (.hookBlockers | join("; "))
         elif .bucket == "advisory-red" then
           (if (.ownFailures | length) > 0
@@ -74,6 +77,8 @@ else
     echo
   }
 
+  render_bucket checks-unreadable "Check results could not be read" \
+    "The token could not read these PRs' check results, so their status is unknown — not green. GitHub returns the rollup with the right count and nulls the checks it will not show, which reads as \"nothing failing\" unless caught. A fine-grained token cannot be granted Checks: read at all (github.com/orgs/community/discussions/129512). Do not merge on the strength of this section."
   render_bucket ready-to-merge "Ready for a merge-lock" \
     "Every required check passed and the pre-merge hook has no mechanical objection. The hook still runs its AI review on merge, which can block on content — this list means nothing stands in the way yet, not that the merge will succeed."
   render_bucket update-branch "Needs a branch update" \

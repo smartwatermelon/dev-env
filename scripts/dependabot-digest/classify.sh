@@ -94,6 +94,15 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
     and (.name as $n | any($neutral_ok[]; . as $p | $n | startswith($p)) | not);
 
   . as $pr
+  # A check with no name is one the token could not read, not one that passed.
+  # GitHub serves statusCheckRollup with HTTP 200 and the right totalCount,
+  # then nulls every CheckRun a fine-grained token lacks Checks: read for —
+  # which cannot be granted to one at all
+  # (github.com/orgs/community/discussions/129512). Counting those as absent
+  # turns seven red builds into "nothing failing" and puts the PR in
+  # ready-to-merge. collect.sh refuses such a response outright; this is the
+  # second line of defence, in the component that decides what is safe.
+  | ([.checks[] | select((.name // null) == null)]) as $unreadable
   | ([.checks[] | select(.required)]) as $req
   | ([$req[] | select(failed)]) as $req_failed
   | ([$req[] | select(pending)]) as $req_pending
@@ -128,8 +137,12 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
       [$neutral_blocking[] | "NEUTRAL: " + .name]
       + (if $changes_requested then ["review: CHANGES_REQUESTED"] else [] end))
 
+  | .unreadableChecks = ($unreadable | length)
   | .bucket = (
       if ($held_by | length) > 0 or .isDraft then "held"
+      # Unreadable checks outrank every other signal: nothing below can be
+      # trusted when the check data is known to be incomplete.
+      elif ($unreadable | length) > 0 then "checks-unreadable"
       elif ($req_failed | length) > 0 then "needs-work"
       elif .mergeStateStatus == "DIRTY" or .mergeable == "CONFLICTING" then "conflicted"
       elif ($req_pending | length) > 0 then "waiting-on-ci"

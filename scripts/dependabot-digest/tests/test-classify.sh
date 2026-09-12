@@ -165,6 +165,28 @@ else
   _fail "classify.sh failed on the real fixture"
 fi
 
+
+# A check whose fields came back null is an access failure, not a passing
+# check. GitHub returns statusCheckRollup with HTTP 200 and the correct
+# totalCount, then nulls every CheckRun a fine-grained token may not read —
+# Checks: read cannot be granted to one at all
+# (github.com/orgs/community/discussions/129512). Measured 2026-09-11: 11 of 12
+# contexts null, and the one survivor was a Netlify StatusContext.
+#
+# collect.sh refuses that response outright. This asserts the consequence if it
+# ever stops doing so: nulled checks must never read as "nothing is failing".
+nulled='{"repo":"o/r","number":9,"title":"chore: bump foo from 1.0.0 to 2.0.0","createdAt":"2026-09-01T00:00:00Z","updatedAt":"2026-09-01T00:00:00Z","isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"UNSTABLE","reviewDecision":null,"autoMerge":false,"labels":[],"checks":[{"name":null,"conclusion":null,"status":null,"required":null}],"baseRed":[]}'
+nulled_bucket="$(bash "${CLASSIFY}" <<<"${nulled}" | jq -r '.bucket')"
+if [[ -z "${nulled_bucket}" ]]; then
+  _fail "the nulled-checks assertion produced no bucket — it would pass vacuously"
+fi
+if [[ "${nulled_bucket}" == "ready-to-merge" ]]; then
+  _fail "a PR whose checks are all null classified as ready-to-merge — a token that cannot read checks would recommend merging failing PRs"
+else
+  _pass "nulled checks do not classify as ready-to-merge (got ${nulled_bucket})"
+fi
+
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-classify: all assertions passed"
 else

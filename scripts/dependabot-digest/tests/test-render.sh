@@ -38,16 +38,31 @@ done
 # dropped — the failure is invisible until the moment you need the message.
 # Extract the error formatter from collect.sh and run it against a real error
 # body rather than eyeballing the source.
-gql_fmt="$(grep -o "jq -r '\.errors[^']*'" "${DIR}/collect.sh" | head -1 | sed "s/^jq -r '//; s/'$//")"
+# The formatter spans several lines, so extract from `jq -r '.errors` to the
+# closing quote rather than matching a single line. A line-based grep silently
+# found nothing once the program was reformatted, which failed the assertion
+# for the wrong reason.
+gql_fmt="$(sed -n "/jq -r '\.errors/,/'[[:space:]]*<<</p" "${DIR}/collect.sh" \
+  | sed "s/.*jq -r '//; s/'[[:space:]]*<<<.*//")"
 if [[ -z "${gql_fmt}" ]]; then
   _fail "could not find the GraphQL error formatter in collect.sh"
 else
-  sample='{"errors":[{"type":"FORBIDDEN","message":"Resource not accessible by integration"}]}'
+  # The `path` matters as much as the message. It is what identified the
+  # failing field as `commits` on 2026-09-11 — the message alone
+  # ("Resource not accessible by personal access token") names no field, and
+  # the CI log could not show which read was refused because collect.sh was
+  # dropping the path.
+  sample='{"errors":[{"type":"FORBIDDEN","path":["repository","pullRequest","commits","nodes",0],"message":"Resource not accessible by integration"}]}'
   formatted="$(jq -r "${gql_fmt}" <<<"${sample}" 2>/dev/null)"
   if [[ "${formatted}" == *"FORBIDDEN"* && "${formatted}" == *"not accessible"* ]]; then
     _pass "the GraphQL error formatter keeps both the type and the message"
   else
     _fail "the error formatter dropped part of the error: '${formatted}'"
+  fi
+  if [[ "${formatted}" == *"commits"* ]]; then
+    _pass "the GraphQL error formatter keeps the field path"
+  else
+    _fail "the error formatter dropped the path, which names the failing field: '${formatted}'"
   fi
 fi
 

@@ -50,9 +50,15 @@ GRAPHQL
 verify_private_visibility() {
   local probe="$1"
   [[ -z "${probe}" ]] && return 0
-  if ! gh api "repos/${probe}" --jq '.name' >/dev/null 2>&1; then
-    echo "collect.sh: ${owner}: cannot read private probe repo ${probe};" \
-      "token lacks private-repo access, so results would be silently incomplete" >&2
+  # Probe `commits`, not `repos/<name>`. Repository metadata answers under the
+  # Metadata permission alone, so a metadata probe passes for a token that
+  # cannot read a single commit — and the survey reads every PR's checks
+  # through `pullRequest.commits`. Measured 2026-09-11: this probe passed on
+  # nightowlstudiollc while every PR detail read returned FORBIDDEN, which is
+  # exactly the silent incompleteness it exists to prevent.
+  if ! gh api "repos/${probe}/commits?per_page=1" --jq '.[0].sha' >/dev/null 2>&1; then
+    echo "collect.sh: ${owner}: cannot read commits on private probe repo ${probe};" \
+      "token lacks the access this survey needs, so results would be silently incomplete" >&2
     return 1
   fi
   return 0
@@ -156,14 +162,27 @@ while IFS=$'\t' read -r nwo number; do
     echo "collect.sh: ${nwo}#${number}: could not read PR detail (exit ${detail_rc})" >&2
     # GraphQL returns errors in the body with HTTP 200, so both streams matter.
     if [[ -s "${detail_err}" ]]; then
-      detail_err_text="$(tr '\n' ' ' <"${detail_err}")"
+      # gh concatenates one copy of the message per GraphQL error, so a single
+      # refused permission prints the same sentence eleven times on one line.
+      # The graphql line below already reports the count, so truncate here
+      # rather than repeat it.
+      detail_err_text="$(tr '\n' ' ' <"${detail_err}" | cut -c1-200)"
       echo "collect.sh:   stderr: ${detail_err_text}" >&2
     fi
     # Parenthesize each alternative: `+` binds tighter than `//`, so
     # `.type // "?" + ": " + .message` parses as `.type // ("?: " + .message)`
     # and yields a bare "FORBIDDEN" with the message dropped — exactly the
     # detail this block exists to print. Verified against a sample error body.
-    gql_errors="$(jq -r '.errors // [] | map((.type // "?") + ": " + (.message // "?")) | join("; ")' <<<"${detail}" 2>/dev/null)"
+    # Collapse repeats: one refused permission yields one error per context,
+    # and eleven identical lines bury the one fact that matters. Group by
+    # type+message, report the first path and how many followed it.
+    gql_errors="$(jq -r '.errors // []
+      | group_by((.type // "?") + " " + (.message // "?"))
+      | map((.[0].type // "?") + " at "
+            + (((.[0].path // []) | map(tostring) | join(".")))
+            + (if length > 1 then " (and \(length - 1) more)" else "" end)
+            + ": " + (.[0].message // "?"))
+      | join("; ")' <<<"${detail}" 2>/dev/null)"
     if [[ -n "${gql_errors}" && "${gql_errors}" != "null" ]]; then
       echo "collect.sh:   graphql: ${gql_errors}" >&2
     fi
@@ -171,6 +190,26 @@ while IFS=$'\t' read -r nwo number; do
     exit 1
   fi
   rm -f "${detail_err}"
+  # A context that comes back as an empty object is an access failure wearing
+  # the shape of a result. GitHub returns the rollup with HTTP 200 and the
+  # right totalCount, then nulls every CheckRun the token may not read —
+  # measured 2026-09-11, where 11 of 12 contexts were null while only the
+  # StatusContext survived. Mapped naively that becomes "no failing checks and
+  # no required checks", which classifies a PR with seven red builds as
+  # ready-to-merge and offers a merge-lock line for it. Refuse instead: an
+  # unreadable check is not an absent one.
+  # A readable context always carries a name (CheckRun) or a context
+  # (StatusContext). A nulled one carries neither, and arrives as `{}`.
+  nulled="$(jq '[.data.repository.pullRequest.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
+                 | select((.name // .context) == null)] | length' <<<"${detail}" 2>/dev/null)"
+  if [[ -n "${nulled}" && "${nulled}" != "null" && "${nulled}" -gt 0 ]]; then
+    echo "collect.sh: ${nwo}#${number}: ${nulled} check(s) returned null —" \
+      "the token can see that checks exist but not what they say." \
+      "A fine-grained token cannot grant Checks: read" \
+      "(github.com/orgs/community/discussions/129512), so this survey would" \
+      "under-report failures rather than fail. Refusing to continue." >&2
+    exit 1
+  fi
   jq -c --arg nwo "${nwo}" --argjson base_red "${base_red}" '
     .data.repository.pullRequest as $pr
     | ([$pr.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
