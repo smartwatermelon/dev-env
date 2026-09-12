@@ -1,0 +1,72 @@
+name: Dependabot Digest
+
+# Surfaces the fleet-wide Dependabot queue as a single issue, rewritten in
+# place on each run.
+#
+# It exists because the PRs that need a human are exactly the ones that
+# generate no notification. Auto-merge handles patches and minors silently;
+# majors and grouped updates are declined by policy and then sit unseen. Twenty
+# had accumulated across nine repos, the oldest twelve days old, before anyone
+# looked (dev-env#120).
+#
+# The digest only reports. It never merges: merges require a human-created
+# merge-lock, which is the deliberate design (Protocol 6) and not something a
+# scheduled job should route around.
+
+on:
+  schedule:
+    # 14:00 UTC daily — morning in US Pacific, so the queue is current when
+    # the day starts.
+    - cron: '0 14 * * *'
+  # A scheduled workflow runs only on the default branch, so a pull request
+  # cannot exercise it. This is how the first run gets triggered and how the
+  # job is tested after a change.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two runs writing the same issue would race. Never cancel in progress: a
+  # half-written digest is worse than a late one.
+  group: dependabot-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Writes the digest issue in this repository. The PR data itself is read
+      # with the per-owner tokens below, which carry no write access anywhere.
+      issues: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and publish the digest
+        env:
+          # One token per owner: a fine-grained PAT is "limited to access
+          # resources owned by a single user or organization" (GitHub docs), so
+          # three owners need three tokens. Each needs only Pull requests: read
+          # and Metadata: read, on all repositories for that owner.
+          #
+          # The alternative, a single classic PAT, would carry write access to
+          # every repository in every org — far more than a read-only digest
+          # should hold.
+          DIGEST_TOKEN_SMARTWATERMELON: ${{ secrets.DIGEST_TOKEN_SMARTWATERMELON }}
+          DIGEST_TOKEN_NIGHTOWLSTUDIOLLC: ${{ secrets.DIGEST_TOKEN_NIGHTOWLSTUDIOLLC }}
+          DIGEST_TOKEN_TWISTEDMELONMAN: ${{ secrets.DIGEST_TOKEN_TWISTEDMELONMAN }}
+          # A token that has lost private-repo access still answers searches
+          # successfully, returning only public results. Naming one private
+          # repo per owner lets the collector prove it can still see private
+          # repositories, so an incomplete digest fails loudly rather than
+          # reporting an empty queue.
+          DIGEST_PROBE_NIGHTOWLSTUDIOLLC: nightowlstudiollc/cleanroom
+          # Used only to write the issue in this repository.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bash scripts/dependabot-digest/run-digest.sh --run-url "${RUN_URL}"
