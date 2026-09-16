@@ -20,18 +20,24 @@ error:
 
 | Signature | Means | Fix |
 | --- | --- | --- |
-| **403** on `branches/*/protection` | the token lacks `Administration: Read-only` | grant it (user token only; both org tokens already have it) |
-| **404** on an org-owned private repo | a *user* token cannot see org-owned repos at all | use that org's token — no permission grants this |
+| **403** on `branches/*/protection` | wrong owner's token, or missing `Administration: Read-only` | present the owning account's token |
+| **404** on a repo you know exists | wrong owner's token | present the owning account's token |
 
-**Read these as diagnostics, not results.** A 403 is not a 404: it means the
-scope is missing, *not* that the repo has no protection. And a 404 on
-`smartwatermelon/scripts` is not a selection setting to widen — "all
-repositories owned by you" never includes repositories owned by an
-organization.
+**Read these as diagnostics, not results.** A 403 is not a 404, and neither is
+an auth error — a probe using one token for every owner reads as a clean run
+with wrong numbers.
 
-Both org tokens (`CCCLI-SWM`, `CCCLI-NOS`) already carry all-repositories plus
-`Administration: Read-only`. Only the user token needs the permission added.
-See `docs/runbooks/fleet-probe-token-scopes.md`.
+**The boundary is ownership, not visibility.** Verified 2026-09-16: the
+`twistedmelonman` user token, fully scoped, reads its own repos' protection but
+**403s on `smartwatermelon/dev-env`, which is public**. A user token cannot
+read an org's protection at any scope. Only `CCCLI-SWM` reads
+`smartwatermelon/*`; only `CCCLI-NOS` reads `nightowlstudiollc/*`.
+
+All three tokens are now correctly scoped (the user token gained
+`Administration: Read-only` on 2026-09-16). Routing per owner reproduces the
+full fleet — **42 repos: smartwatermelon 24, nightowlstudiollc 12,
+twistedmelonman 6** — with no OAuth fallback. See
+`docs/runbooks/fleet-probe-token-scopes.md`.
 
 Neither `branches/main.protected` nor `repos/*/rules/branches/main`
 substitutes. `.protected` is `true` for every non-fork repo including those with
@@ -58,12 +64,11 @@ closed deliberately (see `claude-wrapper#124`), and it defeats the identity
 routing the wrapper exists to enforce. Fix the token's scope instead:
 `docs/runbooks/fleet-probe-token-scopes.md`.
 
-**Status (2026-09-16):** the `twistedmelonman` user token still lacks
-`Administration: Read-only`, and nothing yet routes a fleet probe to the owning
-account's token. Until both are addressed, a probe run with the session's
-`GH_TOKEN` 403s on every protection read and cannot see the 10 org-owned
-private repos. The counts in this file were measured against a read that could
-see them.
+**Status (2026-09-16):** token scopes are done. What remains is **routing** —
+nothing yet presents the owning account's token automatically, so a probe that
+just uses the session's `GH_TOKEN` still 403s on both orgs' repos and sees 27
+of 42. Until the `gh` wrapper routes fine-grained tokens by owner, a fleet
+probe must switch tokens itself; the runbook has the helper.
 
 **Why this section exists.** On 2026-09-16 a PAT-only probe concluded *"zero of
 32 repos require any status check."* Both numbers were wrong — the fleet is 42

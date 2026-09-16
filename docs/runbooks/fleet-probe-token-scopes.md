@@ -16,64 +16,68 @@ Measured 2026-09-16. There are three fine-grained PATs, one per owner:
 
 | Owner | 1Password item | Repository access | Administration |
 | --- | --- | --- | --- |
-| `smartwatermelon` (org) | `op://Automation/CCCLI-SWM/token` | all org repos | **read** ✓ |
-| `nightowlstudiollc` (org) | `op://Automation/CCCLI-NOS/token` | all org repos | **read** ✓ |
-| `twistedmelonman` (user) | `op://Automation/GitHub - CCCLI/Token` | all user repos | **missing** ✗ |
+| `smartwatermelon` (org) | `op://Automation/CCCLI-SWM/token` | all org repos | read ✓ |
+| `nightowlstudiollc` (org) | `op://Automation/CCCLI-NOS/token` | all org repos | read ✓ |
+| `twistedmelonman` (user) | `op://Automation/GitHub - CCCLI/Token` | all user repos | read ✓ *(added 2026-09-16)* |
 
-**Both org tokens are already scoped correctly.** The gap is that `GH_TOKEN`
-in a session is the *`twistedmelonman` user token*, and it is used for every
-owner. `gh api user` returns `twistedmelonman` regardless of which owner's
-repos are being read.
+All three are now correctly scoped. **The remaining gap is routing, not
+permissions**: `GH_TOKEN` in a session is the *`twistedmelonman` user token*,
+and it gets used for every owner. `gh api user` returns `twistedmelonman`
+regardless of whose repos are being read.
 
-That single substitution produces both failure modes:
+**A token reads only its own owner's repositories, whoever owns them.**
+Verified 2026-09-16 with the user token, after it was granted
+`Administration: Read-only`:
 
-- **403 on `branches/*/protection`, for every owner including its own.** The
-  user token lacks `Administration: Read-only`. This is the one real scope gap.
-- **404 on org-owned private repos** (`scripts`, `reliquarist`, and the other
-  eight). *This is not a scope or selection problem and no permission fixes
-  it*: "all repositories owned by you" does not include repositories owned by
-  an organization. Only that org's own token can read them.
+| Target | Result |
+| --- | --- |
+| `twistedmelonman/dotfiles` protection | reads correctly (403 before the grant) |
+| `smartwatermelon/dev-env` protection — **public** | **403** |
+| `smartwatermelon/scripts` — private | **404** |
 
-So a correctly-scoped user token still cannot probe the fleet. Route to the
-owner's token, or accept a 10-repo blind spot.
+So the boundary is **ownership, not visibility**. A user token cannot read an
+org's protection even on a *public* repo. This is not a scope to widen and not
+a selection to broaden: only `CCCLI-SWM` reads `smartwatermelon/*`, and only
+`CCCLI-NOS` reads `nightowlstudiollc/*`.
 
-## What to change
+Routing per owner reproduces the full fleet — **42 repos, verified
+2026-09-16** (smartwatermelon 24, nightowlstudiollc 12, twistedmelonman 6),
+with no OAuth fallback.
 
-### 1. Add `Administration: Read-only` to the `twistedmelonman` user token
+## Scope work: done
 
-`op://Automation/GitHub - CCCLI/Token`. Gates
-`GET /repos/{owner}/{repo}/branches/{branch}/protection`. Read-only is correct
-and sufficient — the probe reads protection, it never sets it.
+`Administration: Read-only` was added to the `twistedmelonman` user token on
+2026-09-16, which also brought it to `actions, administration, metadata: read`
+— matching both org tokens. **No token scope changes remain.**
 
-While there: that token also carries `commit statuses: read`, which neither org
-token has, and lacks `actions: read`, which both org tokens have. Worth
-reconciling so the three are comparable, though neither difference affects the
-probe.
+## What remains: route by owner
 
-### 2. Use the owning account's token per request
+A fleet probe must present the owning account's token for each request. Until
+the `gh` wrapper routes fine-grained tokens by owner the way it already routes
+identity, a probe does this itself:
 
-The org tokens need no changes. What needs to change is *selection*: a probe of
-`smartwatermelon/*` must present `CCCLI-SWM`, not the user token. Until the
-`gh` wrapper routes fine-grained tokens by owner the way it routes identity,
-a fleet probe must switch tokens per owner itself.
+```bash
+token_for() {
+  case "$1" in
+    smartwatermelon)   op read 'op://Automation/CCCLI-SWM/token' ;;
+    nightowlstudiollc) op read 'op://Automation/CCCLI-NOS/token' ;;
+    twistedmelonman)   op read 'op://Automation/GitHub - CCCLI/Token' ;;
+    *) return 1 ;;
+  esac
+}
+```
 
-## Steps
-
-1. <https://github.com/settings/personal-access-tokens> → select the
-   `twistedmelonman` user token (`GitHub - CCCLI`).
-2. **Permissions → Repository permissions** → `Administration` →
-   *Read-only*.
-3. Save. GitHub does not re-issue the token value for a permissions change, so
-   no secret rotation is needed and nothing needs redeploying.
-4. The two org tokens need no change.
+Presenting the wrong owner's token fails as a **403** (protection) or **404**
+(repo), never as an auth error — so a probe that silently uses one token for
+everything reads as a clean run with wrong numbers.
 
 ## Verify — do not skip
 
 A permissions change that silently did not apply looks exactly like one that
 did. Check against known-bad cases, with each owner's own token.
 
-**Step 1 — the user token now reads its own protection** (this is what the
-change fixes):
+**Step 1 — the user token reads its own protection.** *(Verified passing
+2026-09-16.)*
 
 ```bash
 GH_TOKEN="$(op read 'op://Automation/GitHub - CCCLI/Token')" \
