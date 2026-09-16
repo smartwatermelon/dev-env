@@ -10,37 +10,55 @@ live query on the date shown, and the fleet drifts.
 
 ## Measuring fleet state
 
-**Use `env -u GH_TOKEN` for every fleet measurement.** `GH_TOKEN` is a
-fine-grained PAT and it silently produces wrong answers in two ways:
+A fleet probe needs a token with **two** properties. Missing either produces a
+confidently wrong answer rather than an error:
 
-1. **It cannot read `repos/*/branches/*/protection`** — that endpoint returns
-   **403 "Resource not accessible by personal access token"**. A 403 is not a
-   404: classic branch protection is *invisible* to the token, not absent.
-2. **It omits private repos from `gh repo list`** — the fleet is **42**
-   non-archived repos, not the 32 a PAT-only enumeration returns.
+| Requirement | Why | Failure signature |
+| --- | --- | --- |
+| `Administration: Read-only` | `repos/*/branches/*/protection` is gated on it | **403** `Resource not accessible by personal access token` — classic branch protection reads as *absent* |
+| Repository access: **All repositories** | Private repos are otherwise outside the token's selection | Repo count **below 42**, and **404** on a private repo fetched by name |
 
-Unsetting it falls back to the keyring OAuth token (`repo`, `admin:org`), which
-reads both correctly. Neither `branches/main.protected` nor
-`repos/*/rules/branches/main` substitutes: `.protected` is `true` for every
-non-fork repo including those with no effective rules, and `rules/branches/*`
-only ever returns ruleset-sourced rules, never classic protection.
+**Read the two failure modes as diagnostics, not as results.** A 403 is not a
+404: it means the token lacks `Administration: Read-only`, *not* that the repo
+has no protection. A 404 on a known-good private repo means that repo is not in
+the token's repository selection — which no permission grant fixes, because it
+is a selection boundary, not a scope boundary.
+
+Neither `branches/main.protected` nor `repos/*/rules/branches/main`
+substitutes. `.protected` is `true` for every non-fork repo including those with
+no effective rules on the default branch, and `rules/branches/*` returns only
+ruleset-sourced rules, never classic protection.
 
 ```bash
 for o in smartwatermelon nightowlstudiollc twistedmelonman; do
-  env -u GH_TOKEN gh repo list "$o" --limit 100 \
+  gh repo list "$o" --limit 100 \
     --json nameWithOwner,isArchived \
     --jq '.[]|select(.isArchived==false)|.nameWithOwner'
-done | while read -r r; do
+done | tee /tmp/fleet.txt | while read -r r; do
   printf '%-46s %s\n' "$r" \
-    "$(env -u GH_TOKEN gh api "repos/$r/branches/main/protection" \
+    "$(gh api "repos/$r/branches/main/protection" \
        --jq '.required_status_checks.contexts//[]|join(",")' 2>/dev/null)"
 done
+# Sanity-check the enumeration before trusting any count derived from it:
+test "$(wc -l < /tmp/fleet.txt)" -ge 42 || echo "UNDERCOUNT: token lacks All-repositories access"
 ```
 
-This is not hypothetical: on 2026-09-16 a PAT-only probe concluded *"zero of 32
-repos require any status check,"* which was wrong in both numbers. It nearly
-inverted a fleet-wide plan. The probe itself flagged the inference as unproven;
-the error was in how it got summarized upward.
+**Do not work around a scope gap by unsetting `GH_TOKEN`.** Falling back to the
+keyring OAuth token reads both correctly today, but that fallback is being
+closed deliberately (see `claude-wrapper#124`), and it defeats the identity
+routing the wrapper exists to enforce. Fix the token's scope instead:
+`docs/runbooks/fleet-probe-token-scopes.md`.
+
+**Status: the three fine-grained PATs are not yet re-scoped** (as of
+2026-09-16). Until they are, a probe run with `GH_TOKEN` will still undercount.
+The counts in this file were measured against a correctly-scoped read.
+
+**Why this section exists.** On 2026-09-16 a PAT-only probe concluded *"zero of
+32 repos require any status check."* Both numbers were wrong — the fleet is 42
+repos and 38 of them require a check. The 403s were read as evidence of absence
+and the 10 invisible private repos were never counted. It nearly inverted a
+fleet-wide plan. The probe itself flagged its inference as unproven; the error
+was in how that caveat got dropped on the way up.
 
 ## Where the project is
 
@@ -425,10 +443,11 @@ other **33 repos still require `claude-review / run-review`**; 4 require
 nothing.
 
 > A prior revision of this line read *"required on zero repos, so W3 has not
-> started anywhere."* That was measured with `GH_TOKEN` (a fine-grained PAT),
-> which **cannot read `branches/*/protection`** — it returns **403, not
-> 404** — and which also hides private repos. Classic branch protection was
-> invisible to the token, not absent. See "Measuring fleet state" below.
+> started anywhere."* That was measured with a fine-grained PAT lacking
+> `Administration: Read-only`, so `branches/*/protection` returned **403, not
+> 404** — classic branch protection was invisible to the token, not absent —
+> and lacking All-repositories access, so 10 private repos were never counted.
+> See "Measuring fleet state" below for the required scopes.
 
 Wave 3 no longer gates W3: after `github-workflows#165` the required-check
 contract is "no new debt in files this PR touches", not "this repo is clean".

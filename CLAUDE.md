@@ -18,6 +18,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
   - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
   - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
+  - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue; run by `.github/workflows/dependabot-digest.yml`. Tokens are installed by hand: see `docs/runbooks/dependabot-digest-tokens.md`
 - `.claude/` — Project-specific Claude Code configuration templates
