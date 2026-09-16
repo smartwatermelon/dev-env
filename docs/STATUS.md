@@ -10,19 +10,28 @@ live query on the date shown, and the fleet drifts.
 
 ## Measuring fleet state
 
-A fleet probe needs a token with **two** properties. Missing either produces a
-confidently wrong answer rather than an error:
+**A fleet probe must use each owner's own token.** There are three
+fine-grained PATs — one per owner — but `GH_TOKEN` in a session is the
+`twistedmelonman` *user* token, and it gets used for all three owners.
+`gh api user` returns `twistedmelonman` whichever owner's repos are being read.
 
-| Requirement | Why | Failure signature |
+That one substitution produces two failure modes, and neither surfaces as an
+error:
+
+| Signature | Means | Fix |
 | --- | --- | --- |
-| `Administration: Read-only` | `repos/*/branches/*/protection` is gated on it | **403** `Resource not accessible by personal access token` — classic branch protection reads as *absent* |
-| Repository access: **All repositories** | Private repos are otherwise outside the token's selection | Repo count **below 42**, and **404** on a private repo fetched by name |
+| **403** on `branches/*/protection` | the token lacks `Administration: Read-only` | grant it (user token only; both org tokens already have it) |
+| **404** on an org-owned private repo | a *user* token cannot see org-owned repos at all | use that org's token — no permission grants this |
 
-**Read the two failure modes as diagnostics, not as results.** A 403 is not a
-404: it means the token lacks `Administration: Read-only`, *not* that the repo
-has no protection. A 404 on a known-good private repo means that repo is not in
-the token's repository selection — which no permission grant fixes, because it
-is a selection boundary, not a scope boundary.
+**Read these as diagnostics, not results.** A 403 is not a 404: it means the
+scope is missing, *not* that the repo has no protection. And a 404 on
+`smartwatermelon/scripts` is not a selection setting to widen — "all
+repositories owned by you" never includes repositories owned by an
+organization.
+
+Both org tokens (`CCCLI-SWM`, `CCCLI-NOS`) already carry all-repositories plus
+`Administration: Read-only`. Only the user token needs the permission added.
+See `docs/runbooks/fleet-probe-token-scopes.md`.
 
 Neither `branches/main.protected` nor `repos/*/rules/branches/main`
 substitutes. `.protected` is `true` for every non-fork repo including those with
@@ -49,9 +58,12 @@ closed deliberately (see `claude-wrapper#124`), and it defeats the identity
 routing the wrapper exists to enforce. Fix the token's scope instead:
 `docs/runbooks/fleet-probe-token-scopes.md`.
 
-**Status: the three fine-grained PATs are not yet re-scoped** (as of
-2026-09-16). Until they are, a probe run with `GH_TOKEN` will still undercount.
-The counts in this file were measured against a correctly-scoped read.
+**Status (2026-09-16):** the `twistedmelonman` user token still lacks
+`Administration: Read-only`, and nothing yet routes a fleet probe to the owning
+account's token. Until both are addressed, a probe run with the session's
+`GH_TOKEN` 403s on every protection read and cannot see the 10 org-owned
+private repos. The counts in this file were measured against a read that could
+see them.
 
 **Why this section exists.** On 2026-09-16 a PAT-only probe concluded *"zero of
 32 repos require any status check."* Both numbers were wrong — the fleet is 42
@@ -443,11 +455,11 @@ other **33 repos still require `claude-review / run-review`**; 4 require
 nothing.
 
 > A prior revision of this line read *"required on zero repos, so W3 has not
-> started anywhere."* That was measured with a fine-grained PAT lacking
-> `Administration: Read-only`, so `branches/*/protection` returned **403, not
-> 404** — classic branch protection was invisible to the token, not absent —
-> and lacking All-repositories access, so 10 private repos were never counted.
-> See "Measuring fleet state" below for the required scopes.
+> started anywhere."* It was measured with the `twistedmelonman` user token,
+> which lacks `Administration: Read-only` — so `branches/*/protection`
+> returned **403, not 404**, and classic branch protection read as absent
+> rather than unreadable — and which, being a user token, cannot see the 10
+> org-owned private repos at all. See "Measuring fleet state" below.
 
 Wave 3 no longer gates W3: after `github-workflows#165` the required-check
 contract is "no new debt in files this PR touches", not "this repo is clean".

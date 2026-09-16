@@ -10,69 +10,114 @@ cannot do it.
 **When**: before the next fleet probe, and whenever a new private repo is
 created under an owner whose token uses *Selected repositories*.
 
+## The actual problem: one token is doing three tokens' work
+
+Measured 2026-09-16. There are three fine-grained PATs, one per owner:
+
+| Owner | 1Password item | Repository access | Administration |
+| --- | --- | --- | --- |
+| `smartwatermelon` (org) | `op://Automation/CCCLI-SWM/token` | all org repos | **read** ✓ |
+| `nightowlstudiollc` (org) | `op://Automation/CCCLI-NOS/token` | all org repos | **read** ✓ |
+| `twistedmelonman` (user) | `op://Automation/GitHub - CCCLI/Token` | all user repos | **missing** ✗ |
+
+**Both org tokens are already scoped correctly.** The gap is that `GH_TOKEN`
+in a session is the *`twistedmelonman` user token*, and it is used for every
+owner. `gh api user` returns `twistedmelonman` regardless of which owner's
+repos are being read.
+
+That single substitution produces both failure modes:
+
+- **403 on `branches/*/protection`, for every owner including its own.** The
+  user token lacks `Administration: Read-only`. This is the one real scope gap.
+- **404 on org-owned private repos** (`scripts`, `reliquarist`, and the other
+  eight). *This is not a scope or selection problem and no permission fixes
+  it*: "all repositories owned by you" does not include repositories owned by
+  an organization. Only that org's own token can read them.
+
+So a correctly-scoped user token still cannot probe the fleet. Route to the
+owner's token, or accept a 10-repo blind spot.
+
 ## What to change
 
-Three fine-grained PATs, one per owner (`smartwatermelon`,
-`nightowlstudiollc`, `twistedmelonman`). Each needs **both** of the following.
-Either one alone still produces wrong answers.
+### 1. Add `Administration: Read-only` to the `twistedmelonman` user token
 
-### 1. Permission: `Administration` → **Read-only**
+`op://Automation/GitHub - CCCLI/Token`. Gates
+`GET /repos/{owner}/{repo}/branches/{branch}/protection`. Read-only is correct
+and sufficient — the probe reads protection, it never sets it.
 
-Gates `GET /repos/{owner}/{repo}/branches/{branch}/protection`.
+While there: that token also carries `commit statuses: read`, which neither org
+token has, and lacks `actions: read`, which both org tokens have. Worth
+reconciling so the three are comparable, though neither difference affects the
+probe.
 
-Read-only is sufficient and is the correct level: the probe reads protection,
-it does not set it. Do **not** grant Read-and-write for this purpose.
+### 2. Use the owning account's token per request
 
-### 2. Repository access → **All repositories**
-
-Not a permission. A token set to *Selected repositories* returns **404** for
-any repo outside its selection, and silently omits those repos from
-`gh repo list`. No permission grant fixes this — it is a selection boundary.
-
-As of 2026-09-16 this hid 10 private repos: `scripts`, `claude-config-backup`,
-`infinite-yaks` (smartwatermelon); `cleanroom`, `financial-agent`, `kebab-tax`,
-`kebab-tax-netlify`, `night-owl-studio`, `reliquarist`, `tensegrity`
-(nightowlstudiollc).
-
-*Selected repositories* is defensible if you prefer the tighter boundary — but
-then every new private repo must be added by hand, and until it is, every fleet
-count is quietly low. All-repositories is recommended for that reason.
+The org tokens need no changes. What needs to change is *selection*: a probe of
+`smartwatermelon/*` must present `CCCLI-SWM`, not the user token. Until the
+`gh` wrapper routes fine-grained tokens by owner the way it routes identity,
+a fleet probe must switch tokens per owner itself.
 
 ## Steps
 
-1. <https://github.com/settings/personal-access-tokens> → select the token.
-2. **Repository access** → *All repositories*.
-3. **Permissions → Repository permissions** → `Administration` →
+1. <https://github.com/settings/personal-access-tokens> → select the
+   `twistedmelonman` user token (`GitHub - CCCLI`).
+2. **Permissions → Repository permissions** → `Administration` →
    *Read-only*.
-4. Save. GitHub does not re-issue the token value for a permissions change, so
+3. Save. GitHub does not re-issue the token value for a permissions change, so
    no secret rotation is needed and nothing needs redeploying.
-5. Repeat for the other two owners.
+4. The two org tokens need no change.
 
 ## Verify — do not skip
 
 A permissions change that silently did not apply looks exactly like one that
-did. Check both properties against known-bad cases:
+did. Check against known-bad cases, with each owner's own token.
+
+**Step 1 — the user token now reads its own protection** (this is what the
+change fixes):
 
 ```bash
-# 1. Repo count must be >= 42 (as of 2026-09-16).
-for o in smartwatermelon nightowlstudiollc twistedmelonman; do
-  gh repo list "$o" --limit 100 --json isArchived \
-    --jq '[.[]|select(.isArchived==false)]|length'
-done | paste -sd+ - | bc
-
-# 2. A known private repo must resolve, not 404.
-gh api repos/smartwatermelon/scripts --jq .full_name
-
-# 3. Protection must return JSON, not 403.
-gh api repos/smartwatermelon/dev-env/branches/main/protection \
+GH_TOKEN="$(op read 'op://Automation/GitHub - CCCLI/Token')" \
+  gh api repos/twistedmelonman/dotfiles/branches/main/protection \
   --jq '.required_status_checks.contexts'
 ```
 
-Expected: `42` or more; `smartwatermelon/scripts`; and
-`["standards-check / run-standards-check"]`.
+Expected `["standards-check / run-standards-check"]`. **A 403 here means the
+permission did not save** — re-check that `Administration` was set under
+*Repository permissions*, not *Account permissions*.
 
-If step 3 still 403s, the `Administration` permission did not save — re-check
-that it was set under *Repository permissions*, not *Account permissions*.
+**Step 2 — each org token reaches its own private repos** (no change needed;
+this confirms the routing premise):
+
+```bash
+GH_TOKEN="$(op read op://Automation/CCCLI-SWM/token)" \
+  gh api repos/smartwatermelon/scripts --jq .full_name
+GH_TOKEN="$(op read op://Automation/CCCLI-NOS/token)" \
+  gh api repos/nightowlstudiollc/reliquarist --jq .full_name
+```
+
+Expected the two full names. A **404** means that token is not the owner's, or
+lost its all-repositories access.
+
+**Step 3 — the fleet counts 42** only when each owner is enumerated with its
+own token. With any single token it will read low, and that is expected, not a
+regression:
+
+```bash
+total=0
+for pair in "smartwatermelon:op://Automation/CCCLI-SWM/token" \
+            "nightowlstudiollc:op://Automation/CCCLI-NOS/token" \
+            "twistedmelonman:op://Automation/GitHub - CCCLI/Token"; do
+  o="${pair%%:*}"; ref="${pair#*:}"
+  n=$(GH_TOKEN="$(op read "$ref")" gh repo list "$o" --limit 100 \
+        --json isArchived --jq '[.[]|select(.isArchived==false)]|length')
+  printf '%-22s %s\n' "$o" "$n"; total=$((total + n))
+done
+printf 'total %s (expect >= 42)\n' "$total"
+```
+
+> These snippets pass a secret on the command line deliberately and only for
+> one-shot verification. Do not build them into a script or a hook: an
+> exported token is what created the confusion this runbook documents.
 
 ## Do not use `env -u GH_TOKEN` instead
 
