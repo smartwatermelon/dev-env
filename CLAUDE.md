@@ -29,7 +29,9 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
 
 **Global infrastructure lives at `~/.claude/` and `~/.config/git/hooks/`** — this repo documents and plans changes to that infrastructure, but the live infrastructure is installed globally, not here. Changes here are design docs and templates meant to be copied/symlinked into the global locations.
 
-**The infrastructure consolidation plan** (`docs/plans/2026-03-25-infrastructure-consolidation-design.md`) is the active roadmap. It aims to make this repo the single source of truth with an `install.sh` that symlinks everything into place (blue/green settings merge, idempotent installs).
+**`docs/STATUS.md` is the active roadmap** — it records where the infrastructure backlog stands and what to pick up next. The design docs under `docs/superpowers/specs/` are authoritative on *what* each item is and why; `STATUS.md` is authoritative on *where things stand*.
+
+**The March 2026 infrastructure consolidation plan** (`docs/plans/2026-03-25-infrastructure-consolidation-design.md`) is **superseded — Phases 3–5 are abandoned.** Do not resurrect its repo layout, its `ci-gate.yml`, or its step archiving `smartwatermelon/github-workflows` (now the load-bearing home of `standards-check.yml`). Its `install.sh`/`uninstall.sh` target state also contradicts `README.md:7`, which says this repo is "not a tool, framework, or installable package."
 
 ## Working in This Repo
 
