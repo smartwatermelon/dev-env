@@ -1,12 +1,81 @@
 # Infrastructure project status
 
-**As of 2026-09-10.** Point-in-time snapshot of the infrastructure backlog
+**As of 2026-09-16.** Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
 
 Re-measure before acting on any number here. Every count below came from a
 live query on the date shown, and the fleet drifts.
+
+## Measuring fleet state
+
+**A fleet probe must use each owner's own token.** There are three
+fine-grained PATs — one per owner — but `GH_TOKEN` in a session is the
+`twistedmelonman` *user* token, and it gets used for all three owners.
+`gh api user` returns `twistedmelonman` whichever owner's repos are being read.
+
+That one substitution produces two failure modes, and neither surfaces as an
+error:
+
+| Signature | Means | Fix |
+| --- | --- | --- |
+| **403** on `branches/*/protection` | wrong owner's token, or missing `Administration: Read-only` | present the owning account's token |
+| **404** on a repo you know exists | wrong owner's token | present the owning account's token |
+
+**Read these as diagnostics, not results.** A 403 is not a 404, and neither is
+an auth error — a probe using one token for every owner reads as a clean run
+with wrong numbers.
+
+**The boundary is ownership, not visibility.** Verified 2026-09-16: the
+`twistedmelonman` user token, fully scoped, reads its own repos' protection but
+**403s on `smartwatermelon/dev-env`, which is public**. A user token cannot
+read an org's protection at any scope. Only `CCCLI-SWM` reads
+`smartwatermelon/*`; only `CCCLI-NOS` reads `nightowlstudiollc/*`.
+
+All three tokens are now correctly scoped (the user token gained
+`Administration: Read-only` on 2026-09-16). Routing per owner reproduces the
+full fleet — **42 repos: smartwatermelon 24, nightowlstudiollc 12,
+twistedmelonman 6** — with no OAuth fallback. See
+`docs/runbooks/fleet-probe-token-scopes.md`.
+
+Neither `branches/main.protected` nor `repos/*/rules/branches/main`
+substitutes. `.protected` is `true` for every non-fork repo including those with
+no effective rules on the default branch, and `rules/branches/*` returns only
+ruleset-sourced rules, never classic protection.
+
+```bash
+for o in smartwatermelon nightowlstudiollc twistedmelonman; do
+  gh repo list "$o" --limit 100 \
+    --json nameWithOwner,isArchived \
+    --jq '.[]|select(.isArchived==false)|.nameWithOwner'
+done | tee /tmp/fleet.txt | while read -r r; do
+  printf '%-46s %s\n' "$r" \
+    "$(gh api "repos/$r/branches/main/protection" \
+       --jq '.required_status_checks.contexts//[]|join(",")' 2>/dev/null)"
+done
+# Sanity-check the enumeration before trusting any count derived from it:
+test "$(wc -l < /tmp/fleet.txt)" -ge 42 || echo "UNDERCOUNT: token lacks All-repositories access"
+```
+
+**Do not work around a scope gap by unsetting `GH_TOKEN`.** Falling back to the
+keyring OAuth token reads both correctly today, but that fallback is being
+closed deliberately (see `claude-wrapper#124`), and it defeats the identity
+routing the wrapper exists to enforce. Fix the token's scope instead:
+`docs/runbooks/fleet-probe-token-scopes.md`.
+
+**Status (2026-09-16):** token scopes are done. What remains is **routing** —
+nothing yet presents the owning account's token automatically, so a probe that
+just uses the session's `GH_TOKEN` still 403s on both orgs' repos and sees 27
+of 42. Until the `gh` wrapper routes fine-grained tokens by owner, a fleet
+probe must switch tokens itself; the runbook has the helper.
+
+**Why this section exists.** On 2026-09-16 a PAT-only probe concluded *"zero of
+32 repos require any status check."* Both numbers were wrong — the fleet is 42
+repos and 38 of them require a check. The 403s were read as evidence of absence
+and the 10 invisible private repos were never counted. It nearly inverted a
+fleet-wide plan. The probe itself flagged its inference as unproven; the error
+was in how that caveat got dropped on the way up.
 
 ## Where the project is
 
@@ -22,7 +91,7 @@ cheaper than recorded — wave 3 no longer gates it.
 | --- | --- |
 | Foundation (F) | F1, F3, F4 done. F2 open (latent hazard, not urgent). |
 | Identity / billing (I) | I3 done. I0, I1, I2 open. |
-| Fleet (W) | W0, W1, W2 done. W3 open — **critical path**. |
+| Fleet (W) | W0, W1, W2 done. W3 **5 of 42 done** — **critical path**. |
 | Local review (L) | L1 done. L2, L3, L4, L5 open. |
 | Runtime EOL (N) | N1a, N1b done. |
 
@@ -63,6 +132,22 @@ Three platform behaviors found the hard way, all now documented:
   ticket and will be dropped. Every private repo running a Claude workflow
   keeps its own repo-level copy.
 
+  > **Untracked step (flagged 2026-09-16): the Team → Free downgrade appears
+  > in no checklist**, although the org-migration design decided "Free plan
+  > for the org." Two consequences, both currently unrecorded:
+  >
+  > 1. **It re-imposes the private-repo secret constraint.** Measured
+  >    2026-09-16, **ten repos are private** — `scripts`, `cleanroom`,
+  >    `financial-agent`, `kebab-tax`, `kebab-tax-netlify`, `night-owl-studio`,
+  >    `reliquarist`, `tensegrity`, `claude-config-backup`, `infinite-yaks` —
+  >    and nine of them run Claude workflows. Each needs its own repo-level
+  >    token copy for as long as it is private.
+  > 2. **The migration's "annual mints drop from ~30 to 3" benefit does not
+  >    hold** while those repo-level copies exist. Budget the real number.
+  >
+  > Also note ticket 4729524 was reopened *because of* the Team upgrade, so
+  > sequence the downgrade after that ticket resolves.
+
 ### F4 — Token scope resolution
 
 Closed via a narrow escape hatch in `gh-wrapper.sh`, not the token router the
@@ -74,7 +159,11 @@ detects GitHub's own `needs the "admin:org" scope` on stderr and prints an
 ### W0 — Fleet brought to the exemplar settings
 
 **33 of 37 non-archived repos enforce `claude-review / run-review`, up from
-25.** Applied per-repo to 9 repos on 2026-09-05, matching
+25.** *(Re-measured 2026-09-16 across the true 42-repo fleet: 33 still require
+`claude-review`, 5 have moved to `standards-check`, and 4 require nothing —
+`infinite-yaks`, `claude-config-backup`, `Instapaper-MCP`, and
+`huddle-transcribe`, the last of which has protection configured with zero
+required contexts.)* Applied per-repo to 9 repos on 2026-09-05, matching
 `twistedmelonman/dotfiles` and `twistedmelonman/claude-config` (byte-identical
 to each other, which made the template unambiguous):
 
@@ -302,8 +391,32 @@ file), `#455`, `#489`, `#481`, `#496`. This should become an explicit L item.
 ### Critical path: W1 → W2 → W3
 
 W1 and W2 are done; W3 (flip `standards-check` to required per repo) is the
-remaining critical-path item. Plan and execution record:
+remaining critical-path item, **5 of 42 complete**. Plan and execution record:
 `docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md`.
+
+**W3's scope, settled 2026-09-16.** Three documents defined W3 incompatibly:
+the backlog spec said it *removes* `claude-blocking-review.yml`; the 09-08
+roadmap said it flips checks *and* retires the reviewer, the major tag, the
+restore script, the template and the tokens; `2026-09-11-w3-readiness.md`
+narrowed it to *"adds a second entry alongside `claude-review`; it does not
+displace it."*
+
+The narrowing stands, **and the removal work is now owned rather than
+orphaned**:
+
+- **W3** = add `standards-check / run-standards-check` alongside
+  `claude-review / run-review` on the 33 repos that still require it.
+- **A distinct retirement phase, after W3 is proven in enforcement** = remove
+  `claude-review`, delete the `claude-blocking-review.yml` callers, retire
+  `nightowl-restore-blocking-review.sh`, cut the major tag, update
+  `repo-template`, and drop review-only tokens.
+
+Between the 09-11 narrowing and this entry, **no work item owned any of that
+retirement work**, although the 09-08 decision recording it still stood. That
+was the single largest gap in this record.
+
+The 09-08 roadmap's hard constraint governs the ordering: *add
+`standards-check`, then remove `claude-review`, **never zero***.
 
 Decisions taken 2026-09-08 (Andrew) that unblocked W1 — see
 `docs/superpowers/plans/2026-09-08-backlog-remainder-roadmap.md`:
@@ -338,10 +451,23 @@ both predate the changed-files scoping fix — a stale red needing a fresh run,
 not a fix. zizmor and node-floor remain clean everywhere a check has run,
 confirming waves 1–2 landed cleanly.
 
-**`standards-check` is required on zero repos, so W3 has not started
-anywhere.** Wave 3 no longer gates it: after `github-workflows#165` the
-required-check contract is "no new debt in files this PR touches", not "this
-repo is clean".
+**W3 is 5 of 42 done — re-measured 2026-09-16.** `standards-check /
+run-standards-check` is required, with `strict: true`, on
+`smartwatermelon/dev-env`, `smartwatermelon/github-workflows`,
+`smartwatermelon/.github`, `twistedmelonman/claude-config` and
+`twistedmelonman/dotfiles` — exactly the pilot set w3-readiness proposed. The
+other **33 repos still require `claude-review / run-review`**; 4 require
+nothing.
+
+> A prior revision of this line read *"required on zero repos, so W3 has not
+> started anywhere."* It was measured with the `twistedmelonman` user token,
+> which lacks `Administration: Read-only` — so `branches/*/protection`
+> returned **403, not 404**, and classic branch protection read as absent
+> rather than unreadable — and which, being a user token, cannot see the 10
+> org-owned private repos at all. See "Measuring fleet state" below.
+
+Wave 3 no longer gates W3: after `github-workflows#165` the required-check
+contract is "no new debt in files this PR touches", not "this repo is clean".
 
 An earlier revision of this line named the base-SHA whole-repo fallback as the
 remaining gate, firing in "4 of 15 sampled runs (~27%)". **That measurement was

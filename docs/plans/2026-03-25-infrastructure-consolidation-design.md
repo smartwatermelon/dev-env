@@ -1,8 +1,24 @@
 # Infrastructure Consolidation & Local Review Enhancement
 
 **Date**: 2026-03-25
-**Status**: Phase 1 complete (2026-03-25). Validation week in progress.
+**Status**: **SUPERSEDED (2026-09-16).** Phases 1–2 shipped; Phases 3–5 are
+ABANDONED.
 **Goal**: One repo, one clone, one install. Replace remote AI review with enhanced local review. Cut CI costs to near-zero.
+
+> **Do not execute Phases 3–5 or treat this as the roadmap.** The active
+> roadmap is `docs/STATUS.md`.
+>
+> Three parts of the target state below are now wrong:
+>
+> - **Archiving `smartwatermelon/github-workflows`** — that repo is the
+>   load-bearing home of `standards-check.yml`, the fleet's required check.
+> - **`ci-gate.yml`** — superseded by `standards-check.yml` (W1, 2026-09-08).
+> - **The `install.sh` / `uninstall.sh` target state** — contradicts
+>   `README.md:7`, which states this repo is "not a tool, framework, or
+>   installable package."
+>
+> The parts that did ship (local review enhancement, Phases 1–2) are recorded
+> in `docs/STATUS.md`. This file is kept for history only.
 
 ---
 

@@ -1,7 +1,25 @@
 # Developer Workflow Deep Dive
 
 **Generated**: 2026-03-25
+**Status**: **PARTIALLY SUPERSEDED (2026-09-16).** The local-hook material is
+still broadly accurate. **The CI/CD and fleet material predates the 2026-09 org
+migration and the 2026-09-08 reviewer decision — do not rely on it.**
 **Scope**: All hooks, scripts, wrappers, and CI/CD that execute during the development lifecycle on this machine, with source attribution.
+
+> **Known stale as of 2026-09-16:**
+>
+> - **No mention of `twistedmelonman`.** The personal account was renamed from
+>   `smartwatermelon` in the 2026-09 migration; `smartwatermelon` is now an
+>   organization. `dotfiles`, `claude-config` and `personify` live under
+>   `twistedmelonman`.
+> - **Reusable-workflow refs are shown as `@v1`.** The fleet is on `@v3` /
+>   `@standards-check-v1` / `@dependabot-auto-merge-v2`.
+> - **`claude-blocking-review` is presented as a live enforcement layer.** The
+>   2026-09-08 decision retires it in favor of `standards-check.yml`, a
+>   deterministic linter-only check. As of 2026-09-16 it is still the required
+>   check on 33 repos, but it is being removed, not maintained.
+>
+> For current enforcement state, read `docs/STATUS.md`.
 
 ---
 

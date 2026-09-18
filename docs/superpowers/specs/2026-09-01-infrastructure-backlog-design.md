@@ -1,8 +1,20 @@
 # Design: Infrastructure Backlog Consolidation
 
-Status: STARTER SET LANDED — design approved 2026-09-01; re-confirmed
-2026-09-02 after folding in the issue delta below. The starter set executed
-2026-09-02/03; the rest of the backlog below is not started.
+Status: **IN PROGRESS (as of 2026-09-16)** — design approved 2026-09-01;
+re-confirmed 2026-09-02 after folding in the issue delta below. The starter set
+executed 2026-09-02/03.
+
+**Much of the backlog below has since shipped.** F1/F3/F4, I3, N1a/N1b, W0, W1,
+W2 and L1 are done; W3 is 5 of 42 complete. Inline `[DONE]` markers in the body
+are authoritative over any summary line. **`docs/STATUS.md` is the current
+record of where things stand** — read it first.
+
+Known stale in this document: item 4 below claims
+`scripts/.github/workflows/claude.yml` carries "the only two unpinned
+third-party refs in the fleet." **Measured 2026-09-16: both are SHA-pinned**
+(`actions/checkout@3d3c42e5…` v7.0.1,
+`anthropics/claude-code-action@19dda847…` v1.0.220). That work landed and was
+never recorded here.
 
 Starter set outcome (see `docs/superpowers/plans/2026-09-02-infrastructure-backlog-starter-set.md`):
 
@@ -414,7 +426,13 @@ only; nothing needed on personal machines.
 > section are marked inline below. Findings the spec's own failure table did
 > not anticipate are in dev-env#84.
 >
-> **25 of 30 repos moved.** Five are permanently blocked by GitHub's popular
+> **25 of 30 repos moved.** Five are blocked — **not permanently; see
+> `docs/STATUS.md`, "Five retired repo paths." Support ticket 4729524 is open
+> and the intent is to re-run `transfer.sh` if GitHub releases the names.** The
+> original wording ("permanently") contradicted STATUS.md and the remainder
+> roadmap; resolved 2026-09-16 in favor of "not given up on."
+>
+> Blocked by GitHub's popular
 > repository namespace retirement — `dotfiles`, `claude-config`, `personify`,
 > `huddle-transcribe`, `projectinsomnia`. A path is retired when the repo
 > there saw >100 clones or >100 Actions runs in the week before the rename,
@@ -590,7 +608,12 @@ Per decision 2026-09-01, one pass per repo delivers all of:
    `smartwatermelon/github-workflows/*: ref-pin`, `"*": hash-pin`.
 3. **Branch-protection normalization** (dev-env#75): set required checks,
    reconsider `strict` where it currently gates nothing.
-4. **`scripts` caller-stub conversion.**
+4. **`scripts` caller-stub conversion. [DONE — pinning resolved; measured
+   2026-09-16]** The pinning half of this item is complete:
+   `claude.yml` now SHA-pins `actions/checkout@3d3c42e5…` (v7.0.1) and
+   `anthropics/claude-code-action@19dda847…` (v1.0.220). Only the stub
+   conversion itself, if still wanted, remains. Original text follows.
+
    `scripts/.github/workflows/claude.yml` carries the only two unpinned
    third-party refs found — `actions/checkout@v7` (line 25) and
    `anthropics/claude-code-action@v1` (line 31). The second is the exact
@@ -981,8 +1004,9 @@ review (L), and runtime EOL (N) are independent. Fleet (W) waits on I3.
 
 **Critical path** is I3 → W1 → W2 → W3. Everything else fits around it.
 
-> **Updated 2026-09-05.** I3 is done (25/30 repos; five paths permanently
-> retired), and W0 is done with it — the fleet was brought to the
+> **Updated 2026-09-05.** I3 is done (25/30 repos; five paths retired **but not
+> given up on** — ticket 4729524 open), and W0 is done with it — the fleet
+> was brought to the
 > `dotfiles`/`claude-config` exemplar per-repo, 33 of 37 non-archived repos
 > enforcing `claude-review / run-review`. The critical path is now
 > **W1 → W2 → W3**, and W2 inherits a fleet that is already largely

@@ -18,6 +18,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
   - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
   - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
+  - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue; run by `.github/workflows/dependabot-digest.yml`. Tokens are installed by hand: see `docs/runbooks/dependabot-digest-tokens.md`
 - `.claude/` — Project-specific Claude Code configuration templates
@@ -29,7 +30,9 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
 
 **Global infrastructure lives at `~/.claude/` and `~/.config/git/hooks/`** — this repo documents and plans changes to that infrastructure, but the live infrastructure is installed globally, not here. Changes here are design docs and templates meant to be copied/symlinked into the global locations.
 
-**The infrastructure consolidation plan** (`docs/plans/2026-03-25-infrastructure-consolidation-design.md`) is the active roadmap. It aims to make this repo the single source of truth with an `install.sh` that symlinks everything into place (blue/green settings merge, idempotent installs).
+**`docs/STATUS.md` is the active roadmap** — it records where the infrastructure backlog stands and what to pick up next. The design docs under `docs/superpowers/specs/` are authoritative on *what* each item is and why; `STATUS.md` is authoritative on *where things stand*.
+
+**The March 2026 infrastructure consolidation plan** (`docs/plans/2026-03-25-infrastructure-consolidation-design.md`) is **superseded — Phases 3–5 are abandoned.** Do not resurrect its repo layout, its `ci-gate.yml`, or its step archiving `smartwatermelon/github-workflows` (now the load-bearing home of `standards-check.yml`). Its `install.sh`/`uninstall.sh` target state also contradicts `README.md:7`, which says this repo is "not a tool, framework, or installable package."
 
 ## Working in This Repo
 
