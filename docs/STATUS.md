@@ -115,7 +115,10 @@ when the repo saw >100 clones or >100 Actions runs in the week before a
 rename, or shipped a Marketplace action. Retirement binds the *string*, not
 the account, so the new org inherited the old user account's retired paths.
 It blocks transfer (HTTP 422) and creation alike. A support ticket is in
-flight (4729524), reopened after the org's Team upgrade; Andrew is pursuing it.
+flight ([4746770](https://help.github.com/ticket/personal/0/4746770)); Andrew
+is pursuing it. It supersedes 4729524, which was filed under **user** scope
+rather than **org** scope — the wrong scope for a question about paths the org
+now inherits. No response as of 2026-09-18.
 
 Three platform behaviors found the hard way, all now documented:
 
@@ -145,8 +148,10 @@ Three platform behaviors found the hard way, all now documented:
   > 2. **The migration's "annual mints drop from ~30 to 3" benefit does not
   >    hold** while those repo-level copies exist. Budget the real number.
   >
-  > Also note ticket 4729524 was reopened *because of* the Team upgrade, so
-  > sequence the downgrade after that ticket resolves.
+  > Also note the support ticket was reopened *because of* the Team upgrade,
+  > so sequence the downgrade after it resolves. The live ticket is now
+  > [4746770](https://help.github.com/ticket/personal/0/4746770) (org scope);
+  > 4729524 was the user-scoped predecessor.
 
 ### F4 — Token scope resolution
 
@@ -565,7 +570,7 @@ These are not oversights. Do not "fix" them without asking.
 | Splitting and rotating the shared token | **Deferred.** One token is installed in five places; a single rotation covers all of them. See `docs/token-rotation.md`. |
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
-| Five retired repo paths | **Support ticket 4729524.** Closed by GitHub 2026-09-04 as self-service-only; reopened after the org's Team upgrade; status requested 2026-09-08, no staff reply. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
+| Five retired repo paths | **Support ticket [4746770](https://help.github.com/ticket/personal/0/4746770)**, org scope. Supersedes 4729524, which was filed under user scope — the wrong scope, since the paths are now inherited by the org. That predecessor was closed by GitHub 2026-09-04 as self-service-only and reopened after the Team upgrade; no staff reply ever came. No response on the new ticket as of 2026-09-18. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
 
 ## Standing methodology
 
