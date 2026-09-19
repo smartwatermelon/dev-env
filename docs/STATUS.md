@@ -5,6 +5,21 @@
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
 
+**Hard stop: 2026-09-30.** Andrew is off this project after that date for a
+month of postponed Kebab work ahead of tax season. Everything below needs to
+land, or be explicitly parked with a resume note, by then — see the tracker.
+
+**Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
+using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
+still need one-time setup (see dev-env issue tracker); this file stays the
+narrative record, the board is the day-to-day view. Items filed for the
+board's initial pass: #147 (W3), #148 (credential rotation, `nightowlstudiollc`,
+Urgent, target 2026-09-30), #124 (local-reviewer reliability, Urgent), #149
+(Dependabot digest App migration), #150 (I0), #151 (F2), plus existing #90,
+#85, #84, #94, #120. **Scope for the 2026-09-30 line — full W3 completion vs.
+a pause-safe checkpoint — is not yet decided; pending Andrew's review of the
+board.**
+
 Re-measure before acting on any number here. Every count below came from a
 live query on the date shown, and the fleet drifts.
 
