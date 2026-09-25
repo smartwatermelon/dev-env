@@ -1,0 +1,42 @@
+smartwatermelon/mac-server-setup	main	PUBLIC	claude-review / run-review
+smartwatermelon/github-workflows	main	PUBLIC	standards-check / run-standards-check
+smartwatermelon/dev-env	main	PUBLIC	standards-check / run-standards-check
+smartwatermelon/pr-review	main	PUBLIC	claude-review / run-review
+smartwatermelon/claude-wrapper	main	PUBLIC	claude-review / run-review
+smartwatermelon/scripts	main	PRIVATE	claude-review / run-review
+smartwatermelon/claude-code-workflows-agents	main	PUBLIC	claude-review / run-review
+smartwatermelon/spokane-snow	main	PUBLIC	claude-review / run-review
+smartwatermelon/lock-sync	main	PUBLIC	claude-review / run-review
+smartwatermelon/.github	main	PUBLIC	standards-check / run-standards-check
+smartwatermelon/archive-resolver	main	PUBLIC	claude-review / run-review
+smartwatermelon/gmail-newsletter-filter	main	PUBLIC	claude-review / run-review,test,lint
+smartwatermelon/vpn-lan-bridge	main	PUBLIC	claude-review / run-review
+smartwatermelon/swift-progress-indicator	main	PUBLIC	claude-review / run-review
+smartwatermelon/infinite-yaks	main	PRIVATE	(unprotected)
+smartwatermelon/homebrew-tap	main	PUBLIC	claude-review / run-review
+smartwatermelon/mac-dev-server-setup	main	PUBLIC	claude-review / run-review
+smartwatermelon/slack-mcp	main	PUBLIC	claude-review / run-review
+smartwatermelon/smartwatermelon-marketplace	main	PUBLIC	claude-review / run-review
+smartwatermelon/qwen-sidebar	main	PUBLIC	claude-review / run-review
+smartwatermelon/crazy-larry	main	PUBLIC	claude-review / run-review
+smartwatermelon/x-thread-reader	main	PUBLIC	claude-review / run-review
+smartwatermelon/claude-config-backup	main	PRIVATE	(unprotected)
+smartwatermelon/repo-template	main	PUBLIC	claude-review / run-review
+nightowlstudiollc/.github	main	PUBLIC	claude-review / run-review
+nightowlstudiollc/amelia-boone	main	PUBLIC	claude-review / run-review
+nightowlstudiollc/kebab-tax	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/tensegrity	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/kebab-tax-netlify	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/reliquarist	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/tnjcleaning	main	PUBLIC	claude-review / run-review
+nightowlstudiollc/night-owl-studio	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/cleanroom	main	PRIVATE	claude-review / run-review
+nightowlstudiollc/networth-agent	main	PUBLIC	claude-review / run-review
+nightowlstudiollc/financial-agent	main	PRIVATE	claude-review / run-review
+twistedmelonman/dotfiles	main	PUBLIC	standards-check / run-standards-check
+twistedmelonman/claude-config	main	PUBLIC	standards-check / run-standards-check
+twistedmelonman/huddle-transcribe	main	PUBLIC	(none)
+twistedmelonman/personify	main	PUBLIC	validate,claude-review / run-review
+twistedmelonman/parmesan	main	PUBLIC	(unprotected)
+twistedmelonman/projectinsomnia	main	PUBLIC	claude-review / run-review
+twistedmelonman/Instapaper-MCP	main	PUBLIC	(unprotected)

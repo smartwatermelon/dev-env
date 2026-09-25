@@ -1,0 +1,33 @@
+repo	visibility	main_commit_standards_check	last_5_standards_check_runs (branch:conclusion)
+smartwatermelon/mac-server-setup	PUBLIC	none	claude/fix-log-std:success claude/fix-start-a:success claude/feat-plex-r:success claude/docs-tcc-pr:success claude/docs-stall-:success
+smartwatermelon/pr-review	PUBLIC	none	claude/fix-drop-du:success claude/chore-owner:success claude/chore-remov:success claude/ci-dependab:success claude/chore-stand:success
+smartwatermelon/claude-wrapper	PUBLIC	none	caff-i-s:success caff-i-s:success caff-i-s:success claude/feat-load-a:success claude/feat-load-a:success
+smartwatermelon/scripts	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	openai-instapaper-:success claude/feat-apple-:success feature/apple-note:success feature/apple-note:success dependabot/github_:success
+smartwatermelon/claude-code-workflows-agents	PUBLIC	none	dependabot/uv/plug:success dependabot/uv/plug:success claude/ci-float-wo:success dependabot/uv/plug:success dependabot/uv/tool:success
+smartwatermelon/spokane-snow	PUBLIC	none	dependabot/github_:success dependabot/github_:success claude/chore-remov:success claude/chore-lint-:success claude/ci-zizmor-0:failure
+smartwatermelon/lock-sync	PUBLIC	none	dependabot/github_:success dependabot/github_:success claude/chore-remov:success claude/chore-lint-:success claude/ci-zizmor-0:failure
+smartwatermelon/archive-resolver	PUBLIC	none	dependabot/github_:success claude/ci-float-wo:success dependabot/github_:success claude/fix-standar:success claude/ci-zizmor-0:failure
+smartwatermelon/gmail-newsletter-filter	PUBLIC	none	claude/ci-float-wo:success dependabot/github_:success claude/chore-lint-:success claude/chore-node-:failure
+smartwatermelon/vpn-lan-bridge	PUBLIC	none	claude/ci-float-wo:success
+smartwatermelon/swift-progress-indicator	PUBLIC	none	claude/ci-verify-v:success claude/ci-zizmor-0:success
+smartwatermelon/homebrew-tap	PUBLIC	none	claude/fix-postfli:success
+smartwatermelon/mac-dev-server-setup	PUBLIC	none	claude/chore-align:success
+smartwatermelon/slack-mcp	PUBLIC	none	claude/chore-remov:success claude/chore-lint-:success claude/ci-zizmor-0:failure
+smartwatermelon/smartwatermelon-marketplace	PUBLIC	none	claude/wave3-lint-:success
+smartwatermelon/qwen-sidebar	PUBLIC	none	claude/wave3-shell:success
+smartwatermelon/crazy-larry	PUBLIC	none	
+smartwatermelon/x-thread-reader	PUBLIC	none	
+smartwatermelon/repo-template	PUBLIC	none	chore/standards-ch:success chore/standards-ch:success
+nightowlstudiollc/.github	PUBLIC	none	dependabot/github_:success dependabot/github_:success claude/ci-float-wo:success dependabot/github_:success claude/fix-blockin:success
+nightowlstudiollc/amelia-boone	PUBLIC	none	dependabot/npm_and:success claude/ci-float-wo:success dependabot/npm_and:success dependabot/npm_and:success dependabot/github_:success
+nightowlstudiollc/kebab-tax	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	dependabot/github_:success claude/ci-float-wo:success claude/ci-float-wo:failure claude/ci-zizmor-0:failure claude/chore-node-:failure
+nightowlstudiollc/tensegrity	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	dependabot/github_:success claude/ci-float-wo:success claude/chore-lint-:success claude/ci-zizmor-0:failure
+nightowlstudiollc/kebab-tax-netlify	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	dependabot/npm_and:success dependabot/github_:success dependabot/github_:success dependabot/github_:success claude/ci-float-wo:success
+nightowlstudiollc/reliquarist	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	dependabot/github_:success claude/ci-float-wo:success dependabot/github_:success dependabot/github_:success dependabot/github_:success
+nightowlstudiollc/tnjcleaning	PUBLIC	none	claude/ci-float-wo:success claude/chore-remov:success claude/wave3-lint-:success
+nightowlstudiollc/night-owl-studio	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	claude/ci-float-wo:success claude/wave3-yamll:success
+nightowlstudiollc/cleanroom	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	claude/ci-float-wo:success claude/chore-lint-:success dependabot/npm_and:failure
+nightowlstudiollc/networth-agent	PUBLIC	none	HTTP 404: workflow standards-check.yml not found on the default branch (https://api.github.com/repos/nightowlstudiollc/networth-agent/action
+nightowlstudiollc/financial-agent	PRIVATE	unreadable (fine-grained PAT has no Checks permission)	claude/ci-float-wo:success claude/chore-remov:success claude/wave3-shell:success
+twistedmelonman/personify	PUBLIC	none	dependabot/github_:success claude/fix-hono-au:success claude/docs-voice-:success claude/docs-voice-:success dependabot/npm_and:success
+twistedmelonman/projectinsomnia	PUBLIC	none	dependabot/npm_and:success dependabot/npm_and:success dependabot/npm_and:success dependabot/npm_and:success dependabot/npm_and:success
