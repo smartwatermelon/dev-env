@@ -64,8 +64,8 @@ and has never published.
 
 | Bucket | Count | Meaning |
 | --- | --- | --- |
-| LAND | 43 | Do by 9/30 (3 P0, 13 P1, 16 P2, 11 P3) |
-| PARK | 80 | Defer; each gets a resume note on the issue |
+| LAND | 44 | Do by 9/30 (3 P0, 14 P1, 16 P2, 11 P3) |
+| PARK | 79 | Defer; each gets a resume note on the issue |
 | CLOSE — certain | 22 | Already done, duplicate, or won't-do, with evidence |
 | CLOSE — uncertain | 18 | Needs Andrew's call; evidence line in Appendix B |
 
@@ -84,6 +84,12 @@ candidates. PARK items stay in `triage.tsv`, grouped by theme.
 | D5 | Close list | Approve Appendix B's 22 in one message; rule on Appendix C's 18. | Closes 40 of 163 on Day 1. |
 | D6 | Digest (`dev-env#149`) | **Install the GitHub App** (plan: `docs/plans/2026-09-11-dependabot-digest-github-app.md`). If not by Mon, **disable the schedule** and PARK. | 17 red runs a day is noise either way. |
 | D7 | Agent budget | Raise `BUDGET_SUBAGENT_TOKENS` for this sprint, **or** accept one repo per agent. | Every agent in tonight's analysis ran 1.5–3× over the 2.3M ceiling. |
+
+**D1–D7 approved by Andrew, 2026-09-24**, with one amendment to D3: a UI
+merge skips `pre-merge-review.sh` silently, which is the defect in
+`dev-env#109`. So `dev-env#109` (mobile merge authorization) moves from PARK
+to LAND, P1, target Sat 9/26, in WS5. Until it ships, merge windows use UI
+merges plus a post-merge audit listing every merge that had no lock.
 
 ## 5. Blockers and tooling asks
 
@@ -154,6 +160,7 @@ bundling makes them ~15 PRs total, merged in the Monday window.
 
 | Issue | What | Effort | Gate |
 | --- | --- | --- | --- |
+| `dev-env#109` | Mobile merge authorization: a GitHub comment by Andrew creates the lock (absorbs `claude-config#509`, `dev-env#153`). Known-bad test: a comment by anyone else creates nothing. | M | Target Sat 9/26; security-model change, so Andrew reviews before merge |
 | `claude-config#548` | Three text surfaces the gate misses | M | Before the gate re-arms 10/01 |
 | `claude-config#585` | Morning/evening briefs publish personal data | M | Andrew: accept public history? pick profile path |
 | `dev-env#156` | Secret redaction misses non-gitleaks vendors | M | — |
@@ -174,9 +181,9 @@ bundling makes them ~15 PRs total, merged in the Monday window.
 
 | Day | Agents | Andrew (H) | Checkpoint |
 | --- | --- | --- | --- |
-| **Thu 9/24** (tonight) | Gate PRs in CI | Answer D1–D7 | — |
-| **Fri 9/25** | WS0 board + closes; WS2 lanes A+B start; WS3 pilot (3 repos); WS4 fan-out starts; WS6 board | Merge gate PRs, `SUSPENDED`, token scope, WS1 rotation (~1.5 h) | **CP1 (EOD):** gate lifted, tokens writable, credentials rotated, board live, 40 issues closed |
-| **Sat 9/26** | WS2 continues; WS4 PRs; WS5 | Optional | — |
+| **Thu 9/24** (tonight) | Gate PRs merged; gate suspended | D1–D7 answered | Done |
+| **Fri 9/25** | WS0 board + closes; WS2 lanes A+B start; WS3 pilot (3 repos); WS4 fan-out starts; WS6 board | Token scope, WS1 rotation (~1 h) | **CP1 (EOD):** gate lifted, tokens writable, credentials rotated, board live, 40 issues closed |
+| **Sat 9/26** | WS2 continues; WS4 PRs; WS5 (`dev-env#109` first) | Optional: review `dev-env#109` | — |
 | **Sun 9/27** | WS2 lane C; WS5; WS6 resume notes | Optional | — |
 | **Mon 9/28** | Fix review/CI findings | **Merge window AM** (~1 h): WS2, WS4, WS5 PRs; D6 digest fallback | **CP2:** reviewer fixes merged; fleet sweep merged |
 | **Tue 9/29** | WS3 remaining flips; WS6 notes finished | Merge window PM (~30 min) | **CP3:** W3 32 of 32 (or named exceptions) |
@@ -195,7 +202,7 @@ moves.
 - Re-arm check: the gate re-arms itself on 10/01; `claude-config#547` (SSH)
   must be fixed before relying on it remotely.
 
-## Appendix A — LAND (43)
+## Appendix A — LAND (44)
 
 | Pri | Issue | Effort | Theme | Human gate | Title |
 | --- | --- | --- | --- | --- | --- |
@@ -212,6 +219,7 @@ moves.
 | P1 | `claude-config#558` | S | review-false-ok | — | Chunked commit review never runs adversarial-reviewer, and does not say so |
 | P1 | `claude-config#585` | M | daily-brief-skills | Andrew: accept that history stays public; pick profile path | morning-andrew and evening-andrew publish personal and workplace details; split  |
 | P1 | `claude-wrapper#126` | S | gh-identity-routing | — | Per-session token selection breaks cross-owner work, and selected the wrong toke |
+| P1 | `dev-env#109` | M | merge-gate | Andrew reviews the security-model change | \[infra\] Merge authorization is laptop-only, so mobile forces a silent gate bypass (promoted from PARK 09-24) |
 | P1 | `dev-env#147` | L | W3-fleet | Andrew picks scope (full 37 vs pause-safe checkpoint) per STATUS | \[infra\]\[W3\] Flip standards-check to required, fleet-wide (5 of 42 done) |
 | P1 | `dev-env#149` | S | dependabot-digest | Andrew creates the App and installs it on all 3 owners | \[infra\] Dependabot digest: migrate to GitHub App auth (blocked on human install  |
 | P1 | `dev-env#156` | M | secret-hygiene | none (code lives in claude-config; consider transferring issue) | Secret redaction misses vendors gitleaks has no rule for; add a command-keyed pr |
