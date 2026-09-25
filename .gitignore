@@ -5,3 +5,6 @@ scripts/settings-plan.sh
 # them, shifting the line numbers the measurement indexes.
 docs/data/corpus-440/files/
 docs/data/corpus-440/results/
+
+# Agent context files are not project content (smartwatermelon/dev-env#155).
+AGENTS.md
