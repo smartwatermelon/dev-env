@@ -127,8 +127,84 @@ its own PR, so a private repo left on a free owner has no gate.
   Enterprise. Test on one free public repo; if rulesets are not available,
   use classic branch protection, which the fleet already uses.
 
+## Superuser mode (desktop only)
+
+Normal work runs as the machine account. Infrastructure work that needs admin
+(protection, secrets, repo creation, org settings) runs in a short **superuser
+mode** on the desktop, with Andrew present, using his admin token.
+
+The split is real only if the admin token cannot be reached in normal mode.
+On the desktop the agent runs as Andrew's OS user, so any token on disk, in
+the keyring or in the environment is readable in every session. Today that is
+true of both `GH_TOKEN` (loaded from 1Password at shell start) and the `gho_`
+keyring token that the F4 escape hatch uses.
+
+Requirements:
+
+1. **No admin token at rest.** Log `twistedmelonman` out of the `gh` keyring.
+   Normal shells get only the machine account's token.
+2. **The admin token comes from 1Password with biometric unlock**, for one
+   command or one session (`op run -- gh ...`, or `op read` into one
+   command's environment). Each new authorization needs Andrew's Touch ID.
+   A CLI authorization stays valid for a while after unlock (about 10 minutes
+   idle, per terminal session; confirm before relying on it), so end the mode
+   with `op signout`, not by waiting.
+3. **Desktop only.** The claude.ai GitHub connection stays on the machine
+   account; cloud sessions never hold admin.
+4. **Settings, not merges.** No-bypass protection blocks admins too, so merges
+   still go through Andrew's review in the GitHub app. In superuser mode the
+   agent acts as Andrew and could approve PRs, so the mode is not used for
+   PR work.
+
+Accepted risk: while the mode is on, the only control is Andrew watching. The
+local hooks removed below are not there as a backstop. Keep sessions short
+and focused.
+
+Optional: log every command run with the admin token, in the manner of
+`blocked-audit.sh`, for review afterwards.
+
+## What this lets us remove
+
+Classified against the inventory in `docs/WORKFLOW-DEEP-DIVE.md` ("File
+Inventory"). **Remove only after every repo the agent works in is at the
+target state.** Until then, the local merge lock is the only control on the
+rest.
+
+Removable, because GitHub enforces it server-side:
+
+- `merge-lock.sh`, `hook-block-merge-lock-authorize.sh`,
+  `hook-block-merge-lock.sh`, `hook-block-merge-locks-write.sh`
+- `hook-block-api-merge.sh`, and with it the newline-bypass gap
+  (claude-config#137). An API or GraphQL merge still needs the review.
+- The `main` checks in the `pre-push` git hook: no-bypass protection rejects
+  the push. `hook-block-main-commit.sh` becomes optional, since a local commit
+  on `main` cannot leave the machine.
+- Most of the `gh` wrapper's identity routing (F3 guard, F4 escape hatch):
+  one identity, no admin scope, nothing to route.
+- CLAUDE.md rules such as "never merge without auth" and "never push to
+  `main`".
+
+Stays, because it does not depend on who holds admin:
+
+- `run-review.sh` and the `pre-commit` review (code quality)
+- `hook-block-no-verify.sh` and `hook-block-short-no-verify.sh`, while local
+  hooks are the quality gate
+- `pre-merge-review.sh`: analysis, not authorization. Whether it becomes
+  advisory is a separate decision.
+- The worktree blocks, the secret-leak hook, the Personify gate, and
+  `commit-msg`
+
+Added: the four conditions under "Conditions for the gate to hold". They are
+mostly one-time settings, not hooks to maintain.
+
+Lost to the machine account, now done in superuser mode: W3-style
+required-check changes, repo and org secrets, reading branch protection
+(fleet probes), repo creation, org settings. **Do not switch before W3 is
+done**, since W3 is admin work on the critical path.
+
 ## Order of work
 
+0. W3 is done.
 1. Support ticket 4746770 resolves; the retired paths move or stay.
 2. Private `smartwatermelon` repos move to `nightowlstudiollc`.
 3. `smartwatermelon` downgrades to Free.
@@ -136,7 +212,11 @@ its own PR, so a private repo left on a free owner has no gate.
 5. Create the machine account, turn on 2FA, grant roles.
 6. Apply the branch settings. Resolve the Dependabot question first.
 7. Switch the agent's credentials; verify with `gh api user` and `get_me`.
-8. Revoke the old `twistedmelonman` tokens the agent used.
+8. Revoke the old `twistedmelonman` tokens the agent used. Log
+   `twistedmelonman` out of the desktop `gh` keyring; set up the 1Password
+   path for superuser mode.
+9. Once every repo is at the target state, remove the tooling listed under
+   "What this lets us remove".
 
 ## Side note: a Slack front end (optional, not required)
 
