@@ -29,7 +29,9 @@ proof that this path works: a published digest means every check was read.
 - **Repository permissions**, all read-only: Checks, Contents, Metadata,
   Pull requests, Commit statuses. Nothing else. Webhook inactive.
 - The private key lives in 1Password vault `Automation`, item `DIGEST_APP`
-  (fields `client_id`, `private_key`).
+  (fields `client_id`, `private_key`). Use the attached
+  `dependabot-digest-swm.2026-10-01.private-key.pem`, not the `private_key`
+  field: 1Password flattens a pasted PEM to one line, which is unusable.
 
 ## Install the secrets
 
@@ -37,11 +39,13 @@ Both go on `smartwatermelon/dev-env` as repository secrets, because that is
 where the workflow runs:
 
 ```bash
-gh secret set DIGEST_APP_CLIENT_ID   --repo smartwatermelon/dev-env
-gh secret set DIGEST_APP_PRIVATE_KEY --repo smartwatermelon/dev-env
+gh secret set DIGEST_APP_CLIENT_ID --repo smartwatermelon/dev-env
+op read "op://Automation/DIGEST_APP/dependabot-digest-swm.2026-10-01.private-key.pem" \
+  | gh secret set DIGEST_APP_PRIVATE_KEY --repo smartwatermelon/dev-env
 ```
 
-The private key is multi-line: paste the whole `.pem` and press Ctrl-D.
+The first command prompts for the client ID. The second pipes the key file
+straight from 1Password, so its line breaks survive.
 
 Repository secrets rather than org secrets, deliberately: `dev-env` is the only
 repo that runs this, and org-level secrets do not reach private repos on the
