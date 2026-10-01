@@ -1,0 +1,25 @@
+name: Tests
+
+# Pull requests only: the suites run once, in CI, and are not repeated on
+# push to main.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Both suites are hermetic: they put a stub `gh` on PATH and never
+      # reach GitHub. They need bash and jq; ubuntu-latest ships both.
+      - name: Run org-migration tests
+        run: bash scripts/org-migration/tests/run-tests.sh
+
+      - name: Run dependabot-digest tests
+        run: bash scripts/dependabot-digest/tests/run-tests.sh
