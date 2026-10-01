@@ -14,8 +14,10 @@ name: Dependabot Digest
 # scheduled job should route around.
 
 on:
-  # Daily schedule (cron '0 14 * * *') removed 2026-10-01: every run failed
-  # on token scope. Restore it once dev-env#149 lands the GitHub App.
+  schedule:
+    # 14:00 UTC daily — morning in US Pacific, so the queue is current when
+    # the day starts.
+    - cron: '0 14 * * *'
   # A scheduled workflow runs only on the default branch, so a pull request
   # cannot exercise it. This is how the first run gets triggered and how the
   # job is tested after a change.
@@ -36,7 +38,7 @@ jobs:
     permissions:
       contents: read
       # Writes the digest issue in this repository. The PR data itself is read
-      # with the per-owner tokens below, which carry no write access anywhere.
+      # with the per-owner app tokens, which carry no write access anywhere.
       issues: write
     steps:
       - name: Check out
@@ -44,29 +46,49 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Mint a token for smartwatermelon
+        id: token-smartwatermelon
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DIGEST_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DIGEST_APP_PRIVATE_KEY }}
+          owner: smartwatermelon # zizmor: ignore[github-app] whole-fleet survey; no repo subset exists
+          permission-checks: read
+          permission-contents: read
+          permission-pull-requests: read
+          permission-statuses: read
+
+      - name: Mint a token for nightowlstudiollc
+        id: token-nightowlstudiollc
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DIGEST_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DIGEST_APP_PRIVATE_KEY }}
+          owner: nightowlstudiollc # zizmor: ignore[github-app] whole-fleet survey; no repo subset exists
+          permission-checks: read
+          permission-contents: read
+          permission-pull-requests: read
+          permission-statuses: read
+
+      - name: Mint a token for twistedmelonman
+        id: token-twistedmelonman
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DIGEST_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DIGEST_APP_PRIVATE_KEY }}
+          owner: twistedmelonman # zizmor: ignore[github-app] whole-fleet survey; no repo subset exists
+          permission-checks: read
+          permission-contents: read
+          permission-pull-requests: read
+          permission-statuses: read
+
       - name: Build and publish the digest
         env:
-          # One token per owner: a fine-grained PAT is "limited to access
-          # resources owned by a single user or organization" (GitHub docs), so
-          # three owners need three tokens. Each needs Pull requests, Contents,
-          # Commit statuses and Metadata — all read-only, on all repositories
-          # for that owner.
-          #
-          # Those four are the most a fine-grained token can be given, and they
-          # are NOT enough to survey private repos: a fine-grained PAT has no
-          # Checks permission at all
-          # (github.com/orgs/community/discussions/129512), so it cannot read
-          # GitHub Actions results there. GitHub does not error — it returns
-          # statusCheckRollup with HTTP 200 and nulls every CheckRun, which
-          # would turn failing builds into "nothing failing". collect.sh
-          # refuses such a response rather than under-report.
-          #
-          # Resolving that needs a classic PAT (write access fleet-wide), a
-          # GitHub App (which does have Checks), or accepting public-repo-only
-          # coverage. See docs/runbooks/dependabot-digest-tokens.md.
-          DIGEST_TOKEN_SMARTWATERMELON: ${{ secrets.DIGEST_TOKEN_SMARTWATERMELON }}
-          DIGEST_TOKEN_NIGHTOWLSTUDIOLLC: ${{ secrets.DIGEST_TOKEN_NIGHTOWLSTUDIOLLC }}
-          DIGEST_TOKEN_TWISTEDMELONMAN: ${{ secrets.DIGEST_TOKEN_TWISTEDMELONMAN }}
+          # Per-owner app tokens minted above. Why an app, not PATs:
+          # docs/runbooks/dependabot-digest-credentials.md
+          DIGEST_TOKEN_SMARTWATERMELON: ${{ steps.token-smartwatermelon.outputs.token }}
+          DIGEST_TOKEN_NIGHTOWLSTUDIOLLC: ${{ steps.token-nightowlstudiollc.outputs.token }}
+          DIGEST_TOKEN_TWISTEDMELONMAN: ${{ steps.token-twistedmelonman.outputs.token }}
           # A token that has lost private-repo access still answers searches
           # successfully, returning only public results. Naming one private
           # repo per owner lets the collector prove it can still see private

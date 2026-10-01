@@ -168,8 +168,8 @@ fi
 
 # A check whose fields came back null is an access failure, not a passing
 # check. GitHub returns statusCheckRollup with HTTP 200 and the correct
-# totalCount, then nulls every CheckRun a fine-grained token may not read —
-# Checks: read cannot be granted to one at all
+# totalCount, then nulls every CheckRun the credential may not read —
+# a fine-grained token, or an app installation lacking Checks: read
 # (github.com/orgs/community/discussions/129512). Measured 2026-09-11: 11 of 12
 # contexts null, and the one survivor was a Netlify StatusContext.
 #

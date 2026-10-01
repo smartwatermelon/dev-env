@@ -20,7 +20,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/token-rotation.md` — Where each `CLAUDE_CODE_OAUTH_TOKEN` lives and when it expires; never contains a token
   - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
-- `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue; run by `.github/workflows/dependabot-digest.yml`. Tokens are installed by hand: see `docs/runbooks/dependabot-digest-tokens.md`
+- `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue; run by `.github/workflows/dependabot-digest.yml`. Credentials (a GitHub App) are installed by hand: see `docs/runbooks/dependabot-digest-credentials.md`
 - `.claude/` — Project-specific Claude Code configuration templates
   - `.claude/config.sh.template` — Template for project configuration (Node version, required tools, deployment secrets, build/deploy hooks)
   - `.project-hooks/pre-commit` and `.project-hooks/pre-push` — Project-specific git hook extensions, run by the global hooks at `~/.config/git/hooks/` when executable
