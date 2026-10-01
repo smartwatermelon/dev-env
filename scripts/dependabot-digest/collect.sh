@@ -205,9 +205,10 @@ while IFS=$'\t' read -r nwo number; do
   if [[ -n "${nulled}" && "${nulled}" != "null" && "${nulled}" -gt 0 ]]; then
     echo "collect.sh: ${nwo}#${number}: ${nulled} check(s) returned null —" \
       "the token can see that checks exist but not what they say." \
-      "A fine-grained token cannot grant Checks: read" \
-      "(github.com/orgs/community/discussions/129512), so this survey would" \
-      "under-report failures rather than fail. Refusing to continue." >&2
+      "The credential cannot read check runs: a fine-grained token never can" \
+      "(github.com/orgs/community/discussions/129512), and an app installation" \
+      "cannot if it lacks Checks: read. This survey would under-report failures" \
+      "rather than fail. Refusing to continue." >&2
     exit 1
   fi
   jq -c --arg nwo "${nwo}" --argjson base_red "${base_red}" '
