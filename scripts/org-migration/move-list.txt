@@ -7,7 +7,7 @@
 # claude-config, dotfiles, huddle-transcribe, personify and
 # projectinsomnia sat on twistedmelonman as an interim shim while
 # GitHub had their smartwatermelon/<name> paths retired (support
-# ticket 4729524). GitHub released the paths and the five moved to
+# ticket 4746770). GitHub released the paths and the five moved to
 # smartwatermelon by 2026-10-01; their rows now name the final owner.
 # See docs/STATUS.md.
 .github	smartwatermelon

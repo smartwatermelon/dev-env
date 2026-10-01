@@ -1,13 +1,31 @@
 # Infrastructure project status
 
-**As of 2026-09-16.** Point-in-time snapshot of the infrastructure backlog
+**As of 2026-09-16, with a 2026-10-01 update below.** Point-in-time snapshot
+of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
 
-**Hard stop: 2026-09-30.** Andrew is off this project after that date for a
-month of postponed Kebab work ahead of tax season. Everything below needs to
-land, or be explicitly parked with a resume note, by then — see the tracker.
+**Hard stop: moved from 2026-09-30 to about 2026-10-07.** Andrew spent
+09-28 to 09-30 rebuilding the submitted-text gate (destination routing and
+length caps; `claude-config#628`, `#648`, `personify#108`), which took
+priority. The gate is suspended until 2026-10-07 by
+`~/.claude/gate-review/SUSPENDED`. After the stop, Andrew is off this project
+for postponed Kebab work ahead of tax season. Everything below needs to land,
+or be explicitly parked with a resume note, by then — see the tracker.
+
+**2026-10-01 update, measured live that day:**
+
+- **Org migration finished.** GitHub released the five retired paths. All
+  five repos are owned by `smartwatermelon`, local remotes are re-pointed,
+  and `scripts/org-migration/move-list.txt` names the final owner.
+- **W3: 33 of 40 active repos require `standards-check`.** 24 flipped on
+  2026-10-01 plus `huddle-transcribe`, which had no required check. See
+  "W3 on 2026-10-01" under the critical path for the four held back.
+- **Dependabot digest: daily schedule removed.** Every run since 09-26 failed
+  on token scope. The fix is the App migration, `dev-env#149`.
+- **Credential rotation:** three of four done. Only `kebab-tax#1258` is open,
+  waiting for the rotated token's first real use.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -21,8 +39,9 @@ New issues filed for the board's initial pass: `dev-env#147` (W3),
 (local-reviewer reliability, Urgent), `dev-env#90`, `dev-env#85`,
 `dev-env#84`, `dev-env#94`, and `dev-env#120`.
 
-**Scope for the 2026-09-30 line — full W3 completion vs. a pause-safe
-checkpoint — is not yet decided; pending Andrew's review of the board.**
+**Scope for the hard stop was decided 2026-09-24** (D1 in
+`docs/superpowers/plans/2026-09-24-finish-line.md`): a pause-safe checkpoint
+as the floor, full W3 as the target.
 
 Re-measure before acting on any number here. Every count below came from a
 live query on the date shown, and the fleet drifts.
@@ -110,7 +129,7 @@ cheaper than recorded — wave 3 no longer gates it.
 | --- | --- |
 | Foundation (F) | F1, F3, F4 done. F2 open (latent hazard, not urgent). |
 | Identity / billing (I) | I3 done. I0, I1, I2 open. |
-| Fleet (W) | W0, W1, W2 done. W3 **5 of 42 done** — **critical path**. |
+| Fleet (W) | W0, W1, W2 done. W3 **33 of 40 done** (2026-10-01) — **critical path**. |
 | Local review (L) | L1 done. L2, L3, L4, L5 open. |
 | Runtime EOL (N) | N1a, N1b done. |
 
@@ -127,7 +146,11 @@ the design sketched: the personal account `smartwatermelon` was renamed to
 `twistedmelonman`, then `smartwatermelon` was re-created as an organization
 and repos transferred in.
 
-**25 of 30 repos moved. Five are blocked pending a support ticket.** `dotfiles`, `claude-config`,
+**30 of 30 repos moved.** On 2026-09-04, 25 moved. The last five landed in
+`smartwatermelon` by 2026-10-01, after GitHub released their paths. The text
+below records why they were stuck.
+
+**Previously: five blocked pending a support ticket.** `dotfiles`, `claude-config`,
 `personify`, `huddle-transcribe`, `projectinsomnia` are blocked by GitHub's
 **popular repository namespace retirement** — a path is retired
 when the repo saw >100 clones or >100 Actions runs in the week before a
@@ -359,6 +382,10 @@ for org-owned repos until Andrew re-runs Part D there.
 
 ### Blocked on a human step: Dependabot digest (dev-env#130)
 
+**Schedule removed 2026-10-01.** All daily runs from 09-26 failed on
+`nightowlstudiollc` check-run access, so nothing was published. The workflow
+still runs by manual dispatch. Restore the cron when `dev-env#149` lands.
+
 A daily workflow surveys open Dependabot PRs across all three owners and
 rewrites a single dev-env issue describing the queue, bucketed by what a human
 must actually do about each PR. Built because auto-merge policy declines majors
@@ -393,6 +420,10 @@ stays open until the first real run exists to link from its closing comment.
 
 ### Ahead of the W track: credential rotation (off-plan)
 
+**2026-10-01:** `#1264` and `#1265` are rotated and closed, and
+`amelia-boone#79` is closed. `#1258` is rotated but open until the new token
+is first used. Tracker: `dev-env#148`.
+
 Not part of the infrastructure design, and more urgent than anything in W.
 All four are `nightowlstudiollc`:
 
@@ -415,8 +446,35 @@ file), `#455`, `#489`, `#481`, `#496`. This should become an explicit L item.
 ### Critical path: W1 → W2 → W3
 
 W1 and W2 are done; W3 (flip `standards-check` to required per repo) is the
-remaining critical-path item, **5 of 42 complete**. Plan and execution record:
-`docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md`.
+remaining critical-path item, **33 of 40 complete** (2026-10-01). Plan and
+execution record: `docs/superpowers/plans/2026-09-08-w2-fleet-rollout.md`.
+
+**W3 on 2026-10-01.** The denominator is the 40 repos across the three
+owners that are not archived and not forks. `x-thread-reader` is archived
+and out.
+
+- **33 require `standards-check / run-standards-check`.** Eight were done
+  before 10-01 (the 09-16 five plus the 09-25 pilot: `lock-sync`,
+  `repo-template`, `gmail-newsletter-filter`). The pilot passed its gate:
+  each pilot repo merged a real PR with `standards-check` required and green.
+  On 10-01, 24 more were flipped by atomic replace (per D2), and
+  `huddle-transcribe` gained it as its first required check. `personify`
+  keeps `validate` beside it.
+- **4 still require `claude-review` only, by decision:**
+  `smartwatermelon/crazy-larry` (workflow present, never run),
+  `nightowlstudiollc/networth-agent` (no `standards-check.yml`; requiring it
+  would block every PR), and `nightowlstudiollc/kebab-tax` and
+  `kebab-tax-netlify` (Andrew: kebab-tax is out of scope for this project).
+- **3 have no branch protection:** `infinite-yaks`,
+  `claude-config-backup`, `twistedmelonman/parmesan`.
+
+Pre-flip protection for each changed repo is backed up as JSON in
+`~/.w3-backups-2026-10-01/` on ASIAGO. Each flip changed only the contexts;
+`strict` is unchanged (`true` everywhere except `nightowlstudiollc/cleanroom`).
+
+The private `nightowlstudiollc` repos do not appear in `gh repo list` or the
+org repo listing for the fine-grained tokens, but direct reads work. Enumerate
+them from `docs/superpowers/plans/2026-09-24-finish-line/w3-readiness.tsv`.
 
 **W3's scope, settled 2026-09-16.** Three documents defined W3 incompatibly:
 the backlog spec said it *removes* `claude-blocking-review.yml`; the 09-08
@@ -590,7 +648,7 @@ These are not oversights. Do not "fix" them without asking.
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
 | Agent machine account and mobile merge gate | **Drafted 2026-09-27, starts after the hard stop.** The agent gets its own write-only GitHub account; Andrew approves PRs in the GitHub mobile app. Blocked on the support ticket and the `smartwatermelon` downgrade. A Slack front end is optional. See `docs/superpowers/specs/2026-09-27-agent-identity-merge-gate-design.md`. |
-| Five retired repo paths | **Support ticket [4746770](https://help.github.com/ticket/personal/0/4746770)**, org scope. Supersedes 4729524, which was filed under user scope — the wrong scope, since the paths are now inherited by the org. That predecessor was closed by GitHub 2026-09-04 as self-service-only and reopened after the Team upgrade; no staff reply ever came. No response on the new ticket as of 2026-09-18. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
+| Five retired repo paths | **Resolved by 2026-10-01:** GitHub released the paths and all five now live in `smartwatermelon`. History: support ticket [4746770](https://help.github.com/ticket/personal/0/4746770)**, org scope. Supersedes 4729524, which was filed under user scope — the wrong scope, since the paths are now inherited by the org. That predecessor was closed by GitHub 2026-09-04 as self-service-only and reopened after the Team upgrade; no staff reply ever came. No response on the new ticket as of 2026-09-18. **Not given up on.** The move-list records `twistedmelonman` as an interim shim; flip back and re-run `transfer.sh` if the paths are released. |
 
 ## Standing methodology
 
