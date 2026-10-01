@@ -14,10 +14,8 @@ name: Dependabot Digest
 # scheduled job should route around.
 
 on:
-  schedule:
-    # 14:00 UTC daily — morning in US Pacific, so the queue is current when
-    # the day starts.
-    - cron: '0 14 * * *'
+  # Daily schedule (cron '0 14 * * *') removed 2026-10-01: every run failed
+  # on token scope. Restore it once dev-env#149 lands the GitHub App.
   # A scheduled workflow runs only on the default branch, so a pull request
   # cannot exercise it. This is how the first run gets triggered and how the
   # job is tested after a change.
