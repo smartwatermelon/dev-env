@@ -4,33 +4,33 @@
 # transferred first and alone via `transfer.sh --only github-workflows`
 # (design Step 3).
 # cleanroom is the one repo that targets nightowlstudiollc.
-# Five repos target twistedmelonman as an INTERIM shim: their
-# smartwatermelon/<name> paths are retired by GitHub (popular-repository
-# namespace retirement, HTTP 422 on transfer and on create). They stay on
-# the user account with working redirects while support ticket 4729524 is
-# open. If GitHub releases the paths, flip these five back to
-# smartwatermelon and re-run transfer.sh. See docs/STATUS.md.
+# claude-config, dotfiles, huddle-transcribe, personify and
+# projectinsomnia sat on twistedmelonman as an interim shim while
+# GitHub had their smartwatermelon/<name> paths retired (support
+# ticket 4729524). GitHub released the paths and the five moved to
+# smartwatermelon by 2026-10-01; their rows now name the final owner.
+# See docs/STATUS.md.
 .github	smartwatermelon
 archive-resolver	smartwatermelon
 claude-code-workflows-agents	smartwatermelon
-claude-config	twistedmelonman
+claude-config	smartwatermelon
 claude-config-backup	smartwatermelon
 claude-wrapper	smartwatermelon
 cleanroom	nightowlstudiollc
 crazy-larry	smartwatermelon
 dev-env	smartwatermelon
-dotfiles	twistedmelonman
+dotfiles	smartwatermelon
 dumbify	smartwatermelon
 github-workflows	smartwatermelon
 gmail-newsletter-filter	smartwatermelon
 homebrew-tap	smartwatermelon
-huddle-transcribe	twistedmelonman
+huddle-transcribe	smartwatermelon
 lock-sync	smartwatermelon
 mac-dev-server-setup	smartwatermelon
 mac-server-setup	smartwatermelon
-personify	twistedmelonman
+personify	smartwatermelon
 pr-review	smartwatermelon
-projectinsomnia	twistedmelonman
+projectinsomnia	smartwatermelon
 qwen-sidebar	smartwatermelon
 repo-template	smartwatermelon
 scripts	smartwatermelon
