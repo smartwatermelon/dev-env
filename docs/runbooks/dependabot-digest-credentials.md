@@ -50,9 +50,6 @@ no rotation row to add; rotate it by generating a new key on the app's page.
 
 ## Verify
 
-Trigger a run by hand — a scheduled workflow only runs on the default branch,
-so this is also how the very first digest gets created:
-
 First capture what the answer should be, using your own credentials as the
 reference. Your local `gh` login can read all three owners, so this is the
 known-good result the workflow must reproduce:
