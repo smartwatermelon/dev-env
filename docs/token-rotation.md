@@ -76,12 +76,18 @@ between.
 
    Paste when prompted.
 
-3. Re-run one Claude workflow on a repo in that scope and read the log: the
-   `claude-code-action` step must authenticate, not skip.
+3. Re-run one Claude workflow on a repo in that scope that still has a
+   `claude.yml` caller (for example `smartwatermelon/scripts`) and read the
+   log: the `claude-code-action` step must authenticate, not skip. Trigger
+   it with an `@claude` mention on an issue, or re-run the latest run:
 
    ```bash
-   gh run list -R smartwatermelon/dev-env --workflow claude-blocking-review.yml --limit 1 --json databaseId --jq '.[0].databaseId' | xargs -I{} gh run rerun {} -R smartwatermelon/dev-env
+   gh run list -R smartwatermelon/scripts --workflow claude.yml --limit 1 --json databaseId --jq '.[0].databaseId' | xargs -I{} gh run rerun {} -R smartwatermelon/scripts
    ```
+
+   `dev-env` has no `claude.yml`, so it cannot verify a rotation. Its copy
+   of the secret is pending deletion by hand (the CI reviewer that used it
+   is retired).
 
 4. Update the table row (minted date, expiry = minted + the lifetime
    `setup-token` printed, machine).
