@@ -1,7 +1,7 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with 2026-10-01 updates below.** Point-in-time snapshot
-of the infrastructure backlog
+**As of 2026-09-16, with 2026-10-01 and 2026-10-02 updates below.**
+Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
 *where things stand* and what to pick up next.
@@ -60,6 +60,46 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Designed, build after the stop:** an agent GitHub App for desktop gh work
   (`dev-env#172`, tracked as `#173`). Merge-lock tiering is parked as
   `dev-env#176`.
+
+**2026-10-02 update:**
+
+- **Required scope for 10-07 is done.** The only open item is digest plan
+  step 7 (HUMAN: delete the `DIGEST_TOKEN_*` secrets and revoke the PATs),
+  which waits on the first scheduled App-auth run. GitHub starts this cron
+  3–6 hours late (17:07–20:18 UTC over 12 days), so the 15:00 UTC check
+  routine fired too early and reported "not run yet".
+- **Node 20 (`dev-env#78`), done except kebab-tax.**
+  `github-workflows#181` makes the node-floor check resolve
+  `${{ matrix.<key> }}`, and `standards-check-v1` now points at `28efbe0`.
+  Before moving the tag, the new check ran against all 41 fleet repos and all
+  passed. `tensegrity#106` moved CI from Node 18 to 24, and `personify#113`
+  dropped Node 20 from `mcp-server` engines. The kebab-tax `mobile/` pins are
+  recorded on #78 for after the stop.
+- **Unresolvable Node versions stay a warning,** on condition that the
+  warning is surfaced where someone reads it: `dev-env#179` adds a
+  standards-warnings section to the daily digest. It starts after the
+  digest's first scheduled run is confirmed.
+- **Dependabot auto-merge callers added** where they were missing:
+  `smartwatermelon/.github#20`, `nightowlstudiollc/.github#24`,
+  `claude-code-workflows-agents#33`, `reliquarist#103`. Skipped on purpose:
+  `claude-config-backup` (backup repo), `infinite-yaks` and `parmesan` (no
+  Dependabot config). `nightowlstudiollc/.github#22` auto-merged afterward,
+  which proves the path end to end.
+- **Closed as moot or fixed:** `dotfiles#298`, `dev-env#146`,
+  `personify#81`, `dev-env#116`. `dev-env#120` stays open; direction is a
+  configurable cooldown period.
+- **Filed:** `dotfiles#392` (post-checkout copies the `.claude/` scaffold on
+  every new branch and worktree, not just clone/init), `claude-config#671`
+  (the lock-authorize hook matches its command name inside quoted text).
+- **Text gate scope (decided):** exempt `owner=smartwatermelon` and
+  `owner=nightowlstudiollc` on github.com; everything else stays gated.
+  `twistedmelonman` holds forks of other people's repos, so it stays gated.
+  The claude-config PR is in progress.
+- **Tooling facts:** the `gh` wrapper picks the token by owner from
+  `repos/OWNER/…` or `-R` and overrides a `GH_TOKEN=` prefix there. It does
+  not route `orgs/<owner>/…`, so org listings come back public-only. No
+  fine-grained PAT can read check runs (`checks=read`); read
+  `actions/runs` instead, or wait for the agent App (`dev-env#173`).
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -275,10 +315,14 @@ the Critical path section below. W3 (flip to required, per repo) is next.
 **N1b — done, with a correction.** The live node-floor set was
 `kebab-tax`, `reliquarist`, `gmail-newsletter-filter`, not the plan's
 original four: `smartwatermelon/headroom` and `Gmail-MCP-Server` both
-return 404 under either org and do not exist; `tensegrity` has no
-sub-floor Node pin and passed node-floor cleanly without a fix (its
-zizmor/markdownlint debt is unrelated and rides wave 3). All three real
-node-floor repos are merged and green on node-floor.
+return 404 under either org and do not exist. All three real node-floor
+repos are merged and green on node-floor.
+
+**Correction 2026-10-02:** `tensegrity` did not pass cleanly. It ran CI on
+Node 18 through a `strategy.matrix` value, and the check skipped matrix
+expressions with only a notice — a false OK. Fixed by
+`smartwatermelon/github-workflows#181` (the check now resolves matrix values)
+and `nightowlstudiollc/tensegrity#106` (CI on Node 24).
 
 Also noted during the wave-2 scan: `smartwatermelon/gmail-newsletter-filter`
 carries its own root `zizmor.yml`, a strict prefix of the canonical
