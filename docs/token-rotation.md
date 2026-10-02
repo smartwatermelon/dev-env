@@ -85,9 +85,8 @@ between.
    gh run list -R smartwatermelon/scripts --workflow claude.yml --limit 1 --json databaseId --jq '.[0].databaseId' | xargs -I{} gh run rerun {} -R smartwatermelon/scripts
    ```
 
-   `dev-env` has no `claude.yml`, so it cannot verify a rotation. Its copy
-   of the secret is pending deletion by hand (the CI reviewer that used it
-   is retired).
+   `dev-env` has no `claude.yml` and no longer holds the secret. It was
+   deleted on 2026-10-01, after the CI reviewer that used it was retired.
 
 4. Update the table row (minted date, expiry = minted + the lifetime
    `setup-token` printed, machine).
