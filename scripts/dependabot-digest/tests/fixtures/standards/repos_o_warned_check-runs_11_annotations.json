@@ -1,0 +1,46 @@
+[
+  [
+    {
+      "path": ".github/workflows/ci.yml",
+      "blob_href": "x",
+      "start_line": 12,
+      "end_line": 12,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "node-version 18 is below the floor 22",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "x",
+      "start_line": 51,
+      "end_line": 51,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "no shell files",
+      "raw_details": ""
+    }
+  ],
+  [
+    {
+      "path": "scripts/x.sh",
+      "blob_href": "x",
+      "start_line": 3,
+      "end_line": 3,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "SC2086: Double quote to prevent globbing | splitting",
+      "raw_details": ""
+    },
+    {
+      "path": ".github/workflows/build.yml",
+      "blob_href": "x",
+      "start_line": 7,
+      "end_line": 7,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "node-version is an expression (${{ inputs.node }}); not checked",
+      "raw_details": ""
+    }
+  ]
+]

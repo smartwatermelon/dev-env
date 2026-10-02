@@ -1,0 +1,52 @@
+[
+ {
+  "total_count": 8,
+  "repositories": [
+   {
+    "full_name": "o/warned",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "o/clean",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "o/norun",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "o/nulled",
+    "default_branch": "main",
+    "archived": false
+   }
+  ]
+ },
+ {
+  "total_count": 8,
+  "repositories": [
+   {
+    "full_name": "o/short",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "o/direct",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "o/old",
+    "default_branch": "main",
+    "archived": true
+   },
+   {
+    "full_name": "o/forbidden",
+    "default_branch": "main",
+    "archived": false
+   }
+  ]
+ }
+]

@@ -1,0 +1,24 @@
+[
+  [
+    {
+      "path": "a.yml",
+      "blob_href": "x",
+      "start_line": 1,
+      "end_line": 1,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "one",
+      "raw_details": ""
+    },
+    {
+      "path": "b.yml",
+      "blob_href": "x",
+      "start_line": 2,
+      "end_line": 2,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "two",
+      "raw_details": ""
+    }
+  ]
+]

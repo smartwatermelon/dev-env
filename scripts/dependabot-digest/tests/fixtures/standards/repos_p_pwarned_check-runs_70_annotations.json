@@ -1,0 +1,14 @@
+[
+  [
+    {
+      "path": ".github",
+      "blob_href": "x",
+      "start_line": 1,
+      "end_line": 1,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "The ubuntu-latest label will migrate",
+      "raw_details": ""
+    }
+  ]
+]
