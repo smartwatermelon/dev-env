@@ -1,6 +1,6 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with a 2026-10-01 update below.** Point-in-time snapshot
+**As of 2026-09-16, with 2026-10-01 updates below.** Point-in-time snapshot
 of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -26,6 +26,40 @@ or be explicitly parked with a resume note, by then — see the tracker.
   on token scope. The fix is the App migration, `dev-env#149`.
 - **Credential rotation:** three of four done. Only `kebab-tax#1258` is open,
   waiting for the rotated token's first real use.
+
+**2026-10-01 evening update (merged by 04:15 UTC 10-02):**
+
+- **The finish-line board has no Todo items left.** It is renamed
+  "Finish line 2026-10-07".
+- **CI Claude reviewer retired** (`github-workflows#154`, closed). Plan:
+  `github-workflows` `docs/plans/2026-10-01-retire-claude-blocking-review.md`.
+  - `repo-template#11` and `smartwatermelon/.github#19` stop new repos from
+    getting a caller.
+  - 25 caller PRs merged, one per repo.
+  - `github-workflows#180` deletes the self-review job and three reviewer
+    scripts, and marks `claude-blocking-review.yml` DEPRECATED.
+  - Two callers remain by decision: `crazy-larry` and
+    `nightowlstudiollc/networth-agent`. Both still require the check. Delete
+    the reusable file when the last caller is gone.
+  - `CLAUDE_CODE_OAUTH_TOKEN` is deleted from dev-env. Every other caller
+    repo keeps it for `claude.yml`.
+  - `claude-code-action` is at 1.0.237 (`github-workflows#177`,
+    `smartwatermelon/.github#18`). Tag `v3.3.1` is cut and `v3` repointed.
+- **gh-wrapper off-org draft gaps closed** (`dotfiles#339`, closed).
+  `claude-config#667` and `#670` add a Claude Code hook for indirect gh
+  calls, and `dotfiles#390` guards `pr new`, `pr ready` and `api …/pulls` in
+  the wrapper. Remaining holes are parked as `dotfiles#391`.
+- **Local review:** a blocked review keeps its log (`claude-config#666`), and
+  `hook-block-all.sh` fails closed if a required hook is missing
+  (`claude-config#665`).
+- **Tests run once, in CI, as required checks.** dev-env now requires
+  `tests` (`dev-env#171`), and claude-wrapper requires `shell-tests`.
+- **Dependabot digest runs as a GitHub App** (`dev-env#169`; `#149`
+  closed). The daily schedule is back, and the first scheduled run is
+  2026-10-02 14:00 UTC.
+- **Designed, build after the stop:** an agent GitHub App for desktop gh work
+  (`dev-env#172`, tracked as `#173`). Merge-lock tiering is parked as
+  `dev-env#176`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -382,9 +416,13 @@ for org-owned repos until Andrew re-runs Part D there.
 
 ### Blocked on a human step: Dependabot digest (dev-env#130)
 
-**Schedule removed 2026-10-01.** All daily runs from 09-26 failed on
-`nightowlstudiollc` check-run access, so nothing was published. The workflow
-still runs by manual dispatch. Restore the cron when `dev-env#149` lands.
+**Migrated to a GitHub App 2026-10-01** (`dev-env#169`). A manual dispatch
+passed, and the daily schedule is restored. Plan step 7 is HUMAN: after the
+first scheduled run passes, delete the three `DIGEST_TOKEN_*` secrets and
+revoke their PATs.
+
+Earlier, all daily runs from 09-26 failed on `nightowlstudiollc` check-run
+access, so nothing was published.
 
 A daily workflow surveys open Dependabot PRs across all three owners and
 rewrites a single dev-env issue describing the queue, bucketed by what a human
@@ -435,6 +473,8 @@ All four are `nightowlstudiollc`:
   accepted baseline, one critical.
 
 ### Unowned: local-reviewer reliability
+
+**Closed 2026-10-01.** `dev-env#124` and all five bugs below are closed.
 
 The 2026-09-08 decision to remove judgment review from CI still looks right —
 `dev-env#116` shows CI structurally cannot review workflow-touching PRs. But
