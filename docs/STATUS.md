@@ -91,10 +91,16 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Filed:** `dotfiles#392` (post-checkout copies the `.claude/` scaffold on
   every new branch and worktree, not just clone/init), `claude-config#671`
   (the lock-authorize hook matches its command name inside quoted text).
-- **Text gate scope (decided):** exempt `owner=smartwatermelon` and
-  `owner=nightowlstudiollc` on github.com; everything else stays gated.
-  `twistedmelonman` holds forks of other people's repos, so it stays gated.
-  The claude-config PR is in progress.
+- **Text gate scoped by owner (`claude-config#673`, live).** A new
+  `owner=` rule exempts `smartwatermelon` and `nightowlstudiollc` when the
+  destination is on github.com. Everything else stays gated, as before:
+  `twistedmelonman` (forks of other people's repos), third-party repos,
+  non-GitHub hosts, and checkouts with no remote. Beacon routing is
+  unchanged. `claude-config#547` (SSH commits blocked) now applies only
+  outside the two orgs. Accepted limits, recorded in `gate-rules.conf`: a
+  later fork under either org would be exempt; `gh api` calls that name no
+  repo (gists) route by the checkout; `--hostname`/`GH_HOST` are not
+  detected. The gate itself stays suspended until 2026-10-07.
 - **Tooling facts:** the `gh` wrapper picks the token by owner from
   `repos/OWNER/…` or `-R` and overrides a `GH_TOKEN=` prefix there. It does
   not route `orgs/<owner>/…`, so org listings come back public-only. No
