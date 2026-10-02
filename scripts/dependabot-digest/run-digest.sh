@@ -45,6 +45,8 @@ work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 collected="${work}/collected.ndjson"
 : >"${collected}"
+standards="${work}/standards.ndjson"
+: >"${standards}"
 
 issue_token="${GH_TOKEN-}"
 
@@ -67,6 +69,14 @@ for owner in ${OWNERS}; do
     echo "run-digest.sh: collection failed for ${owner}; not publishing a partial digest" >&2
     exit 1
   fi
+
+  # Standards never block the queue report. A crash renders as not checked.
+  echo "run-digest.sh: reading standards-check annotations for ${owner}" >&2
+  if ! GH_TOKEN="${token}" bash "${HERE}/standards.sh" "${owner}" >>"${standards}"; then
+    jq -cn --arg o "${owner}" '{owner: $o, repo: null, state: "unlisted",
+      detail: "standards.sh failed; see the run log", source: null,
+      runUrl: null, annotations: []}' >>"${standards}"
+  fi
 done
 
 classified="${work}/classified.ndjson"
@@ -76,8 +86,8 @@ if ! bash "${HERE}/classify.sh" <"${collected}" >"${classified}"; then
 fi
 
 body="${work}/body.md"
-render_args=()
-[[ -n "${run_url}" ]] && render_args=(--run-url "${run_url}")
+render_args=(--standards "${standards}")
+[[ -n "${run_url}" ]] && render_args+=(--run-url "${run_url}")
 if ! bash "${HERE}/render.sh" "${render_args[@]}" <"${classified}" >"${body}"; then
   echo "run-digest.sh: rendering failed" >&2
   exit 1

@@ -1,0 +1,10 @@
+[
+  {
+    "number": 7,
+    "merge_commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "merged_at": "2026-10-01T00:00:00Z",
+    "head": {
+      "sha": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+    }
+  }
+]

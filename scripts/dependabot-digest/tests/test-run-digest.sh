@@ -161,6 +161,19 @@ else
   _pass "a populated queue is not reported as empty"
 fi
 
+# dev-env#179: the section always appears. An unlistable owner is not checked.
+if grep -q '^## Standards warnings' <<<"${populated}"; then
+  _pass "the digest carries a standards warnings section"
+else
+  _fail "the digest has no standards warnings section"
+fi
+if grep -q '| all of one | OWNER NOT LISTED:' <<<"${populated}" \
+  && ! grep -q 'No warnings' <<<"${populated}"; then
+  _pass "an owner whose repositories cannot be listed renders as not checked"
+else
+  _fail "an unlistable owner did not render as not checked"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-run-digest: all assertions passed"
 else

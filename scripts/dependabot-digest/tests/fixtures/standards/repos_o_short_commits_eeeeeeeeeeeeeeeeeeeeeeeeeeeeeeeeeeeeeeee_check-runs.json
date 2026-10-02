@@ -1,0 +1,18 @@
+{
+  "total_count": 1,
+  "check_runs": [
+    {
+      "id": 50,
+      "name": "standards-check / run-standards-check",
+      "status": "completed",
+      "conclusion": "success",
+      "app": {
+        "slug": "github-actions"
+      },
+      "html_url": "https://github.com/x/runs/50",
+      "output": {
+        "annotations_count": 5
+      }
+    }
+  ]
+}

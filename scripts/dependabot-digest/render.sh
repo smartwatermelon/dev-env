@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Render classify.sh output as the Markdown body of the digest issue.
 #
-# Usage: render.sh [--run-url URL] < classified.ndjson > body.md
+# Usage: render.sh [--run-url URL] [--standards FILE] < classified.ndjson > body.md
+# --standards takes standards.sh output.
 #
 # The body leads with what a human must do and states, per PR, the fact that
 # put it in its bucket. It never says a PR will merge: the merge path runs
@@ -11,9 +12,11 @@ set -uo pipefail
 unset CDPATH
 
 run_url=""
+standards_file=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-url) run_url="${2-}"; shift 2 ;;
+    --standards) standards_file="${2-}"; shift 2 ;;
     *) echo "render.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -116,6 +119,99 @@ else
     echo '```'
     echo
   fi
+fi
+
+# dev-env#179. Keep three outcomes apart: warnings, clean, not checked.
+render_standards() {
+  local file="$1" recs checked clean warned unchecked archived rows
+  echo "## Standards warnings"
+  echo
+  if [[ ! -r "${file}" ]]; then
+    echo "**Not checked.** The standards survey produced no readable result, so nothing below the Dependabot queue was verified."
+    echo
+    return 0
+  fi
+  # jq stops at a malformed line, dropping every repo after it.
+  if ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
+    echo "**Not checked.** The standards survey output is malformed, so nothing was verified."
+    echo
+    return 0
+  fi
+  recs="$(jq -c 'select(type == "object" and (.state | type == "string"))' "${file}" 2>/dev/null)"
+  if [[ -z "${recs}" ]]; then
+    echo "**Not checked.** The standards survey returned no repositories, so nothing was verified."
+    echo
+    return 0
+  fi
+  echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is."
+  echo
+  checked="$(jq -s '[.[] | select(.state == "ok")] | length' <<<"${recs}")"
+  warned="$(jq -s '[.[] | select(.state == "ok" and (.annotations | length) > 0)] | length' <<<"${recs}")"
+  clean=$((checked - warned))
+  unchecked="$(jq -s '[.[] | select(.state != "ok" and .state != "archived")] | length' <<<"${recs}")"
+  echo "**${checked} repositories checked**: ${warned} with warnings or notices, ${clean} with none. **${unchecked} not checked.**"
+  echo
+
+  if [[ "${checked}" -eq 0 ]]; then
+    # Zero warnings out of zero repositories read is not "no warnings".
+    echo "**No repository could be checked**, so no warnings were looked for."
+    echo
+  elif [[ "${warned}" -eq 0 ]]; then
+    echo "No warnings: no checked repository's latest run carried a warning or notice annotation."
+    echo
+  else
+    # A failed jq prints nothing; an empty table would read as clean.
+    if ! rows="$(jq -r '
+      def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
+      # GitHub puts file-less annotations under path .github.
+      def where: if .path == "" or .path == ".github" then "—"
+                 else "`" + .path + (if .line then ":" + (.line | tostring) else "" end) + "`" end;
+      select(.state == "ok") | . as $r | .annotations[]
+      | "| " + (if $r.runUrl then "[" + $r.repo + "](" + $r.runUrl + ")" else $r.repo end)
+        + " | " + .level + " | " + where + " | " + (.message | cell) + " |"
+    ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
+      echo "**Warnings found but could not be rendered.** ${warned} repositories carry annotations; see the run log."
+      echo
+    else
+      echo "| Repo | Level | File | Message |"
+      echo "| --- | --- | --- | --- |"
+      echo "${rows}"
+      echo
+    fi
+  fi
+
+  if [[ "${unchecked}" -gt 0 ]]; then
+    echo "### Not checked"
+    echo
+    echo "These repositories have no readable standards-check result. Their warnings, if any, are unknown — not absent."
+    echo
+    if ! rows="$(jq -r '
+      def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
+      def state_name: {"unreadable": "UNREADABLE", "unlisted": "OWNER NOT LISTED",
+                       "no-run": "no standards-check run", "no-pr": "no run, no merged PR",
+                       "in-progress": "run in progress"}[.state] // .state;
+      select(.state != "ok" and .state != "archived")
+      | "| " + (.repo // ("all of " + .owner)) + " | " + state_name + ": " + (.detail | cell) + " |"
+    ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
+      echo "**${unchecked} repositories were not checked, and the list could not be rendered.** See the run log."
+      echo
+    else
+      echo "| Repo | Why |"
+      echo "| --- | --- |"
+      echo "${rows}"
+      echo
+    fi
+  fi
+
+  archived="$(jq -rs '[.[] | select(.state == "archived") | .repo] | join(", ")' <<<"${recs}")"
+  if [[ -n "${archived}" ]]; then
+    echo "Archived, not surveyed: ${archived}."
+    echo
+  fi
+}
+
+if [[ -n "${standards_file}" ]]; then
+  render_standards "${standards_file}"
 fi
 
 echo "---"
