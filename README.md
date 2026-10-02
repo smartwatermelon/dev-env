@@ -19,7 +19,7 @@ It is **not** a tool, framework, or installable package. It does not contain the
 | [`docs/plans/2026-04-02-phase2-local-whole-codebase-review.md`](./docs/plans/2026-04-02-phase2-local-whole-codebase-review.md) | Phase 2 design — *why* whole-codebase review and *what* it replaces from Seer. |
 | [`docs/plans/2026-04-02-phase2-implementation.md`](./docs/plans/2026-04-02-phase2-implementation.md) | Phase 2 implementation plan, task by task. |
 
-Plus a `.claude/` directory with project-local Claude Code configuration **templates** (`config.sh.template`, hook extension example) that other repos can copy and customize. See [`.claude/README.md`](./.claude/README.md) for the template setup guide.
+The project-local `.claude/` scaffold (`config.sh.template`, `README.md`) is not kept here. It lives in [`smartwatermelon/dotfiles`](https://github.com/smartwatermelon/dotfiles) under `git/template/.claude-template/`, and every fleet repo ignores its copy (dev-env#178).
 
 ---
 
@@ -64,7 +64,7 @@ The spec is considered stable. Future work tracked as issues in this repo or in 
 - All content is Markdown — no build step, no tests, no lint commands beyond `markdownlint`
 - Documents follow the existing structure: design plans use date-prefixed names under `docs/plans/`, reference docs live in `docs/` directly
 - When updating reference docs, prefer **adding** sections to **rewriting** them — the goal is a permanent record, not a moving target
-- The `.claude/` directory contains *templates* meant to be copied into other repos; do not add project-specific values to them
+- `.claude/` is ignored; edit the scaffold template in `smartwatermelon/dotfiles`, not here
 
 When Claude is making changes here, it follows the same protocols as everywhere else: feature branch, pre-commit review, pre-push codebase review, two-turn merge with `merge-lock auth`. See [`CLAUDE.md`](./CLAUDE.md) for the project-specific guidance Claude receives when working in this repo.
 

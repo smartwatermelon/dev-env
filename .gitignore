@@ -8,3 +8,7 @@ docs/data/corpus-440/results/
 
 # Agent context files are not project content (smartwatermelon/dev-env#155).
 AGENTS.md
+
+# Claude Code local state and the generated .claude/ scaffold.
+# Share a file by negating it: .claude/* then !.claude/<path>
+.claude/
