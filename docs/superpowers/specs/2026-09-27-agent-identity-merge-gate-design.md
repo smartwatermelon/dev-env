@@ -4,6 +4,12 @@ Status: DRAFT, 2026-09-27. Not scheduled. Starts after the 2026-09-30 hard
 stop, and after the org-migration support ticket and the Team → Free downgrade
 of `smartwatermelon` are resolved.
 
+2026-10-01: desktop agent credentials for the three personal owners go to a
+GitHub App instead (`2026-10-01-agent-github-app-design.md`). Step 5 below now
+covers the claude.ai GitHub connection only. See that doc's open question 5
+before applying Decision item 3: two agent identities can approve each
+other's PRs.
+
 ## Purpose
 
 Let Andrew approve an agent's merge from a phone, with an approval the agent
