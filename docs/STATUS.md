@@ -1,6 +1,6 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with 2026-10-01 and 2026-10-02 (two) updates below.**
+**As of 2026-09-16, with 2026-10-01 and 2026-10-02 (three) updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -134,6 +134,39 @@ or be explicitly parked with a resume note, by then — see the tracker.
   1 after a successful init and skipped the hook, or ran the hook in a
   wrong directory if one by that name existed. It does not write git
   config, so it is not the cause of `dotfiles#239`.
+
+**2026-10-02 evening update:**
+
+- **`.claude/` policy decided and rolled out** (`dev-env#178`, open for the
+  kebab repos). Every fleet repo (`smartwatermelon` and `nightowlstudiollc`,
+  non-fork, non-archived) ignores `.claude/` in its committed `.gitignore`.
+  A repo that shares files uses `.claude/*` plus `!.claude/<path>`; a plain
+  `.claude/` cannot be negated (tested). `claude-config-backup` is skipped
+  and `twistedmelonman` forks are out of scope.
+  - 25 PRs merged: 23 per-repo policy PRs (`dev-env#184` among them),
+    `dotfiles#398` (fixes the negation example in the scaffold README), and
+    `github-workflows#182` (the rule below).
+  - `kebab-tax` and `kebab-tax-netlify` get theirs after the stop.
+  - The post-checkout hook keeps its `.git/info/exclude` fallback, for
+    clones of repos outside the fleet.
+- **Standards rule `check-claude-ignore`** (`github-workflows#182`) warns
+  when `.claude/` is not ignored or has tracked files outside a negation.
+  `standards-check-v1` now points at `8c51fb8`. It stays warning-only until
+  the kebab repos conform, then becomes an error.
+- **tensegrity shares `.claude/settings.json`** (`tensegrity#108`). It was
+  the one repo tracking `settings.local.json`, the per-machine name.
+- **tensegrity Prettier hang fixed** (`tensegrity#107`). The pinned
+  `mirrors-prettier` `v4.0.0-alpha.8` hung on every JSON and Markdown file,
+  even with `--no-config`; the cause is unknown. The hook now runs the
+  project's own Prettier through `npx`, as a `repo: local` hook.
+  `kebab-tax-netlify` pins the same alpha and needs the same change after
+  the stop.
+- **gh-wrapper routes `orgs/` and `users/` endpoints** (`dotfiles#397`,
+  closes `#396`). This corrects the 2026-10-02 tooling note above: org
+  listings now use the owner's token and include private repos.
+- **`claude-config#671` closed won't-fix.** A regex cannot tell
+  `bash -c "<cmd>"` from quoted data. Workaround: pass bodies with
+  `--body-file`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
