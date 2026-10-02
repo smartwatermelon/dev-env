@@ -1,6 +1,6 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with 2026-10-01 and 2026-10-02 updates below.**
+**As of 2026-09-16, with 2026-10-01 and 2026-10-02 (two) updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -106,6 +106,34 @@ or be explicitly parked with a resume note, by then — see the tracker.
   not route `orgs/<owner>/…`, so org listings come back public-only. No
   fine-grained PAT can read check runs (`checks=read`); read
   `actions/runs` instead, or wait for the agent App (`dev-env#173`).
+
+**2026-10-02 afternoon update:**
+
+- **The finish-line board has no Todo items left** (Done=70, Parked=79).
+- **Dependabot digest on the App is confirmed.** The first scheduled
+  App-auth run passed at 18:49 UTC (run `37050060143`). Andrew then did plan
+  step 7: the three `DIGEST_TOKEN_*` secrets are deleted and their PATs
+  revoked. Not verifiable from an agent token: listing repo secrets returns
+  HTTP 403.
+- **Standards warnings in the digest** (`dev-env#182`, closes `#179`). A
+  new section lists warning- and notice-level annotations from each repo's
+  latest `standards-check` run on its default branch. Callers run only on
+  pull requests, so the run is the one on the head of the merged PR that
+  produced the default-branch head. Repos that cannot be read are listed
+  under "Not checked" with a reason, never as clean. Not yet seen under the
+  real App token: the next scheduled run is the first test. Expect noise
+  (routine "no shell files" notices, repos with no caller); decide on
+  filtering after reading one real digest.
+- **post-checkout scaffold copy fixed** (`dotfiles#393`, closes `#392`).
+  The `.claude/` scaffold is now copied only on a fresh clone or init, not
+  on `git checkout -b` or `git worktree add`. The one stray scaffold
+  (`smartwatermelon/.github`) is deleted. The fleet's mixed track/ignore
+  policy for `.claude/` is a separate decision, `dev-env#178`.
+- **git-wrapper init parsing fixed** (`dotfiles#395`, closes `#394`).
+  `git init -b main <dir>` read `main` as the target directory: it returned
+  1 after a successful init and skipped the hook, or ran the hook in a
+  wrong directory if one by that name existed. It does not write git
+  config, so it is not the cause of `dotfiles#239`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -464,12 +492,12 @@ for org-owned repos until Andrew re-runs Part D there.
 > measurements behind the ordering below, including two items that sit
 > outside this backlog entirely.
 
-### Blocked on a human step: Dependabot digest (dev-env#130)
+### Done: Dependabot digest (dev-env#130)
 
-**Migrated to a GitHub App 2026-10-01** (`dev-env#169`). A manual dispatch
-passed, and the daily schedule is restored. Plan step 7 is HUMAN: after the
-first scheduled run passes, delete the three `DIGEST_TOKEN_*` secrets and
-revoke their PATs.
+**Migrated to a GitHub App 2026-10-01** (`dev-env#169`). The first
+scheduled run passed 2026-10-02, and plan step 7 (delete the three
+`DIGEST_TOKEN_*` secrets, revoke their PATs) is done. Since `dev-env#182`
+the digest also carries a "Standards warnings" section.
 
 Earlier, all daily runs from 09-26 failed on `nightowlstudiollc` check-run
 access, so nothing was published.
