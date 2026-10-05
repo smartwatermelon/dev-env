@@ -1,6 +1,7 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with 2026-10-01 and 2026-10-02 (three) updates below.**
+**As of 2026-09-16, with 2026-10-01, 2026-10-02 (three) and 2026-10-05
+updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -167,6 +168,40 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **`claude-config#671` closed won't-fix.** A regex cannot tell
   `bash -c "<cmd>"` from quoted data. Workaround: pass bodies with
   `--body-file`.
+
+**2026-10-05 update:**
+
+- **Standards warnings in the digest are filtered** (`dev-env#186`). The
+  first real digests (10-03, 10-04) rendered cleanly under the App token,
+  but 159 of 160 rows were routine notices. The section now drops the
+  "no Markdown/shell/YAML files" and "no workflows" notices (notice level
+  only; a warning with the same text stays), shows a notice repeated across
+  repos once with a count, and adds each run's date. A run older than the
+  commit `standards-check-v1` points at is flagged "predates current rules".
+  This caught a false OK: `kebab-tax`'s latest run is from 09-19, before the
+  `.claude/` rule, so it showed no `.claude/` warning. The flag compares
+  against the tag commit's date, not the date the tag moved. Not yet seen in
+  a scheduled run.
+- **Homebrew 7.0 support.** `dotfiles#399` adds a `brew vulns` check (with
+  `--fix-available`, so only findings an upgrade fixes alert; without it,
+  this Mac alerted nightly on four HIGH findings with no released fix), a
+  `brew doctor` step, and the auto-update cask opt-out. `homebrew-tap#28`
+  installs the cask for real in CI instead of a dry run, after `brew update`
+  and a step that fails below Homebrew 7: the runner image ships 6.0.22.
+  TILSIT and MIMOLETTE need a dotfiles pull to pick up #399.
+- **Grouped Dependabot update merged** (`claude-code-workflows-agents#27`).
+- **npm-audit baselines refreshed** (both merged 2026-10-05):
+  - `nightowlstudiollc/amelia-boone#95`: 35 advisories to 11. A
+    lockfile-only `pnpm update` cleared all 24 new ones; the 11 left are the
+    already-accepted astro/esbuild set, blocked on the astro 5→7 major. The
+    lockfile diff exceeded the commit hook's size cap, so it went in as a
+    lockfile-only commit plus a markdown-only commit, the path the hook
+    exempts by design (claude-config#427); the pre-push full-diff review
+    covered the whole branch.
+  - `smartwatermelon/projectinsomnia#189`: 14 advisories to 12, all inside
+    the baseline. Two in-range lockfile bumps; `braces` and `node-forge`
+    (no patched release, build-time only) are baselined with a 2026-11-05
+    review date.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
