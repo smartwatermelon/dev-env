@@ -129,12 +129,14 @@ _has '| warning | — | no workflows |' \
 _has '- 2 repositories carry the same notice: The ubuntu-latest label will migrate' \
   "a repeated notice is shown once with a repo count" "${body}"
 _hasnt '| notice | — | The ubuntu-latest label' "the repeated notice is not a per-repo row" "${body}"
-_has '| [p/pwarned](https://github.com/x/runs/70) | 2026-10-04 | — | — | none shown |' \
-  "a repo whose only rows were collapsed still appears, with its run date" "${body}"
+_hasnt 'none shown' "clean repos are counted, not listed as rows" "${body}"
+_hasnt '| [p/pwarned](https://github.com/x/runs/70)' \
+  "a repo whose only rows were collapsed is not listed as a row" "${body}"
 
 # Change 3: run dates and the stale-run flag.
-_has '| [o/clean](https://github.com/x/runs/20) | 2026-09-19 — **predates current rules** | — | — | none shown |' \
-  "KNOWN-BAD: a stale run whose only row was filtered is flagged, not shown as plain clean" "${body}"
+_hasnt '| [o/clean](https://github.com/x/runs/20)' "a clean stale repo has no table row" "${body}"
+_has 'Predate current rules: o/clean.' \
+  "KNOWN-BAD: a stale repo with no rows is named in the stale list, not lost" "${body}"
 _has '**1 run(s) predate current rules**' "the stale count is stated" "${body}"
 _has 'as of 2026-10-02' "the tag is resolved through the annotated tag to its commit date" "${body}"
 _hasnt '2026-10-03 — **predates' "a run newer than the tag is not flagged" "${body}"
@@ -163,6 +165,9 @@ jq -c 'select(.repo == "o/clean")' "${out}" >"${clean}"
 : | bash "${DIR}/render.sh" --standards "${clean}" >"${WORK}/clean.md" 2>/dev/null
 _has 'No warnings: no checked repository' "a clean survey says so explicitly" "${WORK}/clean.md"
 _hasnt '### Not checked' "a fully read survey has no not-checked list" "${WORK}/clean.md"
+_hasnt '| Repo | Latest run |' "zero warnings renders no table" "${WORK}/clean.md"
+_hasnt 'could not be rendered' "zero warnings is not a render failure" "${WORK}/clean.md"
+_has 'Predate current rules: o/clean.' "the stale repo is listed when no table is" "${WORK}/clean.md"
 
 # Clean repos alongside an unreadable one: "no warnings" must not hide the gap.
 mixed="${WORK}/mixed.ndjson"
