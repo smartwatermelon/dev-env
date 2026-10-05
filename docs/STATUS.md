@@ -190,7 +190,7 @@ or be explicitly parked with a resume note, by then — see the tracker.
   and a step that fails below Homebrew 7: the runner image ships 6.0.22.
   TILSIT and MIMOLETTE need a dotfiles pull to pick up #399.
 - **Grouped Dependabot update merged** (`claude-code-workflows-agents#27`).
-- **npm-audit baselines refreshed** (open PRs, CI green, awaiting merge):
+- **npm-audit baselines refreshed** (both merged 2026-10-05):
   - `nightowlstudiollc/amelia-boone#95`: 35 advisories to 11. A
     lockfile-only `pnpm update` cleared all 24 new ones; the 11 left are the
     already-accepted astro/esbuild set, blocked on the astro 5→7 major. The
