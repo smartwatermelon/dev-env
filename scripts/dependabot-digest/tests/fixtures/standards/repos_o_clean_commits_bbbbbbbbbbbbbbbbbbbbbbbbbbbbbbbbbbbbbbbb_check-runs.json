@@ -6,12 +6,13 @@
       "name": "lint / run-standards-check",
       "status": "completed",
       "conclusion": "success",
+      "completed_at": "2026-09-19T10:00:00Z",
       "app": {
         "slug": "github-actions"
       },
       "html_url": "https://github.com/x/runs/20",
       "output": {
-        "annotations_count": 0
+        "annotations_count": 1
       }
     }
   ]

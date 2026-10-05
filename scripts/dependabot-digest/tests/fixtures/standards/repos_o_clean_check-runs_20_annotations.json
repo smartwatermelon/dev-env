@@ -1,1 +1,14 @@
-[[]]
+[
+  [
+    {
+      "path": ".github",
+      "blob_href": "x",
+      "start_line": 1,
+      "end_line": 1,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "no workflows",
+      "raw_details": ""
+    }
+  ]
+]

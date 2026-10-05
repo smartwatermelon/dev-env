@@ -123,7 +123,7 @@ fi
 
 # dev-env#179. Keep three outcomes apart: warnings, clean, not checked.
 render_standards() {
-  local file="$1" recs checked clean warned unchecked archived rows
+  local file="$1" recs checked clean warned unchecked archived rows lines view stale undated rules_at rules_err
   echo "## Standards warnings"
   echo
   if [[ ! -r "${file}" ]]; then
@@ -143,38 +143,89 @@ render_standards() {
     echo
     return 0
   fi
-  echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is."
+  echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is. Routine notices (no Markdown, shell or YAML files, no workflows) are omitted, and a notice repeated across repositories is shown once."
   echo
-  checked="$(jq -s '[.[] | select(.state == "ok")] | length' <<<"${recs}")"
-  warned="$(jq -s '[.[] | select(.state == "ok" and (.annotations | length) > 0)] | length' <<<"${recs}")"
-  clean=$((checked - warned))
   unchecked="$(jq -s '[.[] | select(.state != "ok" and .state != "archived")] | length' <<<"${recs}")"
+
+  # Drop routine notices; collapse repeated ones. Never touch warnings.
+  if ! view="$(jq -cs '
+    def routine: ["no Markdown files", "no shell files", "no YAML files", "no workflows"];
+    def iso: type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$");
+    [.[] | select(.state == "ok")] as $ok
+    | ($ok | map(.kept = [.annotations[]
+        | select((.level == "notice" and (.message as $m | routine | index($m))) | not)])) as $k
+    | ([$k[] | .repo as $r
+        | (.kept | map(select(.level == "notice") | .message) | unique)[]
+        | {repo: $r, m: .}]
+       | group_by(.m) | map({message: .[0].m, count: length}) | map(select(.count >= 2))) as $collapsed
+    | {collapsed: $collapsed,
+       recs: ($k | map(
+         .rows = [.kept[] | select((.level == "notice"
+                 and (.message as $m | $collapsed | any(.message == $m))) | not)]
+         | .dated = (.runAt | iso)
+         | .stale = ((.runAt | iso) and (.rulesAt | iso)
+                     and ((.runAt | fromdateiso8601) < (.rulesAt | fromdateiso8601)))))}
+  ' <<<"${recs}" 2>/dev/null)" || [[ -z "${view}" ]]; then
+    echo "**Warnings could not be rendered.** The survey data could not be summarized; see the run log."
+    echo
+    return 0
+  fi
+  checked="$(jq '.recs | length' <<<"${view}")"
+  warned="$(jq '[.recs[] | select((.rows | length) > 0)] | length' <<<"${view}")"
+  clean=$((checked - warned))
+  stale="$(jq '[.recs[] | select(.stale)] | length' <<<"${view}")"
+  undated="$(jq '[.recs[] | select(.dated | not)] | length' <<<"${view}")"
+  rules_at="$(jq -r '[.recs[].rulesAt | select(. != null)] | first // ""' <<<"${view}")"
+  rules_err="$(jq -r '[.recs[].rulesErr | select(. != null)] | first // "no rules date recorded"' <<<"${view}")"
   echo "**${checked} repositories checked**: ${warned} with warnings or notices, ${clean} with none. **${unchecked} not checked.**"
+  echo
+  if [[ -n "${rules_at}" ]]; then
+    echo "Current rules: \`standards-check-v1\` as of ${rules_at:0:10}. **${stale} run(s) predate current rules**, so their results do not reflect them."
+  elif [[ "${checked}" -gt 0 ]]; then
+    echo "**Rules date unknown** (${rules_err}), so whether a run predates the current rules was not checked."
+  fi
+  if [[ "${undated}" -gt 0 ]]; then
+    echo
+    echo "**${undated} run(s) have no readable date**, so they could not be compared with the current rules."
+  fi
   echo
 
   if [[ "${checked}" -eq 0 ]]; then
     # Zero warnings out of zero repositories read is not "no warnings".
     echo "**No repository could be checked**, so no warnings were looked for."
     echo
-  elif [[ "${warned}" -eq 0 ]]; then
-    echo "No warnings: no checked repository's latest run carried a warning or notice annotation."
-    echo
   else
+    if [[ "${warned}" -eq 0 ]]; then
+      echo "No warnings: no checked repository's latest run carried a warning or notice annotation worth listing."
+      echo
+    fi
+    lines="$(jq -r '.collapsed[] | "- \(.count) repositories carry the same notice: \(.message | gsub("[\r\n]+"; " "))"' <<<"${view}")"
+    if [[ -n "${lines}" ]]; then
+      echo "${lines}"
+      echo
+    fi
     # A failed jq prints nothing; an empty table would read as clean.
     if ! rows="$(jq -r '
       def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
       # GitHub puts file-less annotations under path .github.
       def where: if .path == "" or .path == ".github" then "—"
                  else "`" + .path + (if .line then ":" + (.line | tostring) else "" end) + "`" end;
-      select(.state == "ok") | . as $r | .annotations[]
-      | "| " + (if $r.runUrl then "[" + $r.repo + "](" + $r.runUrl + ")" else $r.repo end)
-        + " | " + .level + " | " + where + " | " + (.message | cell) + " |"
-    ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
-      echo "**Warnings found but could not be rendered.** ${warned} repositories carry annotations; see the run log."
+      def ran: (if .dated then .runAt[:10] else "date unknown" end)
+               + (if .stale then " — **predates current rules**" else "" end);
+      .recs[] | . as $r
+      | ((if $r.runUrl then "[" + $r.repo + "](" + $r.runUrl + ")" else $r.repo end)
+         + " | " + ($r | ran)) as $head
+      | if ($r.rows | length) == 0
+        then "| " + $head + " | — | — | none shown |"
+        else $r.rows[]
+          | "| " + $head + " | " + .level + " | " + where + " | " + (.message | cell) + " |"
+        end
+    ' <<<"${view}")" || [[ -z "${rows}" ]]; then
+      echo "**Repositories checked but the table could not be rendered.** See the run log."
       echo
     else
-      echo "| Repo | Level | File | Message |"
-      echo "| --- | --- | --- | --- |"
+      echo "| Repo | Latest run | Level | File | Message |"
+      echo "| --- | --- | --- | --- | --- |"
       echo "${rows}"
       echo
     fi
