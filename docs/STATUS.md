@@ -1,7 +1,7 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three) and 2026-10-05
-(two) updates below.**
+(three) updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -253,6 +253,39 @@ or be explicitly parked with a resume note, by then — see the tracker.
 
   `claude-config#659` (OS isolation plus server-side rules) would make the
   gate-parser group and `#658` moot; decide it before investing there.
+
+**2026-10-05 evening update:**
+
+- **Digest filter checked on live data, then tightened.** A manual run
+  (agent tokens lack `Actions: write`; Andrew dispatched it) showed routine
+  notices dropped, the Ubuntu 26 notice collapsed to one line, and 21 runs
+  flagged as predating `standards-check-v1`. `dev-env#189` then dropped the
+  35 "none shown" rows: the table lists only repos with warnings, and a
+  `Predate current rules:` line names the stale ones.
+- **The three Todo items are closed. Board: Done 77, Parked 114, Todo 0.**
+  - `github-workflows#178`: not closed in favor of retirement after all.
+    `crazy-larry` and `networth-agent` (kept by decision) use `model: auto`,
+    so `github-workflows#184` moved the default to `claude-sonnet-5-5`,
+    released as `v3.3.2`; Andrew moved `v3` to it.
+  - `claude-config#646`: `claude-config#679` runs the out-of-diff
+    downgrade on the chunked path too (it exited before the single-pass
+    copy ran). The attempt-limit half was `#678`.
+  - `claude-config#645`: closed not planned. `CLAUDE_CODE_MAX_TURNS` would
+    cap the hook's own reviewers; the stall timeout resets on progress and
+    would not have fired; a hard mid-run cap was rejected 2026-09-25.
+- **`claude-config#647` picked up from Parked.** The model item was already
+  done by `#654` (the `haiku` alias still resolves to 4.5, so commit review
+  uses `claude-sonnet-5-5`). `claude-config#680` (open at time of writing)
+  adds an arbiter to the chunked path. It runs only when a per-file block
+  disagrees with an adversarial PASS, gets `Read`/`Grep`/`Glob` so it can
+  check the claim against the file, and fails closed. Reviewers stay on
+  `--tools ""`. Follow-ups filed and Parked: `#681` (codebase mode loads
+  every MCP server), `#682` (arbiter shares `review.timeout`), `#683`
+  (cached-PASS branch untested), `#684` (read-only tools are not confined
+  to the repo).
+- **Not acted on:** the Ubuntu 26 runner migration (`ubuntu-latest` moves
+  from 2026-10-19). Nothing can be checked ahead of it; breakage would show
+  as red checks in the digest. Pin `ubuntu-24.04` only if something breaks.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
