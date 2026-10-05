@@ -1,7 +1,7 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three) and 2026-10-05
-updates below.**
+(two) updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -42,6 +42,10 @@ or be explicitly parked with a resume note, by then — see the tracker.
   - Two callers remain by decision: `crazy-larry` and
     `nightowlstudiollc/networth-agent`. Both still require the check. Delete
     the reusable file when the last caller is gone.
+    **Correction 2026-10-05:** that list was incomplete. `reliquarist` and
+    `nightowlstudiollc/.github` (plus its workflow template) also still
+    called it; both retired 2026-10-05. `kebab-tax` and `kebab-tax-netlify`
+    still call it, out of scope until after the stop.
   - `CLAUDE_CODE_OAUTH_TOKEN` is deleted from dev-env. Every other caller
     repo keeps it for `claude.yml`.
   - `claude-code-action` is at 1.0.237 (`github-workflows#177`,
@@ -202,6 +206,53 @@ or be explicitly parked with a resume note, by then — see the tracker.
     the baseline. Two in-range lockfile bumps; `braces` and `node-forge`
     (no patched release, build-time only) are baselined with a 2026-11-05
     review date.
+
+**2026-10-05 afternoon update:**
+
+- **Untriaged backlog found and sorted.** 40 issues opened 09-25 to 10-05
+  in the tooling repos (daily-work finds) had never reached the board,
+  which does not auto-add. Each was checked against the current code:
+  3 were already fixed or superseded and are closed (`claude-config#598`,
+  `#602`, `dev-env#62`); the rest are on the board. Board: Done 74,
+  Parked 110, Todo 3.
+- **Fixed and merged:**
+  - `claude-config#678`: after 3 consecutive blocked commit reviews on a
+    branch (`review.maxAttempts`), the hook refuses before reviewing,
+    still blocks, and tells the agent to stop and hand back. A human resets
+    it with the printed `rm`. Advances `#646` (the chunked-pass
+    pre-existing-tier check remains) and `#645` (the turn-limit env vars
+    were not set: a global `CLAUDE_CODE_MAX_TURNS` would also cap the
+    review hook's own reviewers).
+  - `claude-config#677` closes `#650` and `#651`: `SKIP=` on `git commit`
+    or `pre-commit run` is blocked, and leading `NAME=value` assignments no
+    longer hide a commit on main.
+  - `dotfiles#401` closes `#366`: an unattended `brew upgrade --formula`
+    failure now notifies FAILED with the first error line, later steps
+    still run, and `updates` returns 1 instead of reporting success.
+  - `nightowlstudiollc/reliquarist#104` and `nightowlstudiollc/.github#26`
+    retire the leftover CI reviewer callers (see the correction above).
+- **Todo (3):** `claude-config#646` and `#645` remainders, and
+  `github-workflows#178` (bump the deprecated reviewer's model; recommended
+  close in favor of retiring the last callers).
+- **Resume note for the newly Parked items**, grouped so one PR covers each
+  group. Re-verify against the code before starting; this was measured
+  2026-10-05.
+
+  | Group | Issues | Size |
+  | --- | --- | --- |
+  | Tests that skip silently | claude-config#591, #649; dotfiles#400 | S |
+  | Merge-lock | claude-config#658, #597, #672, #676 | S each |
+  | Large single-line generated files block merge | claude-config#612 | M |
+  | gh-wrapper | dotfiles#365, #374, #383 | M |
+  | Gate-parser holes | claude-config#603, #627, #634, #637 | M |
+  | CodeQL sweep (dotfiles, dev-env not configured) | dev-env#166 | M |
+  | Docs, cleanups | claude-config#596, #611, #642, #644, #652 | S |
+  | Docs, cleanups | dotfiles#371 | S |
+  | Needs a decision | claude-config#625, #657, #659, #669 | L/none |
+  | Needs a spec | dotfiles#379, #380 | M-L |
+
+  `claude-config#659` (OS isolation plus server-side rules) would make the
+  gate-parser group and `#658` moot; decide it before investing there.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
