@@ -123,7 +123,7 @@ fi
 
 # dev-env#179. Keep three outcomes apart: warnings, clean, not checked.
 render_standards() {
-  local file="$1" recs checked clean warned unchecked archived rows lines view stale undated rules_at rules_err
+  local file="$1" recs checked clean warned unchecked archived rows lines view stale stale_repos undated rules_at rules_err
   echo "## Standards warnings"
   echo
   if [[ ! -r "${file}" ]]; then
@@ -143,7 +143,7 @@ render_standards() {
     echo
     return 0
   fi
-  echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is. Routine notices (no Markdown, shell or YAML files, no workflows) are omitted, and a notice repeated across repositories is shown once."
+  echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is. Routine notices (no Markdown, shell or YAML files, no workflows) are omitted, a notice repeated across repositories is shown once, and repositories with nothing to list are counted, not listed."
   echo
   unchecked="$(jq -s '[.[] | select(.state != "ok" and .state != "archived")] | length' <<<"${recs}")"
 
@@ -181,6 +181,11 @@ render_standards() {
   echo
   if [[ -n "${rules_at}" ]]; then
     echo "Current rules: \`standards-check-v1\` as of ${rules_at:0:10}. **${stale} run(s) predate current rules**, so their results do not reflect them."
+    if [[ "${stale}" -gt 0 ]]; then
+      echo
+      stale_repos="$(jq -r '[.recs[] | select(.stale) | .repo] | join(", ")' <<<"${view}")"
+      echo "Predate current rules: ${stale_repos}."
+    fi
   elif [[ "${checked}" -gt 0 ]]; then
     echo "**Rules date unknown** (${rules_err}), so whether a run predates the current rules was not checked."
   fi
@@ -204,8 +209,11 @@ render_standards() {
       echo "${lines}"
       echo
     fi
-    # A failed jq prints nothing; an empty table would read as clean.
-    if ! rows="$(jq -r '
+    # Zero warnings means no table: clean repos are counted, not listed.
+    # With warnings, a failed jq prints nothing and an empty table reads clean.
+    if [[ "${warned}" -eq 0 ]]; then
+      :
+    elif ! rows="$(jq -r '
       def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
       # GitHub puts file-less annotations under path .github.
       def where: if .path == "" or .path == ".github" then "—"
@@ -215,11 +223,8 @@ render_standards() {
       .recs[] | . as $r
       | ((if $r.runUrl then "[" + $r.repo + "](" + $r.runUrl + ")" else $r.repo end)
          + " | " + ($r | ran)) as $head
-      | if ($r.rows | length) == 0
-        then "| " + $head + " | — | — | none shown |"
-        else $r.rows[]
-          | "| " + $head + " | " + .level + " | " + where + " | " + (.message | cell) + " |"
-        end
+      | $r.rows[]
+      | "| " + $head + " | " + .level + " | " + where + " | " + (.message | cell) + " |"
     ' <<<"${view}")" || [[ -z "${rows}" ]]; then
       echo "**Repositories checked but the table could not be rendered.** See the run log."
       echo
