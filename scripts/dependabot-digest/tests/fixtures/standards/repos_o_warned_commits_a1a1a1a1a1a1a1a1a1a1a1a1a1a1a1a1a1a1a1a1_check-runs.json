@@ -19,12 +19,13 @@
       "name": "standards-check / run-standards-check",
       "status": "completed",
       "conclusion": "success",
+      "completed_at": "2026-10-03T10:00:00Z",
       "app": {
         "slug": "github-actions"
       },
       "html_url": "https://github.com/x/runs/11",
       "output": {
-        "annotations_count": 4
+        "annotations_count": 6
       }
     },
     {

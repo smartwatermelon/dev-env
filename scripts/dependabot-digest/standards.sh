@@ -28,19 +28,23 @@ and all(.check_runs[]; (.id | type == "number") and (.name | type == "string"))
 JQ
 
 emit() {
-  # emit <repo> <state> <detail> [source] [run_url] [annotations_json]
+  # emit <repo> <state> <detail> [source] [run_url] [annotations_json] [run_at]
   local line
   line="$(jq -cn --arg owner "${owner}" --arg repo "$1" --arg state "$2" \
     --arg detail "$3" --arg source "${4-}" --arg url "${5-}" \
-    --argjson ann "${6:-[]}" \
+    --argjson ann "${6:-[]}" --arg runAt "${7-}" \
+    --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
       runUrl: (if $url == "" then null else $url end),
+      runAt: (if $runAt == "" then null else $runAt end),
+      rulesAt: (if $rulesAt == "" then null else $rulesAt end),
+      rulesErr: (if $rulesErr == "" then null else $rulesErr end),
       annotations: $ann}' 2>/dev/null)"
   # If jq fails, the repo must still appear.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"annotations":[]}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[]}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -66,6 +70,43 @@ last_err() {
   e="$(tr '\n' ' ' <"${ERRF}" | cut -c1-160)"
   printf '%s' "${e:-$1}"
 }
+
+# Commit date of the rules tag; older runs predate the rules. On failure
+# RULES_ERR says why, so the digest reports it.
+RULES_REPO="smartwatermelon/github-workflows"
+RULES_TAG="standards-check-v1"
+RULES_AT=""
+RULES_ERR=""
+resolve_rules_at() {
+  local pair kind sha date hops=0
+  if ! pair="$(api "repos/${RULES_REPO}/git/ref/tags/${RULES_TAG}" --jq '.object.type + " " + .object.sha')"; then
+    RULES_ERR="cannot read tag ${RULES_TAG}: $(last_err "no detail")"
+    return 0
+  fi
+  kind="${pair%% *}"
+  sha="${pair##* }"
+  # An annotated tag points at a tag object; dereference it to the commit.
+  while [[ "${kind}" == "tag" && "${hops}" -lt 3 ]]; do
+    hops=$((hops + 1))
+    if ! pair="$(api "repos/${RULES_REPO}/git/tags/${sha}" --jq '.object.type + " " + .object.sha')"; then
+      RULES_ERR="cannot dereference tag ${RULES_TAG}: $(last_err "no detail")"
+      return 0
+    fi
+    kind="${pair%% *}"
+    sha="${pair##* }"
+  done
+  if [[ "${kind}" != "commit" || ! "${sha}" =~ ^[0-9a-f]{40}$ ]]; then
+    RULES_ERR="tag ${RULES_TAG} does not resolve to a commit"
+    return 0
+  fi
+  if ! date="$(api "repos/${RULES_REPO}/commits/${sha}" --jq '.commit.committer.date')" \
+    || [[ ! "${date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+    RULES_ERR="cannot read the date of ${sha:0:7}: $(last_err "malformed date")"
+    return 0
+  fi
+  RULES_AT="${date}"
+}
+resolve_rules_at
 
 # Prints the commit's standards-check run, or nothing. Returns 1 if unreadable.
 run_on_commit() {
@@ -123,7 +164,8 @@ survey_repo() {
   fi
 
   url="$(jq -r '.html_url // ""' <<<"${run}")"
-  local status run_id
+  local status run_id run_at
+  run_at="$(jq -r '.completed_at // .started_at // ""' <<<"${run}")"
   status="$(jq -r '.status' <<<"${run}")"
   run_id="$(jq -r '.id' <<<"${run}")"
   if [[ "${status}" != "completed" ]]; then
@@ -153,7 +195,7 @@ survey_repo() {
     emit "${nwo}" unreadable "annotations are incomplete or malformed (run reports ${count})" "${source}" "${url}"
     return 0
   fi
-  emit "${nwo}" ok "" "${source}" "${url}" "${ann}"
+  emit "${nwo}" ok "" "${source}" "${url}" "${ann}" "${run_at}"
 }
 
 # The installation list is exactly the set of repos this token can read.

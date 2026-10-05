@@ -41,6 +41,26 @@
       "title": "",
       "message": "node-version is an expression (${{ inputs.node }}); not checked",
       "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "x",
+      "start_line": 1,
+      "end_line": 1,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "The ubuntu-latest label will migrate",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "x",
+      "start_line": 2,
+      "end_line": 2,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "no workflows",
+      "raw_details": ""
     }
   ]
 ]

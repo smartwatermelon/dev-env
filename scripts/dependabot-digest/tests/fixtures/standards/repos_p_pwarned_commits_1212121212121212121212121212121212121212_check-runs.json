@@ -6,6 +6,7 @@
       "name": "standards-check / run-standards-check",
       "status": "completed",
       "conclusion": "success",
+      "completed_at": "2026-10-04T10:00:00Z",
       "app": {
         "slug": "github-actions"
       },

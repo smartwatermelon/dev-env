@@ -112,12 +112,43 @@ _has() { if grep -qF -- "$1" "$3"; then _pass "$2"; else _fail "$2 (missing: $1)
 _hasnt() { if grep -qF -- "$1" "$3"; then _fail "$2 (present: $1)"; else _pass "$2"; fi; }
 
 _has '## Standards warnings' "the section is rendered" "${body}"
-_has '**3 repositories checked**: 2 with warnings or notices, 1 with none. **6 not checked.**' \
-  "the summary counts checked, warned, clean and not-checked repos" "${body}"
-_has "| [o/warned](https://github.com/x/runs/11) | warning | \`.github/workflows/ci.yml:12\` | node-version 18 is below the floor 22 |" \
-  "a warning row names repo, level, file and message, linked to the run" "${body}"
-_has '| [p/pwarned](https://github.com/x/runs/70) | notice |' \
-  "notices from a second owner are listed" "${body}"
+_has '**3 repositories checked**: 1 with warnings or notices, 2 with none. **6 not checked.**' \
+  "the summary counts what is shown: filtered-out repos count as none" "${body}"
+_has "| [o/warned](https://github.com/x/runs/11) | 2026-10-03 | warning | \`.github/workflows/ci.yml:12\` | node-version 18 is below the floor 22 |" \
+  "a warning row names repo, run date, level, file and message, linked to the run" "${body}"
+_has "| notice | \`.github/workflows/build.yml:7\` | node-version is an expression" \
+  "a one-off notice is still listed" "${body}"
+
+# Change 1: routine notices are dropped, exact text, notice level only.
+_hasnt 'no shell files' "a routine notice (no shell files) is dropped" "${body}"
+_hasnt '| notice | — | no workflows |' "a routine notice (no workflows) is dropped" "${body}"
+_has '| warning | — | no workflows |' \
+  "KNOWN-BAD: a warning-level row with routine text survives" "${body}"
+
+# Change 2: a notice repeated across repos collapses to one line with a count.
+_has '- 2 repositories carry the same notice: The ubuntu-latest label will migrate' \
+  "a repeated notice is shown once with a repo count" "${body}"
+_hasnt '| notice | — | The ubuntu-latest label' "the repeated notice is not a per-repo row" "${body}"
+_has '| [p/pwarned](https://github.com/x/runs/70) | 2026-10-04 | — | — | none shown |' \
+  "a repo whose only rows were collapsed still appears, with its run date" "${body}"
+
+# Change 3: run dates and the stale-run flag.
+_has '| [o/clean](https://github.com/x/runs/20) | 2026-09-19 — **predates current rules** | — | — | none shown |' \
+  "KNOWN-BAD: a stale run whose only row was filtered is flagged, not shown as plain clean" "${body}"
+_has '**1 run(s) predate current rules**' "the stale count is stated" "${body}"
+_has 'as of 2026-10-02' "the tag is resolved through the annotated tag to its commit date" "${body}"
+_hasnt '2026-10-03 — **predates' "a run newer than the tag is not flagged" "${body}"
+
+# A tag that cannot be resolved must be said, not silently skipped.
+FIX2="${WORK}/fix-notag"
+cp -R "${FIX}" "${FIX2}"
+rm -f "${FIX2}"/repos_smartwatermelon_github-workflows_*
+PATH="${BIN}:${PATH}" STUB_FIX="${FIX2}" STUB_OWNER=o GH_TOKEN=t \
+  bash "${DIR}/standards.sh" o >"${WORK}/notag.ndjson" 2>/dev/null
+: | bash "${DIR}/render.sh" --standards "${WORK}/notag.ndjson" >"${WORK}/notag.md" 2>/dev/null
+_has '**Rules date unknown**' "an unresolvable tag is reported" "${WORK}/notag.md"
+_has 'cannot read tag standards-check-v1' "the reason the tag failed is kept" "${WORK}/notag.md"
+_hasnt 'predates current rules' "no stale flag is invented without a rules date" "${WORK}/notag.md"
 _has '### Not checked' "unreadable repos get their own subsection" "${body}"
 _has '| o/nulled | UNREADABLE:' "a nulled run is shown as unreadable" "${body}"
 _has '| o/norun | no standards-check run:' "a repo with no run is shown by name" "${body}"
