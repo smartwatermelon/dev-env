@@ -16,10 +16,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # Both suites are hermetic: they put a stub `gh` on PATH and never
+      # All three suites are hermetic: they put a stub `gh` on PATH and never
       # reach GitHub. They need bash and jq; ubuntu-latest ships both.
       - name: Run org-migration tests
         run: bash scripts/org-migration/tests/run-tests.sh
 
       - name: Run dependabot-digest tests
         run: bash scripts/dependabot-digest/tests/run-tests.sh
+
+      - name: Run site-monitor tests
+        run: bash scripts/site-monitor/tests/run-tests.sh

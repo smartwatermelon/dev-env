@@ -1,0 +1,80 @@
+name: Site Monitor
+
+# Pages Andrew when a production Netlify site fails (dev-env#193). How it works: docs/runbooks/site-monitor-ntfy.md.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  # Scheduled workflows run only on the default branch, so this is how a change
+  # is tested and how the first run is triggered.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two runs could race on the alert issue. Never cancel: a half-applied transition is worse than a late one.
+  group: site-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Writes the alert issue in this repository. Check-runs are read with the
+      # per-owner app tokens, which carry no write access anywhere.
+      issues: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The baseline check is run from its home, not copied, so a fix there
+      # reaches the monitor when the tag moves.
+      - name: Check out the baseline check
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: smartwatermelon/github-workflows
+          ref: netlify-site-checks-v1
+          path: site-checks
+          sparse-checkout: netlify
+          persist-credentials: false
+
+      # Only the owners in sites.json. The repo list stays in sites.json alone;
+      # scoping the tokens here would be a second copy to keep in sync.
+      - name: Mint a token for smartwatermelon
+        id: token-smartwatermelon
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DIGEST_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DIGEST_APP_PRIVATE_KEY }}
+          owner: smartwatermelon # zizmor: ignore[github-app] repo list lives in sites.json; read-only checks
+          permission-checks: read
+          permission-contents: read
+
+      - name: Mint a token for nightowlstudiollc
+        id: token-nightowlstudiollc
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.DIGEST_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DIGEST_APP_PRIVATE_KEY }}
+          owner: nightowlstudiollc # zizmor: ignore[github-app] repo list lives in sites.json; read-only checks
+          permission-checks: read
+          permission-contents: read
+
+      - name: Check the sites and update the alert
+        env:
+          MONITOR_TOKEN_SMARTWATERMELON: ${{ steps.token-smartwatermelon.outputs.token }}
+          MONITOR_TOKEN_NIGHTOWLSTUDIOLLC: ${{ steps.token-nightowlstudiollc.outputs.token }}
+          # Empty until Andrew installs it. The script still writes the issue,
+          # then fails the run: a monitor that cannot alert must not read green.
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          BASELINE_CHECK: site-checks/netlify/baseline-check.sh
+          # Used only to write the issue in this repository.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MONITOR_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash scripts/site-monitor/run-monitor.sh
