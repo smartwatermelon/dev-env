@@ -1,7 +1,7 @@
 # Infrastructure project status
 
-**As of 2026-09-16, with 2026-10-01, 2026-10-02 (three) and 2026-10-05
-(three) updates below.**
+**As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
+(three) and 2026-10-06 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -294,6 +294,56 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Resume:** nothing is in flight. All touched repos are clean on `main`.
   Next candidates are the Parked groups in the afternoon table above, plus
   `claude-config#681`-`#684`.
+
+**2026-10-06 update (last day before the stop):**
+
+- **Parked triage.** All 113 Parked items were read and ranked by one
+  test: what runs or is used daily while the project is paused. Merge-locks
+  were the budget. Board at end of day: Done 83, Parked 110.
+- **Merged:**
+  - `claude-config#685` closes `#591` and `#649`: budget-guard default
+    tests no longer inherit `BUDGET_*` from the environment, and CI checks
+    out personify so the length-cap suites run (they printed SKIP before).
+    With `CI=true` and no checkout they now fail instead of skipping.
+  - `claude-config#686` closes `#612`: the pre-merge hook gates the diff on
+    bytes as well as lines, so a one-line generated file is summarized
+    instead of overflowing the prompt.
+  - `huddle-transcribe#45` closes `#37`: an explicit session id bypasses
+    the 300 s floor, and `HUDDLE_MIN_DURATION` (shared with `huddle-watch`)
+    sets it.
+  - Dependabot: `github-workflows#183`, `amelia-boone#85`,
+    `projectinsomnia#183`.
+- **superpowers injection stopped (`dev-env#126`).** The upstream plugin
+  installed from `obra/superpowers` HEAD and the nightly plugin update
+  restored `hooks/` in each new cache directory, so the fork fix never held.
+  `smartwatermelon-marketplace#34` vendors a hook-less subset of v6.4.2
+  (`8ca22db`): the four skills in use (brainstorming, writing-plans,
+  subagent-driven-development, systematic-debugging) and the six they
+  reference. `claude-config#688` points `settings.json` at it. Installed on
+  ASIAGO; other machines switch on their next `allup`. A headless probe
+  showed no injection; close #126 after a fresh interactive session
+  confirms it. Upstream sync is parked as `smartwatermelon-marketplace#35`.
+- **Closed as fixed:** `dotfiles#312`. `HOMEBREW_NO_UPGRADE_AUTO_UPDATES_CASKS`
+  (`dotfiles#399`) already skips self-updating casks such as Chrome and
+  iTerm2; Homebrew 5.1.12+ quits and reopens casks that declare
+  `uninstall quit:`.
+- **Moved down after checking:** the Q4 audit's P7 finding (`dev-env#167`).
+  `claude-code-action` refuses actors without write permission by default
+  (`src/github/validation/permissions.ts`), and none of the seven repos sets
+  `allowed_non_write_users`, so the missing `author_association` gate is
+  defense in depth only.
+- **Parked with direction:** `claude-config#585`. Employer name and the
+  `andrewmrich` account may stay public; the org chart, Slack IDs and job
+  title may not. Andrew wants a history redaction, with or without GitHub
+  Support. The resume note on the issue has the inventory and the purge
+  prerequisites.
+- **Filed and Parked:** `claude-config#687` (pre-merge treats unreadable
+  CI status as required checks passed; low impact, false OK).
+- **Dependabot queue at end of day:** `claude-code-workflows-agents#34`
+  is CLEAN and waits for a lock; `amelia-boone#67` is still red on its own
+  `@shikijs` type mismatch; kebab PRs wait for after the stop.
+- **Resume:** nothing is in flight. Next candidates are unchanged from
+  2026-10-05 plus `claude-config#687`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
