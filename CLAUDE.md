@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase and there is no build step, but it is not command-free either:
 
-- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`. `bash scripts/dependabot-digest/tests/run-tests.sh` covers the Dependabot digest classifier and renderer; run it after any change under `scripts/dependabot-digest/`.
+- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`. `bash scripts/dependabot-digest/tests/run-tests.sh` covers the Dependabot digest classifier and renderer; run it after any change under `scripts/dependabot-digest/`. `bash scripts/site-monitor/tests/run-tests.sh` covers the production-site monitor's alert transitions; run it after any change under `scripts/site-monitor/`.
 - **Lint**: `shellcheck -S info <script>` applies to every shell script in the repo, and must be clean with no `# shellcheck disable` directives.
 
 ## Repository Structure
@@ -21,6 +21,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue; run by `.github/workflows/dependabot-digest.yml`. Credentials (a GitHub App) are installed by hand: see `docs/runbooks/dependabot-digest-credentials.md`
+- `scripts/site-monitor/` — Every 15 minutes, checks each production Netlify site in `sites.json` and its latest `site-check` run; keeps one `site-down` issue and pushes ntfy.sh alerts. Run by `.github/workflows/site-monitor.yml`. The `NTFY_TOPIC` secret is installed by hand: see `docs/runbooks/site-monitor-ntfy.md`
 - `.project-hooks/pre-commit` and `.project-hooks/pre-push` — Project-specific git hook extensions, run by the global hooks at `~/.config/git/hooks/` when executable
 - `.claude/` is ignored, as in every fleet repo (dev-env#178). The scaffold the post-checkout hook drops there (`config.sh.template`, `README.md`) comes from `smartwatermelon/dotfiles` `git/template/.claude-template/`; edit it there.
 
