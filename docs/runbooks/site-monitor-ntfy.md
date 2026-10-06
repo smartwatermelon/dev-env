@@ -37,14 +37,24 @@ unset topic
 
 ## 3. Test
 
+The workflow must be on `main` first: `gh workflow run` cannot start a
+workflow that exists only on a branch.
+
+Prove a push reaches the phone. This sends one priority-5 test push and
+skips the site checks:
+
+```bash
+gh workflow run site-monitor.yml --repo smartwatermelon/dev-env -f test-push=true
+```
+
+Then run the monitor itself:
+
 ```bash
 gh workflow run site-monitor.yml --repo smartwatermelon/dev-env
 gh run list --workflow site-monitor.yml --repo smartwatermelon/dev-env --limit 1
 ```
 
-When every site passes, a run sends nothing and exits 0. To see a real push,
-watch for the next transition, or briefly point a `sites.json` entry at a URL
-that returns 404 on a branch and run the workflow with `--ref <branch>`.
+When every site passes, a run sends nothing and exits 0.
 
 ## What each alert means
 

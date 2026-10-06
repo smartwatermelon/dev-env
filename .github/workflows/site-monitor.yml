@@ -8,6 +8,11 @@ on:
   # Scheduled workflows run only on the default branch, so this is how a change
   # is tested and how the first run is triggered.
   workflow_dispatch:
+    inputs:
+      test-push:
+        description: Send one test push to NTFY_TOPIC and skip the site checks
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,7 +32,24 @@ jobs:
       # per-owner app tokens, which carry no write access anywhere.
       issues: write
     steps:
+      # A green run sends nothing, so this is the only way to prove a push reaches the phone.
+      - name: Send a test push
+        if: inputs.test-push
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NTFY_TOPIC}" ]; then
+            echo "::error::NTFY_TOPIC is empty; see docs/runbooks/site-monitor-ntfy.md"
+            exit 1
+          fi
+          printf 'Test push from the site monitor. No site is down.' | curl --silent --show-error \
+            --fail --max-time 30 -H 'Title: Site monitor test' -H 'Priority: 5' \
+            -H 'Tags: test_tube' --data-binary @- "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null
+          echo "Test push sent."
+
       - name: Check out
+        if: ${{ !inputs.test-push }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -35,6 +57,7 @@ jobs:
       # The baseline check is run from its home, not copied, so a fix there
       # reaches the monitor when the tag moves.
       - name: Check out the baseline check
+        if: ${{ !inputs.test-push }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: smartwatermelon/github-workflows
@@ -46,6 +69,7 @@ jobs:
       # Only the owners in sites.json. The repo list stays in sites.json alone;
       # scoping the tokens here would be a second copy to keep in sync.
       - name: Mint a token for smartwatermelon
+        if: ${{ !inputs.test-push }}
         id: token-smartwatermelon
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -56,6 +80,7 @@ jobs:
           permission-contents: read
 
       - name: Mint a token for nightowlstudiollc
+        if: ${{ !inputs.test-push }}
         id: token-nightowlstudiollc
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -66,6 +91,7 @@ jobs:
           permission-contents: read
 
       - name: Check the sites and update the alert
+        if: ${{ !inputs.test-push }}
         env:
           MONITOR_TOKEN_SMARTWATERMELON: ${{ steps.token-smartwatermelon.outputs.token }}
           MONITOR_TOKEN_NIGHTOWLSTUDIOLLC: ${{ steps.token-nightowlstudiollc.outputs.token }}
