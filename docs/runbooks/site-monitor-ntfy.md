@@ -136,6 +136,10 @@ check `launchctl print "gui/$(id -u)/com.smartwatermelon.site-monitor-dispatch"`
 If MIMOLETTE is off, or the token expires, no run starts and nothing alerts.
 A failed dispatch only writes to `~/Library/Logs/site-monitor-dispatch.log`.
 
+The current dispatch token, installed on MIMOLETTE 2026-10-07, **expires
+2027-10-08**. Before then, create a new one ("Create the token" above) and
+update this date.
+
 ## What each alert means
 
 - **Priority 5, `Site down:`.** The first failure. The `site-down` issue opens.
