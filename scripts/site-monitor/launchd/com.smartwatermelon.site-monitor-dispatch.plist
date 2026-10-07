@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Starts the site monitor every 15 minutes from MIMOLETTE, which is always on.
+  GitHub's scheduler never fired site-monitor.yml's cron (dev-env#193).
+  Install: docs/runbooks/site-monitor-ntfy.md, "Trigger from MIMOLETTE".
+  The minutes sit between the workflow's own cron slots (7, 22, 37, 52).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.smartwatermelon.site-monitor-dispatch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/bash</string>
+    <string>/Users/andrewrich/Developer/dev-env/scripts/site-monitor/dispatch-monitor.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Minute</key><integer>2</integer></dict>
+    <dict><key>Minute</key><integer>17</integer></dict>
+    <dict><key>Minute</key><integer>32</integer></dict>
+    <dict><key>Minute</key><integer>47</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/Users/andrewrich/Library/Logs/site-monitor-dispatch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/andrewrich/Library/Logs/site-monitor-dispatch.log</string>
+</dict>
+</plist>
