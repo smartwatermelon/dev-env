@@ -46,7 +46,7 @@ chmod +x "${BIN}/curl"
 
 run() {
   STUB_STATE="${WORK}/state" PATH="${BIN}:${PATH}" DISPATCH_TOKEN_FILE="${WORK}/token" \
-    bash "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
+    "${DISPATCH_TEST_BASH:-bash}" "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
 }
 
 reset() {
@@ -62,6 +62,7 @@ check "POST" grep -qF -- "-X POST" "${WORK}/state/argv"
 check "dispatches URL" grep -qF "/repos/smartwatermelon/dev-env/actions/workflows/site-monitor.yml/dispatches" "${WORK}/state/argv"
 check "ref main" grep -qF '{"ref":"main"}' "${WORK}/state/argv"
 check "logs success" grep -q 'dispatched site-monitor.yml' "${WORK}/out"
+check "UTC timestamp" grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z dispatch-monitor: ' "${WORK}/out"
 
 echo "-- the token goes in on stdin, never in argv or the logs"
 check_not "token not in argv" grep -qF "${TOKEN}" "${WORK}/state/argv"
@@ -87,5 +88,11 @@ touch "${WORK}/state/curl-fail"
 expect_exit 1
 check "logs API message" grep -q 'Bad credentials' "${WORK}/err"
 check_not "token not in output" grep -qF "${TOKEN}" "${WORK}/out" "${WORK}/err"
+
+# launchd runs the script under macOS /bin/bash 3.2, so repeat every case there when this host has it.
+if [[ -z "${DISPATCH_TEST_BASH:-}" ]] && /bin/bash -c '[[ ${BASH_VERSINFO[0]} -lt 4 ]]' 2>/dev/null; then
+  echo "-- every case again under /bin/bash"
+  DISPATCH_TEST_BASH=/bin/bash bash "${BASH_SOURCE[0]}" || fail=1
+fi
 
 exit "${fail}"

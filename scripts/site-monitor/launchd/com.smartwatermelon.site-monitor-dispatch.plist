@@ -5,6 +5,9 @@
   GitHub's scheduler never fired site-monitor.yml's cron (dev-env#193).
   Install: docs/runbooks/site-monitor-ntfy.md, "Trigger from MIMOLETTE".
   The minutes sit between the workflow's own cron slots (7, 22, 37, 52).
+  /bin/bash, not Homebrew bash: on MIMOLETTE the clone is on an external disk,
+  and Homebrew bash needs a removable-volume grant that every brew upgrade
+  voids, so the job hangs on a prompt. /bin/bash has Full Disk Access there.
 -->
 <plist version="1.0">
 <dict>
@@ -12,7 +15,7 @@
   <string>com.smartwatermelon.site-monitor-dispatch</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/bash</string>
+    <string>/bin/bash</string>
     <string>/Users/andrewrich/Developer/dev-env/scripts/site-monitor/dispatch-monitor.sh</string>
   </array>
   <key>StartCalendarInterval</key>

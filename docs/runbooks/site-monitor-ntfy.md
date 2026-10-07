@@ -102,6 +102,35 @@ The job runs at minutes 2, 17, 32 and 47. The script runs from the clone, so a
 `git pull` there updates it; a change to the plist needs `launchctl bootout`
 and the steps above again.
 
+To replace an installed job, remove it first:
+
+```bash
+launchctl bootout "gui/$(id -u)/com.smartwatermelon.site-monitor-dispatch"
+```
+
+### Why the job runs `/bin/bash`
+
+On MIMOLETTE, `~/Developer` is a symlink to an external disk
+(`/Volumes/extra-vieille/Workspaces`). When launchd runs a script there, macOS
+asks the interpreter for access to a removable volume. The first install ran
+Homebrew bash: on 2026-10-07 it waited on an Allow dialog for about 11 minutes and
+dispatched nothing. A grant for Homebrew bash is tied to its Cellar path and
+code hash, so each `brew upgrade` of bash brings the dialog back and the job
+hangs again with no error.
+
+macOS `/bin/bash` (3.2) has Full Disk Access on MIMOLETTE, granted during the
+initial setup, which covers the external disk. Its path and signature do not
+change with Homebrew. So:
+
+- Keep `dispatch-monitor.sh` compatible with bash 3.2. The tests run every
+  case under `/bin/bash` too, on any Mac.
+- Do not remove `/bin/bash` from Full Disk Access on MIMOLETTE. Without it the
+  job hangs on a dialog that nobody sees.
+
+If the log stops growing, look for a pending dialog on MIMOLETTE's screen and
+check `launchctl print "gui/$(id -u)/com.smartwatermelon.site-monitor-dispatch"`:
+`state = running` for minutes means it is stuck.
+
 ### What this does not cover
 
 If MIMOLETTE is off, or the token expires, no run starts and nothing alerts.
