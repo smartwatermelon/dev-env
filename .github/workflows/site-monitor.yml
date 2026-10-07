@@ -4,7 +4,8 @@ name: Site Monitor
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Off the quarter-hour marks, where GitHub's scheduler is busiest. */15 fired no run in three hours.
+    - cron: '7,22,37,52 * * * *'
   # Scheduled workflows run only on the default branch, so this is how a change
   # is tested and how the first run is triggered.
   workflow_dispatch:
