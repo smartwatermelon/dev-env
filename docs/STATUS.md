@@ -1,7 +1,7 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
-(three) and 2026-10-06 updates below.**
+(three), 2026-10-06 and 2026-10-06/07 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -344,6 +344,58 @@ or be explicitly parked with a resume note, by then — see the tracker.
   `@shikijs` type mismatch; kebab PRs wait for after the stop.
 - **Resume:** nothing is in flight. Next candidates are unchanged from
   2026-10-05 plus `claude-config#687`.
+
+**2026-10-06/07 update (Netlify site checks, `dev-env#193`):**
+
+- **Every production Netlify site checks itself.** All six sites in
+  `scripts/site-monitor/sites.json` call `github-workflows`
+  `netlify-site-checks.yml` (`@netlify-site-checks-v1`) on PRs and on push to
+  main; the production deploy is read from the Netlify API with the
+  `NETLIFY_AUTH_TOKEN` org secret. Landed today: `kebab-tax-netlify#302`,
+  `crazy-larry#18` (baseline checks only; it will not be updated again).
+  `crazy-larry-space` also got the three `github_app_commit_status` deploy
+  hooks that projectinsomnia has.
+- **Production-site monitor (`dev-env#195`).** `site-monitor.yml` checks each
+  site and its latest `site-check` run, keeps one `site-down` issue, and
+  pushes ntfy.sh alerts (re-ping on change or every 6 h). An end-to-end test
+  opened and closed `dev-env#196`; both pushes arrived.
+- **GitHub's cron never fired it.** No scheduled run in 3 h on `*/15`, and
+  only two on `7,22,37,52` (`dev-env#197`). So a launchd job on MIMOLETTE
+  dispatches the workflow every 15 minutes (`dev-env#198`); the cron stays as
+  a backup. Accepted gap: if MIMOLETTE is off or the dispatch token expires,
+  nothing alerts.
+- **The first install hung on a privacy dialog.** MIMOLETTE's `~/Developer`
+  is on an external disk, and launchd's Homebrew bash waited about 11 minutes
+  for a removable-volume Allow. That grant breaks on every `brew upgrade` of
+  bash (`mac-server-setup` `docs/apps/stable-signing-README.md` has the same
+  class of failure). `dev-env#199` runs the job with `/bin/bash` 3.2, which
+  has Full Disk Access there; the script is now bash-3.2 clean and the tests
+  repeat every case under `/bin/bash` on a Mac. Do not revoke that grant.
+  Every slot from 16:33Z to 18:02Z produced a successful run, the last three
+  on `/bin/bash`; `dev-env#193` closed on that evidence.
+- **CI Claude reviewer retired fleet-wide (`dev-env#194`, closed).**
+  `tensegrity#110`, `financial-agent#191`, `cleanroom#18` removed the last
+  callers; `kebab-tax#1284`, `kebab-tax-netlify#304`, `night-owl-studio#99`
+  and `github-workflows#187` dropped stale references, and
+  `github-workflows#188` deleted the reusable workflow. All `v3*` tags stay:
+  `v3` is shared with `claude-assistant.yml`.
+- **Global pre-commit runs first, then the repo's own (`dotfiles#402`).** A
+  missing global config fails the commit. Repo-local configs now hold only
+  repo-specific hooks: `claude-config#692`/`#694`, `amelia-boone#99`/`#100`,
+  `tensegrity#109`/`#111` (markdown dropped from Prettier),
+  `kebab-tax-netlify#305`, `kebab-tax#1285`. `claude-config#695` made the
+  `.bats` suites pass the global shell lint (30 bare `!` assertions now
+  assert).
+- **Lint debt now visible, not filed.** Under the global config, commits
+  touching these files will be blocked until they are fixed: `kebab-tax`
+  (semgrep on test JWTs in `workers/valuation-api`, plus flake8, shell, YAML,
+  markdown, Prettier), `kebab-tax-netlify` (Prettier on 4 files),
+  `amelia-boone` (flake8 F401 in `migrate_images.py`, markdownlint in 31
+  posts), `claude-config` (semgrep-secrets, flake8, a Prettier SyntaxError in
+  `skills/converging-issue-backlogs/issue-convergence-loop.js`).
+- **Open:** the MIMOLETTE dispatch token's expiry date is not recorded
+  anywhere (`docs/token-rotation.md` covers only the OAuth tokens). The
+  submitted-text gate's suspension ends today.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
