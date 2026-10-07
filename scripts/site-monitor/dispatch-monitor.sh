@@ -8,9 +8,12 @@ WORKFLOW='site-monitor.yml'
 TOKEN_FILE="${DISPATCH_TOKEN_FILE:-${HOME}/.config/site-monitor/dispatch-token}"
 API="${GITHUB_API_URL:-https://api.github.com}"
 
-export TZ=UTC
-# printf %(...)T is a bash builtin; -1 means now.
-log() { printf '%(%Y-%m-%dT%H:%M:%SZ)T dispatch-monitor: %s\n' -1 "$*"; }
+# launchd runs this under macOS /bin/bash 3.2 (see the plist), so no bash 4+ features such as printf %(...)T.
+log() {
+  local now
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s dispatch-monitor: %s\n' "${now}" "$*"
+}
 
 if [[ ! -r "${TOKEN_FILE}" ]]; then
   log "cannot read ${TOKEN_FILE}" >&2
