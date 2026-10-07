@@ -393,9 +393,9 @@ or be explicitly parked with a resume note, by then — see the tracker.
   `amelia-boone` (flake8 F401 in `migrate_images.py`, markdownlint in 31
   posts), `claude-config` (semgrep-secrets, flake8, a Prettier SyntaxError in
   `skills/converging-issue-backlogs/issue-convergence-loop.js`).
-- **Open:** the MIMOLETTE dispatch token's expiry date is not recorded
-  anywhere (`docs/token-rotation.md` covers only the OAuth tokens). The
-  submitted-text gate's suspension ends today.
+- **Dispatch token:** the MIMOLETTE token expires 2027-10-08, recorded in
+  `docs/runbooks/site-monitor-ntfy.md`. The submitted-text gate's suspension
+  ends today.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
