@@ -1,7 +1,8 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
-(three), 2026-10-06, 2026-10-06/07 and 2026-10-07 evening updates below.**
+(three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening and 2026-10-08
+updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -420,6 +421,42 @@ or be explicitly parked with a resume note, by then — see the tracker.
   can delete a real `.env.local`).
 - **Still open:** the TILSIT README rewrite (low priority), and
   `dotfiles#336`, whose remainder is the GitHub App design.
+
+**2026-10-08 update:**
+
+- **Merge-lock tiering (`claude-config#701`).** The human lock is skipped
+  where policy says exempt. It stays on for claude-config, dotfiles,
+  github-workflows, claude-wrapper, the two Netlify sites, all
+  nightowlstudiollc and beacon-biosignals repos, and PRs by `andrewmrich`
+  outside `beacon-workspace`. The nightowlstudiollc lock is still an open
+  decision on `dev-env#176`. Follow-up: `claude-config#702` (merge-audit
+  should read `exempt.tsv`).
+- **Text-gate routing (`claude-config#699`, `#700`; `dotfiles#412`).** The
+  gate routes on the destination before judging the text's form. Exempt:
+  smartwatermelon (except the Netlify sites), twistedmelonman,
+  `beacon-workspace`, and forks. Pangram-gated: nightowlstudiollc,
+  beacon-biosignals and the Netlify sites. Closes `claude-config#698`.
+  `claude-config#547` (SSH commits) closed as not planned.
+- **`claude-config#703`:** `sync/*` branches are no longer exempt from
+  commit review. Closes `claude-config#691`.
+- **`claude-config#585` closed.** `#704` moved the daily-brief skills'
+  personal details into a private profile outside the repo. The repo's
+  history was rewritten to remove them, every clone on all four machines
+  was reset, and GitHub Support has a request to purge cached commits. A
+  local backup of the old history is kept until Support replies.
+- **Budget guard retuned (`claude-config#705`).** The subagent ceiling goes
+  from 2.3M to 10M: 2.3M tripped on 31% of 326 measured agents, and 10M
+  trips on 2.8%. A trip now tells the subagent to repeat its report, so the
+  report reaches the parent. The session ceiling goes from 25M to 30M.
+- **Node 24 in kebab-tax (`dev-env#78` closed).** `kebab-tax#1290` moved
+  the pins, `#1291` the docs, `#1292` the `check-node` script. No EAS build
+  ran; the next one is the first on Node 24.
+- **`.claude/` ignored in the kebab repos** (`kebab-tax#1289`,
+  `kebab-tax-netlify#308`), with `secrets.op` and `settings.local.json`
+  still tracked. Other repos are unchecked; `dev-env#178` stays open.
+- **Next in the triage queue, not started:** `claude-config#681`/`#684`
+  (reviewer tool scoping), `dev-env#166` (CodeQL), `dotfiles#350`
+  (`run_bounded` process group), `claude-config#637`, `#687`, `#658`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
