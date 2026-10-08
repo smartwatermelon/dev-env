@@ -1,7 +1,7 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
-(three), 2026-10-06 and 2026-10-06/07 updates below.**
+(three), 2026-10-06, 2026-10-06/07 and 2026-10-07 evening updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -396,6 +396,30 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Dispatch token:** the MIMOLETTE token expires 2027-10-08, recorded in
   `docs/runbooks/site-monitor-ntfy.md`. The submitted-text gate's suspension
   ends today.
+
+**2026-10-07 evening update (finish line, verified 2026-10-08):**
+
+- **Andrew declared the project complete on 2026-10-07.**
+- **`gh` identity holds per call (`dotfiles#410`).** The wrapper passes the
+  owner's keyring token on each call instead of running `gh auth switch`.
+  Closes `dotfiles#404` and `#365`, advances `#336`. Checked on arich-mac
+  2026-10-08 in a new shell: `gh api user` prints `twistedmelonman` in
+  `smartwatermelon/dotfiles` and `andrewmrich` in `beacon-biosignals/infra`,
+  while `hosts.yml` keeps `andrewmrich` active and does not change.
+  `claude-config#530` closed on that evidence.
+- **`dotfiles#406`:** the wrapper routes `gh repo <sub> OWNER/REPO` on that
+  owner. This fixed merge-lock's false "Could not reach GitHub".
+- **`dotfiles#407`, `#408`:** `bash-tests` installs the linters its lint
+  tests use and runs the yamllint/zizmor upstream comparisons.
+- **Flat `~/Developer` on all three machines.** Every repo is at
+  `~/Developer/<repo>`; only `beacon-biosignals` stays nested.
+  `dotfiles#409` makes CDPATH match.
+- **`standards-check-v1` moved `8c51fb8` → `398f266`.** This drops the
+  retired reviewer's zizmor ignore.
+- **Filed:** `kebab-tax#1287` (a `.bats` test fails when CDPATH is set, and
+  can delete a real `.env.local`).
+- **Still open:** the TILSIT README rewrite (low priority), and
+  `dotfiles#336`, whose remainder is the GitHub App design.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
