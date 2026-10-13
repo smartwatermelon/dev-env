@@ -1,8 +1,8 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
-(three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening and 2026-10-08
-updates below.**
+(three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08 and
+2026-10-12 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -457,6 +457,28 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Next in the triage queue, not started:** `claude-config#681`/`#684`
   (reviewer tool scoping), `dev-env#166` (CodeQL), `dotfiles#350`
   (`run_bounded` process group), `claude-config#637`, `#687`, `#658`.
+
+**2026-10-12 update:**
+
+- **`smartwatermelon/scripts` is public (`dev-env#85` closed).** It was
+  recreated with one fresh root commit instead of a history rewrite. The old
+  repo is `scripts-archive`, private and archived. Its two open issues were
+  recreated as `scripts#1` and `#2` (GitHub refuses a private-to-public
+  transfer). Branch protection is on and CI is green. Clones were replaced on
+  ASIAGO, TILSIT and MIMOLETTE; arich-mac was not reachable and is unchecked.
+- **No Claude in CI.** `claude.yml` was removed from 31 repos, one PR each.
+  `CLAUDE_CODE_OAUTH_TOKEN` was already deleted, so every `@claude` run had
+  been failing. `docs/token-rotation.md` is now a retirement note. Out of
+  scope: `kebab-tax`, `kebab-tax-netlify`, and
+  `claude-code-workflows-agents`' `eval-report.yml`. `github-workflows`
+  deprecates `claude-assistant.yml` in a separate PR.
+- **`dotfiles#415`:** the `gh` wrapper now exports
+  `_gh_wrapper_scoped_fallback`, with a test. Its absence broke `gh` inside
+  child bash scripts.
+- **Handoff merges:** `infinite-yaks#2` (`main` now requires
+  `standards-check`) and `projectinsomnia#201`.
+- **`dev-env#120` stays open** until the pilot handles one real major
+  Dependabot PR.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -1085,7 +1107,7 @@ These are not oversights. Do not "fix" them without asking.
 | Item | Decision |
 | --- | --- |
 | Runbook Part D on TILSIT and MIMOLETTE | **Still pending on both** as of 2026-09-08; wrongly marked done earlier that day. Manual re-login by Andrew; verify with `grep user: ~/.config/gh/hosts.yml`. |
-| Splitting and rotating the shared token | **Deferred.** One token is installed in five places; a single rotation covers all of them. See `docs/token-rotation.md`. |
+| Splitting and rotating the shared token | **Moot (2026-10-12).** The token is deleted; nothing in CI uses Claude. See `docs/token-rotation.md`. |
 | `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
 | `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
 | Agent machine account and mobile merge gate | **Drafted 2026-09-27, starts after the hard stop.** The agent gets its own write-only GitHub account; Andrew approves PRs in the GitHub mobile app. Blocked on the support ticket and the `smartwatermelon` downgrade. A Slack front end is optional. See `docs/superpowers/specs/2026-09-27-agent-identity-merge-gate-design.md`. |
@@ -1114,7 +1136,7 @@ six accumulated.
 | --- | --- |
 | `docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md` | The backlog itself: every item, the dependency graph, the false-OK catalog |
 | `docs/superpowers/specs/2026-09-03-org-migration-design.md` | Org migration design and runbook |
-| `docs/token-rotation.md` | Where each `CLAUDE_CODE_OAUTH_TOKEN` copy lives; expiry 2027-06-29. Never contains a token |
+| `docs/token-rotation.md` | Retired 2026-10-12: `CLAUDE_CODE_OAUTH_TOKEN` is deleted. Never contains a token |
 | `docs/runbooks/org-migration-rename.md` | Manual UI steps; Part D still pending on two machines |
 | `docs/WORKFLOW-DEEP-DIVE.md` | Enforcement layers: hooks, wrappers, CI/CD |
 | `scripts/org-migration/` | Snapshot/transfer/verify tooling; 38-test hermetic stub-`gh` suite |
