@@ -1,6 +1,7 @@
 # Design: gate public-facing copy through the text gate
 
-Status: DRAFT, 2026-10-15. Not decided. Part B of dev-env#206.
+Status: APPROVED 2026-10-15 (all four decisions below). Not built. Part B of
+dev-env#206.
 
 Part A (claude-config#718, merged) made commit and PR text in private repos
 under Andrew's own owners exempt. Andrew's note on part B: "public-facing text
@@ -163,20 +164,20 @@ the label unless the job removes it on `synchronize`), and it costs Actions
 minutes. It also blocks client edits made in the web UI unless the job skips
 non-agent authors.
 
-## Recommendation
+## Chosen design
 
 Option 1 now, scoped to globs, with option 3 later as the backstop for cloud
-sessions. Defer option 2.
+sessions. Option 2 is phase 2 (decision 4).
 
 Phase 1 covers every web page, email template, store listing and release-notes
-file in the table. It does not cover inline JSX in kebab-tax. That gap is
+file in the inventory. It does not cover inline JSX in kebab-tax. That gap is
 named, not hidden: until option 2 exists, app-string changes are reviewed only
 through the normal PR diff.
 
-Keep `copy-paths.conf` central, in claude-config. A tracked file inside each
-repo could be edited by the agent in the same commit that adds the copy. The
-fleet already ignores `.claude/`, and `hook-block-gate-dir-write.sh` guards the
-gate's own files. Same reasoning.
+`copy-paths.conf` is central, in claude-config (decision 1). A tracked file
+inside each repo could be edited by the agent in the same commit that adds the
+copy. The fleet already ignores `.claude/`, and `hook-block-gate-dir-write.sh`
+guards the gate's own files. Same reasoning.
 
 Add a `copy` kind to `length_check.py` with no body cap. The existing caps (140
 words for a commit body) exist to keep agent prose short, which is not the
@@ -210,22 +211,20 @@ point for a web page.
 7. **Pangram unavailable.** `pangram_check.py` exits 5 and writes no record.
    On a `pangram` copy route that blocks, the same as for commit text.
 
-## Decisions for Andrew
+## Decisions (2026-10-15)
 
-1. **Where should the list of copy paths live?**
-   Options: (a) one central file in claude-config, (b) a file in each repo,
-   (c) both. Risk of (b): an agent can edit the list in the same commit as the
-   copy. Recommended: (a).
-2. **What should you be shown for approval?**
-   Options: (a) only the added or changed text (the whole file when the file
-   is new), (b) the whole changed file every time. Risk of (b): long reviews
-   for a one-word fix. Recommended: (a).
-3. **Should client sites (amelia-boone, tnjcleaning) be gated like your own?**
-   Options: (a) same as yours, Pangram plus your approval, (b) your approval
-   only, no Pangram, (c) not gated. Risk of (c): agent-written text ships under
-   a client's name unseen. Recommended: (a), for agent commits only.
-4. **When should in-app strings in the kebab-tax code be gated?**
-   Options: (a) now, with a rough extractor and many false positives, (b) in a
-   second phase; phase 1 gates store listings, emails, release notes and web
-   pages. Risk of (b): app string changes are seen only in the PR diff for
-   now. Recommended: (b).
+Andrew accepted the recommended answer on all four.
+
+1. **Where the list of copy paths lives: one central file in claude-config.**
+   Rejected: a file in each repo, or both. A per-repo file can be edited by
+   the agent in the same commit as the copy.
+2. **What is shown for approval: only the added or changed text, and the whole
+   file when the file is new.** Rejected: the whole changed file every time,
+   which makes a one-word fix a long review.
+3. **Client sites (amelia-boone, tnjcleaning) are gated like Andrew's own:
+   Pangram plus his approval, for agent commits only.** Rejected: approval
+   without Pangram, or no gate. Client edits in the GitHub web UI stay
+   ungated, since they never pass a local hook.
+4. **In-app strings in the kebab-tax code are gated in phase 2.** Phase 1
+   gates store listings, emails, release notes and web pages. Until phase 2,
+   app string changes are seen only in the PR diff.
