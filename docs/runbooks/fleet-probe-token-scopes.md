@@ -50,11 +50,17 @@ with no OAuth fallback.
 2026-09-16, which also brought it to `actions, administration, metadata: read`
 — matching both org tokens. **No token scope changes remain.**
 
-## What remains: route by owner
+## Route by owner
 
-A fleet probe must present the owning account's token for each request. Until
-the `gh` wrapper routes fine-grained tokens by owner the way it already routes
-identity, a probe does this itself:
+A fleet probe must present the owning account's token for each request.
+
+The `gh` wrapper does this per call when `GH_TOKEN_SWM`, `GH_TOKEN_NOS` and
+`GH_TOKEN_TWM` are set, as they are in a claude-wrapper session
+(`dotfiles#373`, extended by `#397` and `#423`). It reads the owner from `-R`,
+`--owner`, `gh repo list OWNER`, and `gh api repos|orgs|users/OWNER/...`. In
+that session a plain `gh repo list "$o"` needs no `GH_TOKEN=` prefix.
+
+In a shell without those variables, a probe does the routing itself:
 
 ```bash
 token_for() {
