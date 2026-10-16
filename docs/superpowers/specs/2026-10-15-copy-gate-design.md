@@ -1,7 +1,9 @@
 # Design: gate public-facing copy through the text gate
 
-Status: APPROVED 2026-10-15 (all four decisions below). Not built. Part B of
-dev-env#206.
+Status: APPROVED 2026-10-15 (decisions 1–4 below; decision 5 added
+2026-10-16). Phase 1 built: claude-config#721 (`copy-paths.conf`,
+`scripts/gate-copy.py`). Decision 5 (READMEs) not built: claude-config#735.
+Part B of dev-env#206.
 
 Part A (claude-config#718, merged) made commit and PR text in private repos
 under Andrew's own owners exempt. Andrew's note on part B: "public-facing text
@@ -41,8 +43,9 @@ visual-only in practice.
 
 Text a person outside the repo reads in a shipped product: rendered web pages,
 emails sent to users, in-app strings, store listings, release notes the app
-fetches. Not copy: code, config, tests, CI, internal docs, design plans,
-READMEs, generated output.
+fetches. READMEs in public repos count too: GitHub renders them for anyone
+who opens the repo (decision 5). Not copy: code, config, tests, CI, internal
+docs, design plans, READMEs in private repos, generated output.
 
 Inventory from `origin/main` of each checkout, 2026-10-15. Production sites
 come from `scripts/site-monitor/sites.json`. "Text route" is what
@@ -80,8 +83,9 @@ Notes on the inventory:
    modal shows it (header of `mobile/src/config/releaseNotes.ts`). It is app
    copy that ships through the web repo.
 3. Excluded on purpose: amelia-boone `public/pagefind/**` (114 generated
-   files) and `.astro/`; every `docs/plans/`, `README.md`, `CLAUDE.md`,
-   `EDITING-COOKBOOK.md`; lockfiles.
+   files) and `.astro/`; every `docs/plans/`, `CLAUDE.md`,
+   `EDITING-COOKBOOK.md`; lockfiles. `README.md` was on this list until
+   decision 5 (2026-10-16) moved public-repo READMEs into scope.
 4. jordan-paddock-pitch is not checked out under `~/Developer`. Its layout is
    not inventoried here.
 5. The two client sites carry the client's voice, not Andrew's. The
@@ -93,9 +97,10 @@ Two axes, kept apart. The text route answers "who reads this commit message".
 The copy list answers "does this file ship to the public". They are
 independent. kebab-tax is private, so its commit text is exempt, and its App
 Store description is still public copy. A copy check must not ask
-`gate-route.sh` and stop at `exempt`. The precedent for overriding an owner
-rule already exists: projectinsomnia and crazy-larry carry `repo=... pangram`
-above `owner=smartwatermelon exempt`.
+`gate-route.sh` and stop at `exempt`. Since claude-config#729 (2026-10-15)
+this split is the whole design: projectinsomnia and crazy-larry lost their
+`repo=... pangram` rules, so their commit text routes `exempt` under
+`owner=smartwatermelon`, and their pages are gated only by `copy-paths.conf`.
 
 ## Options
 
@@ -228,3 +233,27 @@ Andrew accepted the recommended answer on all four.
 4. **In-app strings in the kebab-tax code are gated in phase 2.** Phase 1
    gates store listings, emails, release notes and web pages. Until phase 2,
    app string changes are seen only in the PR diff.
+
+## Decision 5 (2026-10-16): READMEs in public repos
+
+Andrew: "READMEs are text a person outside might read, so should be
+reviewed." Chosen: every `README*` file at any depth, in public repos only.
+Rejected: every repo including private ones (gates text only collaborators
+read), and only the repos already in `copy-paths.conf` (leaves public tools
+like dotfiles and personify ungated). Tracked as claude-config#735.
+
+- **Files.** The basename starts with `README`, matched without regard to
+  case: `README.md`, `readme.md`, `docs/README.md`. GitHub renders a
+  subdirectory README when someone browses into it.
+- **Repos.** `copy-paths.conf` takes only exact `owner/name` lines, so this
+  needs a new selector in `gate-copy.py`, for example
+  `public=* include **/README*`. Existing lines are unchanged.
+- **Fail closed.** The selector matches unless the repo is proven private. An
+  unknown answer (lookup failed, no access) counts as public. This is the
+  inverse of `private=` in `gate-rules.conf`, where unknown never matches;
+  both land on the gated side.
+- **Lookup.** Reuse `gate-route.sh`'s `_repo_flag private` and its one-day
+  cache. Known limit, as for `private=`: a repo made public can keep its
+  README ungated for up to a day.
+- **Cost.** A README change over the 40-word floor is one Pangram call
+  (about $0.10). Shorter ones are SKIPPED and reviewed by eye.

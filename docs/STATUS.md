@@ -1,8 +1,8 @@
 # Infrastructure project status
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
-(three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08 and
-2026-10-12 updates below.**
+(three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
+2026-10-12 and 2026-10-13 to 10-16 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -479,6 +479,40 @@ or be explicitly parked with a resume note, by then — see the tracker.
   `standards-check`) and `projectinsomnia#201`.
 - **`dev-env#120` stays open** until the pilot handles one real major
   Dependabot PR.
+
+**2026-10-13 to 2026-10-16 update (dates Pacific):**
+
+- **Text gate covers Beacon only.** `claude-config#718` exempted private
+  repos outside Beacon (`dev-env#206` part A, closed). `claude-config#729`
+  then exempted all commit and PR text outside Beacon, public repos and NOS
+  included.
+- **Copy gate phase 1 built** (`claude-config#721`; design
+  `docs/superpowers/specs/2026-10-15-copy-gate-design.md`, `dev-env#207`).
+  `copy-paths.conf` lists each site's public pages, emails and store
+  listings; an agent commit touching them needs Pangram plus Andrew's
+  approval. Open: `claude-config#723` (kebab-tax JSX strings), `#724` (CI
+  backstop), `#725` (test that `sites.json` sites all have entries).
+  Decision 5, 2026-10-16: READMEs in public repos are copy too
+  (`claude-config#735`, not built).
+- **Pangram runs only where the route says.** `personify#119` (v2.2.0) and
+  `claude-config#733`/`#734` make `pangram_check.py` ask the route first:
+  exempt text gets exit 6 and no API call. Live on all four machines
+  2026-10-16. MIMOLETTE has no claude.ai plugin sync, so its personify is a
+  CLI install that updates only via `claude plugin update`.
+- **Versioning (`dev-env#72`, closed).** `github-workflows#195` adds an
+  auto-tag workflow; scripts, claude-config and dotfiles tag every merge to
+  `main`. `allup` refuses a scripts clone older than `v1.0.0`
+  (`dotfiles#433`), and `install.sh` names the version it installs
+  (`claude-config#728`).
+- **Merge gate:** pre-merge reads CI with a dedicated GitHub App and fails
+  closed when it cannot (`claude-config#708`/`#709`, `#687` closed). The
+  merge-lock ledger fails closed on a failed append (`#722`). NEUTRAL blocks
+  only on required checks (`#727`).
+- **Reviewers bill the Max plan's API credit** (`claude-config#713`).
+- **Auto mode pilot on ASIAGO** (`claude-wrapper#139`, open), with
+  per-machine settings layered over the shared file (`claude-wrapper#138`).
+- **Open:** `claude-config#731` (the secret hook misses
+  `op item get --format json`).
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
