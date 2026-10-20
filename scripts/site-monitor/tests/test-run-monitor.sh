@@ -3,6 +3,8 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN NTFY_TOPIC
+# An exported gh function (the dotfiles wrapper) beats the stub on PATH in run-monitor.sh, so drop it.
+unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
