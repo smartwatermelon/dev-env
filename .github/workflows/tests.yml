@@ -26,3 +26,11 @@ jobs:
 
       - name: Run site-monitor tests
         run: bash scripts/site-monitor/tests/run-tests.sh
+
+      # Not hermetic: reads claude-config's conf at main (claude-config#725).
+      # curl -f and the checker both fail on a failed or empty download.
+      - name: Check every site has a copy-paths.conf entry
+        run: |
+          curl -fsSL --retry 3 -o "${RUNNER_TEMP}/copy-paths.conf" \
+            https://raw.githubusercontent.com/smartwatermelon/claude-config/main/copy-paths.conf
+          bash scripts/site-monitor/check-copy-paths.sh "${RUNNER_TEMP}/copy-paths.conf"

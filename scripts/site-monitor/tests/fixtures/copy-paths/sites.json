@@ -1,0 +1,5 @@
+[
+  { "url": "https://a.example", "repo": "owner-a/site-a" },
+  { "url": "https://b.example", "repo": "owner-b/site-b" },
+  { "url": "https://b2.example", "repo": "owner-b/site-b" }
+]
