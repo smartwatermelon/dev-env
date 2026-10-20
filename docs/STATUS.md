@@ -2,7 +2,7 @@
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
-2026-10-12 and 2026-10-13 to 10-16 updates below.**
+2026-10-12, 2026-10-13 to 10-16 and 2026-10-19 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -512,7 +512,39 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Auto mode pilot on ASIAGO** (`claude-wrapper#139`, open), with
   per-machine settings layered over the shared file (`claude-wrapper#138`).
 - **Open:** `claude-config#731` (the secret hook misses
-  `op item get --format json`).
+  `op item get --format json`). Closed 2026-10-19, below.
+
+**2026-10-19 update (Pacific):**
+
+- **Hooks, all live on ASIAGO:**
+  - `claude-config#745` closes `#731`: the secret-leak hook denies
+    `op item get` forms that print values (`--format json`, `OP_FORMAT=json`,
+    `--reveal`, `--fields`, `--otp`) and `op document get` without
+    `--out-file`; the redactor replaces such output. No rotation needed for
+    the 10-15 exposure (prefixes only).
+  - `#746` closes `#742`: a quoted `cd` in a literal `printf`/`echo`
+    argument no longer denies.
+  - `#749` closes `#637`: commits on main through `env -C` or `xargs` are
+    blocked. Remaining parse gaps: `#750`.
+  - `#751` closes `#744`: the Pangram copy guard accepts the synced
+    `personify~gN` path (the `~gN` suffix is the sync generation and will
+    change) and no longer reads `sort -k2` as a kind flag.
+  - `#748` closes `#681`: codebase review runs with `--tools`,
+    `--allowedTools` and `--strict-mcp-config`, like the arbiter.
+  - `dotfiles#442` closes `#434`: the `gh` wrapper finds the `gh api`
+    endpoint past value-taking flags and blocks when it cannot.
+- **github-workflows auto-merges its own Dependabot PRs** (`#197`), pinned to
+  `@dependabot-auto-merge-v2`. Every fleet caller pins a hand-moved tag, so a
+  merge there reaches no other repo.
+- **CodeQL default setup on 28 more repos** (`dev-env#166`, open for two
+  decisions: Code Security for the 8 private NOS repos, and a digest check).
+- **"Require branches to be up to date" is off on all 37 protected repos**,
+  by decision: it cost a CI re-run per merge. This reverses the W0 exemplar's
+  `strict: true`. Required checks are unchanged.
+- **dev-env CI checks `sites.json` against claude-config's
+  `copy-paths.conf`** (`dev-env#210`, closes `claude-config#725`).
+- **Open:** `claude-config#747` (a quoted `'; cd <dir>'` moves the gate's
+  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs).
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
