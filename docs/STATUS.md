@@ -909,6 +909,10 @@ for org-owned repos until Andrew re-runs Part D there.
 scheduled run passed 2026-10-02, and plan step 7 (delete the three
 `DIGEST_TOKEN_*` secrets, revoke their PATs) is done. Since `dev-env#182`
 the digest also carries a "Standards warnings" section.
+Since 2026-10-21 it also carries a "Branch protection" section (closes
+`dev-env#211`): repos unprotected or not requiring standards-check, with
+exempt classes counted. Whether the App token can read `.protection` is
+unverified until the first run after merge.
 
 Earlier, all daily runs from 09-26 failed on `nightowlstudiollc` check-run
 access, so nothing was published.

@@ -196,6 +196,91 @@ _hasnt 'No warnings' "a malformed survey never claims no warnings" "${WORK}/bad.
 : | bash "${DIR}/render.sh" >"${WORK}/none.md" 2>/dev/null
 _hasnt '## Standards warnings' "no survey, no section" "${WORK}/none.md"
 
+# dev-env#211: real owner names, since exempt classes key on them. Branch
+# fixtures: real 2026-10-21 captures, some with one field changed.
+prot="${WORK}/prot.ndjson"
+: >"${prot}"
+for o in smartwatermelon nightowlstudiollc twistedmelonman; do
+  if ! survey "${o}" >>"${prot}" 2>"${WORK}/${o}.err"; then
+    _fail "standards.sh exited non-zero for owner ${o}"
+  fi
+done
+_prot() {
+  local got
+  got="$(jq -r --arg r "$1" 'select(.repo == $r) | (.protection.state // "none") + " " + (.protection.exemptClass // "-")' "${prot}")"
+  if [[ "${got}" == "$2" ]]; then _pass "$3"; else _fail "$3 (protection: '${got}', want '$2')"; fi
+}
+_prot smartwatermelon/dev-env "required -" "a real protected repo requiring standards-check is required"
+_prot nightowlstudiollc/tnjcleaning "required -" "a real repo requiring only standards-check is required"
+_prot nightowlstudiollc/cleanroom "required -" "a check with a null app_id still counts as required"
+_prot nightowlstudiollc/nostd "protected-no-standards -" "a protected repo requiring other checks is flagged"
+_prot nightowlstudiollc/offcheck "protected-no-standards -" "standards-check listed but enforcement off is not required"
+_prot smartwatermelon/claude-config-backup "exempt smartwatermelon-private" \
+  "a private unprotected smartwatermelon repo is exempt"
+_prot twistedmelonman/Instapaper-MCP "exempt fork" "an unprotected fork is exempt"
+_prot twistedmelonman/tm-private "exempt twistedmelonman-private" \
+  "a private unprotected twistedmelonman repo is exempt"
+_prot nightowlstudiollc/nos-private "unprotected -" \
+  "a private unprotected nightowlstudiollc repo is unprotected, not exempt"
+_prot twistedmelonman/tm-public "unprotected -" "a public unprotected repo is unprotected"
+_prot smartwatermelon/withheld "unreadable -" \
+  "protected with the protection object withheld is unreadable, not fine"
+_prot smartwatermelon/nullflag "unreadable -" "a non-boolean protected flag is unreadable"
+_prot smartwatermelon/noflags "unreadable -" \
+  "unprotected with no fork or private flag is unreadable, not unprotected or exempt"
+_prot smartwatermelon/refused "unreadable -" "a refused branch read is unreadable, not unprotected"
+_prot twistedmelonman/tm-old "none -" "an archived repo has no protection result"
+if jq -e 'select(.repo == "smartwatermelon/refused") | .protection.detail | test("HTTP 403")' "${prot}" >/dev/null 2>&1; then
+  _pass "the reason a branch read failed is kept"
+else
+  _fail "the refused branch read lost its reason"
+fi
+# The protection probe must not depend on the standards survey: these repos
+# have no commit fixtures, so their standards state is unreadable.
+dev_env="$(jq -r 'select(.repo == "smartwatermelon/dev-env") | .state + " " + .protection.state' "${prot}")"
+if [[ "${dev_env}" == "unreadable required" ]]; then
+  _pass "a repo whose standards read failed still gets a protection result"
+else
+  _fail "the protection result depends on the standards read (got '${dev_env}')"
+fi
+
+pbody="${WORK}/prot.md"
+: | bash "${DIR}/render.sh" --standards "${prot}" >"${pbody}" 2>/dev/null
+_has '## Branch protection' "the protection section is rendered" "${pbody}"
+_has '**14 repositories surveyed**: 3 require standards-check, 3 exempt, **4 need attention, 4 unreadable.**' \
+  "the protection summary counts each state" "${pbody}"
+_has '- fork: 1 — a fork is not ours to govern (decided 2026-10-21, dev-env#211)' "exempt repos are counted by class with the reason" "${pbody}"
+_hasnt '[twistedmelonman/Instapaper-MCP]' "exempt repos are not listed" "${pbody}"
+_hasnt '[smartwatermelon/dev-env]' "required repos are not listed" "${pbody}"
+_has '| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNPROTECTED: the default branch has no protection |' \
+  "an unprotected repo is listed with a link" "${pbody}"
+_has '| [nightowlstudiollc/nostd](https://github.com/nightowlstudiollc/nostd) | standards-check not required: requires only: test |' \
+  "a protected repo without standards-check is listed with its checks" "${pbody}"
+_has '| [smartwatermelon/withheld](https://github.com/smartwatermelon/withheld) | UNREADABLE:' \
+  "an unreadable repo is listed as unreadable" "${pbody}"
+_hasnt 'No gaps' "a survey with gaps does not claim none" "${pbody}"
+
+# Every protection read failed (the o and p fixtures have no branch
+# responses): an under-scoped token must not render as a clean fleet.
+_has '**Protection could not be verified for any of 8 repositories.**' \
+  "an all-unreadable protection survey says it verified nothing" "${body}"
+_hasnt 'need attention' "an all-unreadable protection survey prints no counts" "${body}"
+_hasnt 'No gaps' "an all-unreadable protection survey never claims no gaps" "${body}"
+_has '**Not listed, so not surveyed:** q.' "an unlistable owner is named in the protection section" "${body}"
+
+# All clean: an explicit statement, and no table.
+jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "twistedmelonman/Instapaper-MCP")' "${prot}" >"${WORK}/pclean.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/pclean.ndjson" >"${WORK}/pclean.md" 2>/dev/null
+_has 'No gaps: every surveyed repository' "a fully protected survey says so" "${WORK}/pclean.md"
+_hasnt '| Repo | Protection |' "a fully protected survey has no table" "${WORK}/pclean.md"
+
+# A record with no protection field (a crashed survey) is unreadable.
+printf '%s\n' '{"owner":"o","repo":"o/legacy","state":"ok","annotations":[]}' >"${WORK}/legacy.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/legacy.ndjson" >"${WORK}/legacy.md" 2>/dev/null
+_has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no protection result recorded |' \
+  "a record without a protection field is unreadable, not clean" "${WORK}/legacy.md"
+_hasnt 'No gaps' "a record without a protection field never reads as no gaps" "${WORK}/legacy.md"
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-standards: all assertions passed"
 else

@@ -266,8 +266,91 @@ render_standards() {
   fi
 }
 
+# dev-env#211. An unreadable repo is never counted as protected or as
+# unprotected; if none was read, say so.
+render_protection() {
+  local file="$1" recs surveyed required exempt flagged unreadable by_class owners rows
+  echo "## Branch protection"
+  echo
+  if [[ ! -r "${file}" ]] || ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
+    echo "**Not checked.** The survey produced no readable result, so no repository's protection was verified."
+    echo
+    return 0
+  fi
+  # A record without a protection object (an older or crashed survey) is
+  # unreadable, not clean.
+  if ! recs="$(jq -cs '
+    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
+     | .p = (if (.protection | type) == "object"
+                and (.protection.state | type) == "string"
+             then .protection
+             else {state: "unreadable", detail: "no protection result recorded", exemptClass: null} end)]
+  ' "${file}" 2>/dev/null)" || [[ -z "${recs}" ]]; then
+    echo "**Not checked.** The survey output could not be summarized, so no repository's protection was verified."
+    echo
+    return 0
+  fi
+  owners="$(jq -rs '[.[] | select(type == "object" and .repo == null and .state == "unlisted") | .owner] | unique | join(", ")' "${file}" 2>/dev/null)"
+  surveyed="$(jq 'length' <<<"${recs}")"
+  required="$(jq '[.[] | select(.p.state == "required")] | length' <<<"${recs}")"
+  exempt="$(jq '[.[] | select(.p.state == "exempt")] | length' <<<"${recs}")"
+  unreadable="$(jq '[.[] | select(.p.state != "required" and .p.state != "exempt"
+                                and .p.state != "unprotected" and .p.state != "protected-no-standards")] | length' <<<"${recs}")"
+  flagged=$((surveyed - required - exempt - unreadable))
+
+  echo "Whether each repository's default branch is protected and requires \`standards-check / run-standards-check\`. Exempt repositories are unprotected by a recorded decision for their class; they are counted, not listed."
+  echo
+  if [[ "${surveyed}" -eq 0 ]]; then
+    echo "**No repository was surveyed**, so no protection was verified."
+    echo
+  elif [[ "${unreadable}" -eq "${surveyed}" ]]; then
+    # Zero gaps out of zero reads is not "all protected".
+    echo "**Protection could not be verified for any of ${surveyed} repositories.** Every read failed or returned no protection settings. The likely cause is a token without permission to read branch protection. Nothing here means the fleet is protected or unprotected."
+    echo
+  else
+    echo "**${surveyed} repositories surveyed**: ${required} require standards-check, ${exempt} exempt, **${flagged} need attention, ${unreadable} unreadable.**"
+    echo
+    if [[ "${exempt}" -gt 0 ]]; then
+      by_class="$(jq -r '[.[] | select(.p.state == "exempt")] | group_by(.p.exemptClass)
+        | map("- \(.[0].p.exemptClass // "unknown class"): \(length) — \(.[0].p.detail // "no reason recorded")") | join("\n")' <<<"${recs}")"
+      echo "Exempt by class:"
+      echo
+      echo "${by_class}"
+      echo
+    fi
+    if [[ "${flagged}" -eq 0 && "${unreadable}" -eq 0 ]]; then
+      echo "No gaps: every surveyed repository requires standards-check or is exempt."
+      echo
+    fi
+  fi
+  if [[ "${flagged}" -gt 0 || "${unreadable}" -gt 0 ]]; then
+    if ! rows="$(jq -r '
+      def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
+      def order: {"unprotected": 0, "protected-no-standards": 1}[.p.state] // 2;
+      def name: {"unprotected": "UNPROTECTED", "protected-no-standards": "standards-check not required"}[.p.state] // "UNREADABLE";
+      sort_by(order, .repo)[]
+      | select(.p.state != "required" and .p.state != "exempt")
+      | "| [" + .repo + "](https://github.com/" + .repo + ") | " + name
+        + (if .p.detail then ": " + (.p.detail | cell) else "" end) + " |"
+    ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
+      echo "**Some repositories need attention, but listing them failed.** See the run log."
+      echo
+    else
+      echo "| Repo | Protection |"
+      echo "| --- | --- |"
+      echo "${rows}"
+      echo
+    fi
+  fi
+  if [[ -n "${owners}" ]]; then
+    echo "**Not listed, so not surveyed:** ${owners}. Protection of their repositories is unknown."
+    echo
+  fi
+}
+
 if [[ -n "${standards_file}" ]]; then
   render_standards "${standards_file}"
+  render_protection "${standards_file}"
 fi
 
 echo "---"

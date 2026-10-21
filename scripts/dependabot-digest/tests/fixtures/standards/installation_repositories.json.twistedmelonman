@@ -1,0 +1,35 @@
+[
+ {
+  "total_count": 4,
+  "repositories": [
+   {
+    "full_name": "twistedmelonman/Instapaper-MCP",
+    "default_branch": "main",
+    "archived": false,
+    "fork": true,
+    "private": false
+   },
+   {
+    "full_name": "twistedmelonman/tm-private",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "twistedmelonman/tm-public",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "twistedmelonman/tm-old",
+    "default_branch": "main",
+    "archived": true,
+    "fork": false,
+    "private": false
+   }
+  ]
+ }
+]

@@ -1,0 +1,21 @@
+{
+  "name": "main",
+  "protected": null,
+  "protection": {
+    "enabled": true,
+    "required_status_checks": {
+      "enforcement_level": "non_admins",
+      "contexts": ["standards-check / run-standards-check", "tests"],
+      "checks": [
+        {
+          "context": "standards-check / run-standards-check",
+          "app_id": 15368
+        },
+        {
+          "context": "tests",
+          "app_id": 15368
+        }
+      ]
+    }
+  }
+}

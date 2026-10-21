@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Usage: standards.sh <owner>. Prints one JSON record per repo: standards-check
-# annotations, or the reason none were read.
+# annotations, or the reason none were read, plus the default branch's
+# protection state (dev-env#211).
 set -uo pipefail
 unset CDPATH
 
@@ -34,6 +35,7 @@ emit() {
     --arg detail "$3" --arg source "${4-}" --arg url "${5-}" \
     --argjson ann "${6:-[]}" --arg runAt "${7-}" \
     --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
+    --argjson prot "${PROT_JSON:-null}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
@@ -41,10 +43,10 @@ emit() {
       runAt: (if $runAt == "" then null else $runAt end),
       rulesAt: (if $rulesAt == "" then null else $rulesAt end),
       rulesErr: (if $rulesErr == "" then null else $rulesErr end),
-      annotations: $ann}' 2>/dev/null)"
-  # If jq fails, the repo must still appear.
+      annotations: $ann, protection: $prot}' 2>/dev/null)"
+  # If jq fails, the repo must still appear. Its protection is unknown.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[]}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -119,6 +121,97 @@ run_on_commit() {
     return 1
   fi
   jq -c "${pick_run} // empty" <<<"${body}"
+}
+
+# dev-env#211: prints "state<TAB>detail". A withheld or odd field is
+# unreadable, never a finding or a clean result.
+read -r -d '' prot_verdict <<'JQ'
+def std: . == "run-standards-check" or endswith(" / run-standards-check");
+if (.protected | type) != "boolean" then "unreadable\tthe branch reports no protected flag"
+elif .protected == false then "unprotected\tthe default branch has no protection"
+else .protection as $p | $p.required_status_checks as $rsc
+  | if ($rsc.contexts | type) != "array"
+       or (all($rsc.contexts[]; type == "string") | not)
+       or ($p.enabled | type) != "boolean"
+       or ($rsc.enforcement_level | type) != "string"
+    then "unreadable\tprotected, but the protection settings are not readable"
+    elif $p.enabled == false or $rsc.enforcement_level == "off"
+    then "protected-no-standards\tprotected, but no required check is enforced"
+    elif any($rsc.contexts[]; std) then "required\t"
+    elif ($rsc.contexts | length) == 0
+    then "protected-no-standards\tprotected, but requires no status checks"
+    else "protected-no-standards\trequires only: " + ($rsc.contexts | join(", "))
+    end
+end
+JQ
+
+# Unprotected by decision, so counted, not flagged. Classes, not repo names.
+# Each reason carries its decision date; the digest prints it.
+declare -A EXEMPT_REASON=(
+  [fork]="a fork is not ours to govern (decided 2026-10-21, dev-env#211)"
+  [smartwatermelon-private]="a private smartwatermelon repo is unprotected by need (decided 2026-10-12, dev-env#85)"
+  [twistedmelonman-private]="a GitHub Free user account cannot protect a private repo (decided 2026-10-21, dev-env#211)"
+)
+# Not exempt: private nightowlstudiollc repos. NOS keeps Team; protection
+# there is required (decided 2026-10-15, dev-env#144).
+exempt_class() {
+  local nwo="$1" fork="$2" private="$3"
+  if [[ "${fork}" == "true" ]]; then
+    echo fork
+  elif [[ "${private}" == "true" ]]; then
+    case "${nwo%%/*}" in
+      smartwatermelon) echo smartwatermelon-private ;;
+      twistedmelonman) echo twistedmelonman-private ;;
+      *) ;;
+    esac
+  fi
+}
+
+PROT_JSON=""
+set_prot() {
+  # set_prot <state> <detail> [exempt class]
+  PROT_JSON="$(jq -cn --arg s "$1" --arg d "$2" --arg c "${3-}" \
+    '{state: $s, detail: (if $d == "" then null else $d end),
+      exemptClass: (if $c == "" then null else $c end)}' 2>/dev/null)"
+  if [[ -z "${PROT_JSON}" ]]; then
+    PROT_JSON='{"state":"unreadable","detail":"could not encode the protection result","exemptClass":null}'
+  fi
+}
+
+# Sets PROT_JSON for one repo. Never fails: a failed read is a state.
+probe_protection() {
+  local nwo="$1" branch="$2" fork="$3" private="$4" body verdict state detail cls=""
+  if ! body="$(api "repos/${nwo}/branches/${branch}")"; then
+    detail="$(last_err "no detail")"
+    set_prot unreadable "cannot read branch ${branch}: ${detail}"
+    return 0
+  fi
+  verdict="$(jq -r "${prot_verdict}" <<<"${body}" 2>/dev/null)"
+  state="${verdict%%$'\t'*}"
+  detail="${verdict#*$'\t'}"
+  case "${state}" in
+    required | protected-no-standards | unreadable) ;;
+    unprotected)
+      # Exemption needs both flags; guessing would hide a real gap.
+      if [[ "${fork}" != "true" ]] \
+        && [[ "${fork}" != "false" || ! "${private}" =~ ^(true|false)$ ]]; then
+        state=unreadable
+        detail="unprotected, but the repository listing gave no fork or private flag, so exemption cannot be decided"
+      else
+        cls="$(exempt_class "${nwo}" "${fork}" "${private}")"
+        if [[ -n "${cls}" ]]; then
+          state=exempt
+          # A class with no reason must not crash the survey under set -u.
+          detail="${EXEMPT_REASON[${cls}]-no reason recorded}"
+        fi
+      fi
+      ;;
+    *)
+      state=unreadable
+      detail="the branch response is malformed"
+      ;;
+  esac
+  set_prot "${state}" "${detail}" "${cls}"
 }
 
 survey_repo() {
@@ -204,7 +297,8 @@ if ! repos="$(api --paginate --slurp "installation/repositories?per_page=100")" 
       if type == "array" and all(.[]; (.repositories | type == "array"))
          and ([.[].repositories[]] | length) >= (.[0].total_count // 0)
       then [.[].repositories[]] | sort_by(.full_name)[]
-           | [.full_name, (.default_branch // ""), (.archived | tostring)] | @tsv
+           | [.full_name, (.archived | tostring), (.fork | tostring),
+              (.private | tostring), (.default_branch // "")] | @tsv
       else error("bad shape") end' <<<"${repos}" 2>/dev/null)"; then
   emit_err "" unlisted "cannot list the repositories this token can read" "unexpected response shape"
   exit 0
@@ -214,13 +308,18 @@ if [[ -z "${repo_list}" ]]; then
   exit 0
 fi
 
-while IFS=$'\t' read -r nwo branch archived; do
+# The branch is last: tab is whitespace to read, so an empty field in the
+# middle would shift the ones after it.
+while IFS=$'\t' read -r nwo archived fork private branch; do
   [[ -z "${nwo}" ]] && continue
+  PROT_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
   elif [[ -z "${branch}" ]]; then
+    set_prot unreadable "no default branch reported"
     emit "${nwo}" unreadable "no default branch reported"
   else
+    probe_protection "${nwo}" "${branch}" "${fork}" "${private}"
     survey_repo "${nwo}" "${branch}"
   fi
 done <<<"${repo_list}"

@@ -1,0 +1,42 @@
+[
+ {
+  "total_count": 5,
+  "repositories": [
+   {
+    "full_name": "nightowlstudiollc/tnjcleaning",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "nightowlstudiollc/cleanroom",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "nightowlstudiollc/nostd",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "nightowlstudiollc/offcheck",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "nightowlstudiollc/nos-private",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   }
+  ]
+ }
+]
