@@ -57,6 +57,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
+          # Reads CodeQL default setup (dev-env#166).
+          permission-administration: read
 
       - name: Mint a token for nightowlstudiollc
         id: token-nightowlstudiollc
@@ -69,6 +71,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
+          # Reads CodeQL default setup (dev-env#166).
+          permission-administration: read
 
       - name: Mint a token for twistedmelonman
         id: token-twistedmelonman
@@ -81,6 +85,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
+          # Reads CodeQL default setup (dev-env#166).
+          permission-administration: read
 
       - name: Build and publish the digest
         env:

@@ -173,6 +173,13 @@ if grep -q '| all of one | OWNER NOT LISTED:' <<<"${populated}" \
 else
   _fail "an unlistable owner did not render as not checked"
 fi
+# dev-env#166: the CodeQL section appears too, and names the unlisted owner.
+if grep -q '^## CodeQL' <<<"${populated}" \
+  && grep -q 'one. CodeQL setup of their repositories is unknown' <<<"${populated}"; then
+  _pass "the digest carries a CodeQL section that names an unlisted owner"
+else
+  _fail "the digest has no CodeQL section, or it hides the unlisted owner"
+fi
 
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-run-digest: all assertions passed"

@@ -137,11 +137,20 @@ fi
 _hasnt '## Branch protection' "no survey, no protection section"
 printf '%s\n' '{not json' >"${WORK}/bad.ndjson"
 : | bash "${DIR}/render.sh" --standards "${WORK}/bad.ndjson" >"${WORK}/bad.md" 2>/dev/null
-prot_section="$(sed -n '/^## Branch protection/,/^---/p' "${WORK}/bad.md")"
+# Each range stops at the next section, so one section's text cannot pass for another's.
+prot_section="$(sed -n '/^## Branch protection/,/^## CodeQL/p' "${WORK}/bad.md")"
 if [[ "${prot_section}" == *"**Not checked.**"* && "${prot_section}" != *"No gaps"* ]]; then
   _pass "a malformed survey renders protection as not checked"
 else
   _fail "a malformed survey did not render protection as not checked: ${prot_section}"
+fi
+# dev-env#166: the same for the CodeQL section.
+_hasnt '## CodeQL' "no survey, no CodeQL section"
+cq_section="$(sed -n '/^## CodeQL/,/^---/p' "${WORK}/bad.md")"
+if [[ "${cq_section}" == *"**Not checked.**"* && "${cq_section}" != *"No gaps"* ]]; then
+  _pass "a malformed survey renders CodeQL as not checked"
+else
+  _fail "a malformed survey did not render CodeQL as not checked: ${cq_section}"
 fi
 
 if [[ "${fail}" -eq 0 ]]; then
