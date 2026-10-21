@@ -380,10 +380,8 @@ render_codeql() {
     echo
     return 0
   fi
-  # A record without a codeql object (an older or crashed survey) is
-  # unreadable, not clean.
-
-  # .s: the Semgrep substitute. Missing or unknown is unreadable.
+  # No codeql object (older or crashed survey) is unreadable, not clean.
+  # .s, the Semgrep substitute, is unreadable when missing or unknown.
   if ! recs="$(jq -cs '
     [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
      | .c = (if (.codeql | type) == "object" and (.codeql.state | type) == "string"
