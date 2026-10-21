@@ -3,6 +3,9 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
+# Inside a Claude Code session gh can be an exported function, which a child
+# bash runs instead of the stub on PATH (dev-env#215).
+unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
@@ -39,6 +42,12 @@ file="${STUB_FIX}/${path//\//_}.json"
 if [[ -f "${file%.json}.403.json" ]]; then
   cat "${file%.json}.403.json"
   echo "gh: $(jq -r '.message' "${file%.json}.403.json") (HTTP 403)" >&2
+  exit 1
+fi
+# <name>.404.json: a missing file, as real gh reports it (2026-10-21 capture).
+if [[ -f "${file%.json}.404.json" ]]; then
+  cat "${file%.json}.404.json"
+  echo "gh: Not Found (HTTP 404)" >&2
   exit 1
 fi
 if [[ ! -f "${file}" ]]; then
@@ -253,7 +262,7 @@ fi
 pbody="${WORK}/prot.md"
 : | bash "${DIR}/render.sh" --standards "${prot}" >"${pbody}" 2>/dev/null
 _has '## Branch protection' "the protection section is rendered" "${pbody}"
-_has '**14 repositories surveyed**: 3 require standards-check, 3 exempt, **4 need attention, 4 unreadable.**' \
+_has '**17 repositories surveyed**: 6 require standards-check, 3 exempt, **4 need attention, 4 unreadable.**' \
   "the protection summary counts each state" "${pbody}"
 _has '- fork: 1 — a fork is not ours to govern (decided 2026-10-21, dev-env#211)' "exempt repos are counted by class with the reason" "${pbody}"
 _hasnt '[twistedmelonman/Instapaper-MCP]' "exempt repos are not listed" "${pbody}"
@@ -325,21 +334,74 @@ else
   _fail "not configured with no fork flag was decided anyway (got '${o_clean_cq}')"
 fi
 
+# Semgrep CE replaces Code Security (2026-10-21). A failed read is unreadable.
+
+# _sg <repo> <substitute> <detail substring, or - for none> <message>
+_sg() {
+  local st det
+  st="$(jq -r --arg r "$1" 'select(.repo == $r) | .codeql.substitute // "-"' "${prot}")"
+  det="$(jq -r --arg r "$1" 'select(.repo == $r) | .codeql.substituteDetail // "-"' "${prot}")"
+  if [[ "${st}" == "$2" ]] && { [[ "$3" == "-" && "${det}" == "-" ]] \
+    || [[ "$3" != "-" && "${det}" == *"$3"* ]]; }; then
+    _pass "$4"
+  else
+    _fail "$4 (substitute: '${st}: ${det}', want '$2' with detail '$3')"
+  fi
+}
+_sg nightowlstudiollc/cleanroom semgrep - "a caller of the reusable Semgrep workflow is semgrep"
+_sg smartwatermelon/claude-config-backup none - "a 404 on the caller file is none"
+_sg nightowlstudiollc/sg-other none "does not call" \
+  "KNOWN-BAD: a caller whose only reference is commented out is none, not semgrep"
+_sg nightowlstudiollc/sg-refused unreadable "HTTP 403" \
+  "a refused caller read is unreadable with its reason, never none"
+_sg nightowlstudiollc/sg-badenc unreadable "encoding: none" \
+  "a caller that cannot be decoded is unreadable, never none or semgrep"
+_sg smartwatermelon/dev-env - - "a repo with CodeQL configured gets no substitute probe"
+_sg nightowlstudiollc/tnjcleaning - - "a not-configured repo gets no substitute probe"
+
 _has '## CodeQL' "the CodeQL section is rendered" "${pbody}"
-_has '**14 repositories surveyed**: 2 configured, 2 exempt, **1 not configured, 2 without Code Security, 7 unreadable.**' \
+_has '**17 repositories surveyed**: 2 configured, 2 exempt, 1 covered by Semgrep, **1 not configured, 2 with no code scanning, 2 with Semgrep coverage unreadable, 7 unreadable.**' \
   "the CodeQL summary counts each state" "${pbody}"
 _has '- fork: 1 — a fork is not ours to scan (decided 2026-10-21, dev-env#166)' \
   "CodeQL exemptions are counted by class with the reason" "${pbody}"
 _hasnt '- no-code-security:' "no-code-security is not an exempt class" "${pbody}"
 _hasnt '| [nightowlstudiollc/cleanroom](' "a repo without Code Security is not a table row" "${pbody}"
-nocs_list="$(sed -n '/^### Scanning off: paid Code Security not bought/,/^\(##\|---\|\*\*Not listed\)/p' "${pbody}")"
-if [[ "${nocs_list}" == *"open cost decision (dev-env#166)"* \
+nocs_list="$(sed -n '/^### Without paid Code Security/,/^\(## \|---\|\*\*Not listed\)/p' "${pbody}")"
+if [[ "${nocs_list}" == *"not bought, by decision (2026-10-21"* \
+  && "${nocs_list}" == *"Semgrep CE is the substitute"* \
+  && "${nocs_list}" != *"open cost decision"* \
   && "${nocs_list}" == *"- [nightowlstudiollc/cleanroom](https://github.com/nightowlstudiollc/cleanroom)"* \
   && "${nocs_list}" == *"- [smartwatermelon/claude-config-backup](https://github.com/smartwatermelon/claude-config-backup)"* \
   && "${nocs_list}" != *"nos-private"* && "${nocs_list}" != *"tm-public"* ]]; then
   _pass "repos without Code Security are listed by name under their own heading, and only they are"
 else
   _fail "the no-Code-Security list is wrong: ${nocs_list}"
+fi
+# Each sub-list stops at the next heading, so a repo cannot pass for another bucket.
+_under() {
+  awk -v h="$1" '$0 == h {on = 1; next} on && /^(#|---|\*\*Not listed)/ {exit} on {print}' "$2"
+}
+sg_cov="$(_under '#### Covered by Semgrep (CodeQL substitute)' "${pbody}")"
+sg_none="$(_under '#### No code scanning: paid Code Security not bought, no Semgrep caller' "${pbody}")"
+sg_unk="$(_under '#### Semgrep coverage unreadable' "${pbody}")"
+if [[ "${sg_cov}" == *"[nightowlstudiollc/cleanroom]"* && "${sg_cov}" != *"claude-config-backup"* \
+  && "${sg_cov}" != *"sg-"* ]]; then
+  _pass "only the Semgrep caller is listed as covered"
+else
+  _fail "the covered-by-Semgrep list is wrong: ${sg_cov}"
+fi
+if [[ "${sg_none}" == *"[smartwatermelon/claude-config-backup]"* \
+  && "${sg_none}" == *"[nightowlstudiollc/sg-other](https://github.com/nightowlstudiollc/sg-other): "*"does not call"* \
+  && "${sg_none}" != *"cleanroom"* && "${sg_none}" != *"sg-refused"* && "${sg_none}" != *"sg-badenc"* ]]; then
+  _pass "repos with no Semgrep caller are listed as no code scanning, with the reason when the file exists"
+else
+  _fail "the no-code-scanning list is wrong: ${sg_none}"
+fi
+if [[ "${sg_unk}" == *"[nightowlstudiollc/sg-refused]"*"HTTP 403"* && "${sg_unk}" == *"[nightowlstudiollc/sg-badenc]"* \
+  && "${sg_unk}" == *"unknown"* && "${sg_unk}" != *"cleanroom"* && "${sg_unk}" != *"claude-config-backup"* ]]; then
+  _pass "repos whose caller could not be read are listed as unreadable, in neither clean bucket"
+else
+  _fail "the Semgrep-unreadable list is wrong: ${sg_unk}"
 fi
 _has '| [nightowlstudiollc/tnjcleaning](https://github.com/nightowlstudiollc/tnjcleaning) | NOT CONFIGURED: default setup is off; languages: actions |' \
   "a not-configured repo is listed with its languages" "${pbody}"

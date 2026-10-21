@@ -1,0 +1,5 @@
+{
+  "message": "Code Security must be enabled for this repository to use code scanning.",
+  "documentation_url": "https://docs.github.com/rest/code-scanning/code-scanning#get-a-code-scanning-default-setup-configuration",
+  "status": "403"
+}

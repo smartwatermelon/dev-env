@@ -1,6 +1,6 @@
 [
  {
-  "total_count": 5,
+  "total_count": 8,
   "repositories": [
    {
     "full_name": "nightowlstudiollc/tnjcleaning",
@@ -32,6 +32,27 @@
    },
    {
     "full_name": "nightowlstudiollc/nos-private",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "nightowlstudiollc/sg-refused",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "nightowlstudiollc/sg-other",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "nightowlstudiollc/sg-badenc",
     "default_branch": "main",
     "archived": false,
     "fork": false,

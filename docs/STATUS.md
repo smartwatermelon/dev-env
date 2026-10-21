@@ -602,6 +602,10 @@ or be explicitly parked with a resume note, by then — see the tracker.
     `claude-config-backup`). The digest App now has Administration: Read on
     all three installations.
   - `dev-env#166` stays open only for the Code Security purchase decision.
+  - Code Security is not bought (Andrew, 2026-10-21). Semgrep CE through
+    `github-workflows` `semgrep-scan.yml` is the substitute, piloted on
+    `nightowlstudiollc/reliquarist`; its check fails on new findings but is
+    not required. The digest now shows which repos have Semgrep coverage.
 - **Fleet:** `jordan-paddock-pitch` is a full fleet member with a site
   check and the monitor (`dev-env#212`, `claude-config#764`). Its first
   `site-down` issue (`dev-env#213`) closed once Andrew added

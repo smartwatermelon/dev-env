@@ -1,0 +1,10 @@
+{
+  "name": "semgrep-scan.yml",
+  "path": ".github/workflows/semgrep-scan.yml",
+  "sha": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+  "size": 160,
+  "html_url": "https://github.com/nightowlstudiollc/cleanroom/blob/main/.github/workflows/semgrep-scan.yml",
+  "type": "file",
+  "content": "bmFtZTogU2VtZ3JlcApvbjoKICBwdWxsX3JlcXVlc3Q6CnBlcm1pc3Npb25z\nOgogIGNvbnRlbnRzOiByZWFkCmpvYnM6CiAgc2VtZ3JlcDoKICAgIHVzZXM6\nIHNtYXJ0d2F0ZXJtZWxvbi9naXRodWItd29ya2Zsb3dzLy5naXRodWIvd29y\na2Zsb3dzL3NlbWdyZXAtc2Nhbi55bWxAc2VtZ3JlcC1zY2FuLXYxCg==\n",
+  "encoding": "base64"
+}
