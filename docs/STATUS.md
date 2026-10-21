@@ -911,8 +911,13 @@ scheduled run passed 2026-10-02, and plan step 7 (delete the three
 the digest also carries a "Standards warnings" section.
 Since 2026-10-21 it also carries a "Branch protection" section (closes
 `dev-env#211`): repos unprotected or not requiring standards-check, with
-exempt classes counted. Whether the App token can read `.protection` is
-unverified until the first run after merge.
+exempt classes counted. The App token reads `.protection`: run
+39661428846 (2026-10-21) surveyed 40 repos, 38 required, 2 exempt, 0
+unreadable. A "CodeQL" section (advances `dev-env#166`) reports repos with
+default setup off, and lists by name the private repos where scanning is
+off because paid Code Security is not bought (cost decision still open on
+`#166`). Forks and repos with no scannable language are exempt classes. It
+needs the App's Administration: read on all three installations.
 
 Earlier, all daily runs from 09-26 failed on `nightowlstudiollc` check-run
 access, so nothing was published.

@@ -35,6 +35,12 @@ done
 path="${path%%\?*}"
 file="${STUB_FIX}/${path//\//_}.json"
 [[ "${path}" == "installation/repositories" ]] && file="${file}.${STUB_OWNER}"
+# <name>.403.json: a refusal with a body, written to both streams as real gh does.
+if [[ -f "${file%.json}.403.json" ]]; then
+  cat "${file%.json}.403.json"
+  echo "gh: $(jq -r '.message' "${file%.json}.403.json") (HTTP 403)" >&2
+  exit 1
+fi
 if [[ ! -f "${file}" ]]; then
   echo "gh: Resource not accessible by integration (HTTP 403)" >&2
   exit 1
@@ -280,6 +286,94 @@ printf '%s\n' '{"owner":"o","repo":"o/legacy","state":"ok","annotations":[]}' >"
 _has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no protection result recorded |' \
   "a record without a protection field is unreadable, not clean" "${WORK}/legacy.md"
 _hasnt 'No gaps' "a record without a protection field never reads as no gaps" "${WORK}/legacy.md"
+
+# dev-env#166. Real 2026-10-21 captures: dev-env, cleanroom,
+# claude-config-backup. The rest change one field of a real body.
+_cq() {
+  local got
+  got="$(jq -r --arg r "$1" 'select(.repo == $r) | (.codeql.state // "none") + " " + (.codeql.exemptClass // "-")' "${prot}")"
+  if [[ "${got}" == "$2" ]]; then _pass "$3"; else _fail "$3 (codeql: '${got}', want '$2')"; fi
+}
+_cq smartwatermelon/dev-env "configured -" "a real configured repo is configured"
+_cq twistedmelonman/tm-private "configured -" "configured with no languages yet is still configured"
+_cq nightowlstudiollc/tnjcleaning "not-configured -" "a public non-fork repo with default setup off is flagged"
+_cq nightowlstudiollc/cleanroom "no-code-security -" \
+  "a real private 'Code Security must be enabled' 403 is no-code-security, not exempt"
+_cq smartwatermelon/claude-config-backup "no-code-security -" \
+  "a real private 'Advanced Security must be enabled' 403 is no-code-security, not exempt"
+_cq nightowlstudiollc/nos-private "unreadable -" \
+  "a private 'Resource not accessible by integration' 403 is unreadable, never no-code-security"
+_cq smartwatermelon/refused "unreadable -" "a refused read with no body is unreadable"
+_cq twistedmelonman/tm-public "unreadable -" \
+  "a paid-product 403 on a public repo is unreadable, not no-code-security"
+_cq smartwatermelon/noflags "unreadable -" \
+  "a paid-product 403 with no private flag is unreadable, not no-code-security"
+_cq nightowlstudiollc/nostd "exempt no-supported-language" "not configured with no languages is exempt"
+_cq twistedmelonman/Instapaper-MCP "exempt fork" "a fork with default setup off is exempt"
+_cq nightowlstudiollc/offcheck "unreadable -" "an unknown state is unreadable"
+_cq smartwatermelon/withheld "unreadable -" "malformed JSON is unreadable"
+_cq twistedmelonman/tm-old "none -" "an archived repo has no CodeQL result"
+if jq -e 'select(.repo == "nightowlstudiollc/nos-private") | .codeql.detail | test("Resource not accessible by integration")' "${prot}" >/dev/null 2>&1; then
+  _pass "the reason a default-setup read failed is kept"
+else
+  _fail "the refused default-setup read lost its reason"
+fi
+o_clean_cq="$(jq -r 'select(.repo == "o/clean") | .codeql.state + ": " + .codeql.detail' "${out}")"
+if [[ "${o_clean_cq}" == "unreadable: not configured, but the repository listing gave no fork flag"* ]]; then
+  _pass "not configured with no fork flag is unreadable, not flagged or exempt"
+else
+  _fail "not configured with no fork flag was decided anyway (got '${o_clean_cq}')"
+fi
+
+_has '## CodeQL' "the CodeQL section is rendered" "${pbody}"
+_has '**14 repositories surveyed**: 2 configured, 2 exempt, **1 not configured, 2 without Code Security, 7 unreadable.**' \
+  "the CodeQL summary counts each state" "${pbody}"
+_has '- fork: 1 — a fork is not ours to scan (decided 2026-10-21, dev-env#166)' \
+  "CodeQL exemptions are counted by class with the reason" "${pbody}"
+_hasnt '- no-code-security:' "no-code-security is not an exempt class" "${pbody}"
+_hasnt '| [nightowlstudiollc/cleanroom](' "a repo without Code Security is not a table row" "${pbody}"
+nocs_list="$(sed -n '/^### Scanning off: paid Code Security not bought/,/^\(##\|---\|\*\*Not listed\)/p' "${pbody}")"
+if [[ "${nocs_list}" == *"open cost decision (dev-env#166)"* \
+  && "${nocs_list}" == *"- [nightowlstudiollc/cleanroom](https://github.com/nightowlstudiollc/cleanroom)"* \
+  && "${nocs_list}" == *"- [smartwatermelon/claude-config-backup](https://github.com/smartwatermelon/claude-config-backup)"* \
+  && "${nocs_list}" != *"nos-private"* && "${nocs_list}" != *"tm-public"* ]]; then
+  _pass "repos without Code Security are listed by name under their own heading, and only they are"
+else
+  _fail "the no-Code-Security list is wrong: ${nocs_list}"
+fi
+_has '| [nightowlstudiollc/tnjcleaning](https://github.com/nightowlstudiollc/tnjcleaning) | NOT CONFIGURED: default setup is off; languages: actions |' \
+  "a not-configured repo is listed with its languages" "${pbody}"
+_has '| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNREADABLE: cannot read default setup: ' \
+  "a permission 403 is listed as unreadable with its reason" "${pbody}"
+cq_body="$(sed -n '/^## CodeQL/,/^---/p' "${pbody}")"
+for r in smartwatermelon/dev-env twistedmelonman/Instapaper-MCP nightowlstudiollc/nostd; do
+  if [[ "${cq_body}" == *"[${r}]"* ]]; then _fail "configured or exempt repo ${r} is listed"; else _pass "configured or exempt repo ${r} is counted, not listed"; fi
+done
+
+# Every o and p read failed: a token without Administration: Read must not
+# render as a clean fleet.
+cq_all="$(sed -n '/^## CodeQL/,/^---/p' "${body}")"
+if [[ "${cq_all}" == *"**CodeQL setup could not be verified for any of 8 repositories.**"* \
+  && "${cq_all}" == *'Administration: Read'* && "${cq_all}" != *"No gaps"* \
+  && "${cq_all}" != *"repositories surveyed"* ]]; then
+  _pass "an all-unreadable CodeQL survey says it verified nothing and names the likely permission"
+else
+  _fail "an all-unreadable CodeQL survey read as a result: ${cq_all}"
+fi
+
+jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "twistedmelonman/Instapaper-MCP")' "${prot}" >"${WORK}/cqclean.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/cqclean.ndjson" >"${WORK}/cqclean.md" 2>/dev/null
+_has 'No gaps: every surveyed repository has default setup on' "a fully configured CodeQL survey says so" "${WORK}/cqclean.md"
+_hasnt '| Repo | CodeQL default setup |' "a fully configured CodeQL survey has no table" "${WORK}/cqclean.md"
+# A repo without Code Security alone is a gap, not "No gaps", and not a table row.
+jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "nightowlstudiollc/cleanroom")' "${prot}" >"${WORK}/cqnocs.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/cqnocs.ndjson" >"${WORK}/cqnocs.md" 2>/dev/null
+sed -n '/^## CodeQL/,/^---/p' "${WORK}/cqnocs.md" >"${WORK}/cqnocs-section.md"
+_hasnt 'No gaps' "a repo without Code Security is never reported as no gaps" "${WORK}/cqnocs-section.md"
+_has '- [nightowlstudiollc/cleanroom]' "a lone repo without Code Security is listed by name" "${WORK}/cqnocs.md"
+_hasnt '| Repo | CodeQL default setup |' "a repo without Code Security is not a table row" "${WORK}/cqnocs.md"
+_has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no CodeQL result recorded |' \
+  "a record without a codeql field is unreadable, not clean" "${WORK}/legacy.md"
 
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-standards: all assertions passed"

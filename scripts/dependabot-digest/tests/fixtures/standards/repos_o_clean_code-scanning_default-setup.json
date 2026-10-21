@@ -1,0 +1,10 @@
+{
+  "state": "not-configured",
+  "languages": ["actions"],
+  "query_suite": "default",
+  "threat_model": "remote",
+  "updated_at": "2026-10-19T23:22:09Z",
+  "schedule": "weekly",
+  "runner_type": "standard",
+  "runner_label": ""
+}

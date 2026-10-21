@@ -6,3 +6,7 @@
 docs/data/corpus-440/files/
 docs/data/corpus-440/results/
 docs/data/corpus-440/files.tar.gz
+
+# Deliberately truncated JSON: the digest test that a malformed response is
+# unreadable (dev-env#166). Prettier cannot parse it and blocks the commit.
+scripts/dependabot-digest/tests/fixtures/standards/repos_smartwatermelon_withheld_code-scanning_default-setup.json

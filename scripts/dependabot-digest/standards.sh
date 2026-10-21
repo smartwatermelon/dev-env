@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: standards.sh <owner>. Prints one JSON record per repo: standards-check
 # annotations, or the reason none were read, plus the default branch's
-# protection state (dev-env#211).
+# protection state (dev-env#211) and CodeQL default setup (dev-env#166).
 set -uo pipefail
 unset CDPATH
 
@@ -35,7 +35,7 @@ emit() {
     --arg detail "$3" --arg source "${4-}" --arg url "${5-}" \
     --argjson ann "${6:-[]}" --arg runAt "${7-}" \
     --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
-    --argjson prot "${PROT_JSON:-null}" \
+    --argjson prot "${PROT_JSON:-null}" --argjson cq "${CQ_JSON:-null}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
@@ -43,10 +43,10 @@ emit() {
       runAt: (if $runAt == "" then null else $runAt end),
       rulesAt: (if $rulesAt == "" then null else $rulesAt end),
       rulesErr: (if $rulesErr == "" then null else $rulesErr end),
-      annotations: $ann, protection: $prot}' 2>/dev/null)"
-  # If jq fails, the repo must still appear. Its protection is unknown.
+      annotations: $ann, protection: $prot, codeql: $cq}' 2>/dev/null)"
+  # If jq fails, the repo must still appear. Protection and CodeQL are unknown.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -214,6 +214,75 @@ probe_protection() {
   set_prot "${state}" "${detail}" "${cls}"
 }
 
+# dev-env#166: CodeQL default setup. Exempt classes are counted, not
+# flagged. A private repo without paid Code Security is NOT exempt.
+declare -A CQ_EXEMPT_REASON=(
+  [fork]="a fork is not ours to scan (decided 2026-10-21, dev-env#166)"
+  [no-supported-language]="GitHub detects no language default setup can scan (2026-10-19, dev-env#166)"
+)
+# The 403 body when the paid product is off. Any other 403 is a token gap.
+# Matched on the body: stderr can carry noise.
+CQ_NO_PRODUCT='^(Code|Advanced) Security must be enabled for this repository to use code scanning\.$'
+
+# Prints "state<TAB>detail". An odd field is unreadable, never a result.
+read -r -d '' cq_verdict <<'JQ'
+if type != "object" then "unreadable\tthe default-setup response is malformed"
+elif .state == "configured" then "configured\t"
+elif .state != "not-configured" then "unreadable\tunknown default-setup state: " + (.state | tostring)
+elif (.languages | type) != "array" then "unreadable\tnot configured, and no language list was returned"
+elif (.languages | length) == 0 then "no-language\t"
+else "not-configured\tdefault setup is off; languages: " + (.languages | map(tostring) | join(", "))
+end
+JQ
+
+CQ_JSON=""
+set_cq() {
+  # set_cq <state> <detail> [exempt class]
+  CQ_JSON="$(jq -cn --arg s "$1" --arg d "$2" --arg c "${3-}" \
+    '{state: $s, detail: (if $d == "" then null else $d end),
+      exemptClass: (if $c == "" then null else $c end)}' 2>/dev/null)"
+  if [[ -z "${CQ_JSON}" ]]; then
+    CQ_JSON='{"state":"unreadable","detail":"could not encode the CodeQL result","exemptClass":null}'
+  fi
+}
+set_cq_exempt() { set_cq exempt "${CQ_EXEMPT_REASON[$1]-no reason recorded}" "$1"; }
+
+# Sets CQ_JSON for one repo. Never fails: a failed read is a state.
+probe_codeql() {
+  local nwo="$1" fork="$2" private="$3" body why msg verdict state detail
+  if ! body="$(api "repos/${nwo}/code-scanning/default-setup")"; then
+    why="$(last_err "no detail")"
+    msg="$(jq -r 'if type == "object" then .message // "" else "" end' <<<"${body}" 2>/dev/null)"
+    # Only the exact product message, on a repo the listing says is
+    # private: a public repo has no paywall to explain it.
+    if [[ "${why}" == *"(HTTP 403)"* && "${msg}" =~ ${CQ_NO_PRODUCT} \
+      && "${private}" == "true" ]]; then
+      set_cq no-code-security "${msg}"
+    else
+      set_cq unreadable "cannot read default setup: ${why}"
+    fi
+    return 0
+  fi
+  verdict="$(jq -r "${cq_verdict}" <<<"${body}" 2>/dev/null)"
+  state="${verdict%%$'\t'*}"
+  detail="${verdict#*$'\t'}"
+  case "${state}" in
+    configured | unreadable) set_cq "${state}" "${detail}" ;;
+    no-language) set_cq_exempt no-supported-language ;;
+    not-configured)
+      # A fork is exempt; without a fork flag, exemption cannot be decided.
+      if [[ "${fork}" == "true" ]]; then
+        set_cq_exempt fork
+      elif [[ "${fork}" != "false" ]]; then
+        set_cq unreadable "not configured, but the repository listing gave no fork flag, so exemption cannot be decided"
+      else
+        set_cq not-configured "${detail}"
+      fi
+      ;;
+    *) set_cq unreadable "the default-setup response is malformed" ;;
+  esac
+}
+
 survey_repo() {
   local nwo="$1" branch="$2" head pulls pr pr_head run source ann count url
   if ! head="$(api "repos/${nwo}/commits/${branch}" --jq '.sha')" \
@@ -313,13 +382,17 @@ fi
 while IFS=$'\t' read -r nwo archived fork private branch; do
   [[ -z "${nwo}" ]] && continue
   PROT_JSON=""
+  CQ_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
   elif [[ -z "${branch}" ]]; then
     set_prot unreadable "no default branch reported"
+    # Default setup is per repo, not per branch, so it is still read.
+    probe_codeql "${nwo}" "${fork}" "${private}"
     emit "${nwo}" unreadable "no default branch reported"
   else
     probe_protection "${nwo}" "${branch}" "${fork}" "${private}"
+    probe_codeql "${nwo}" "${fork}" "${private}"
     survey_repo "${nwo}" "${branch}"
   fi
 done <<<"${repo_list}"

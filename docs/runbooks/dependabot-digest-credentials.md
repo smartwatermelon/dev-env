@@ -27,7 +27,14 @@ proof that this path works: a published digest means every check was read.
 - **Name**: `dependabot-digest-swm`, installed on `smartwatermelon`,
   `nightowlstudiollc` and `twistedmelonman`, **All repositories** each.
 - **Repository permissions**, all read-only: Checks, Contents, Metadata,
-  Pull requests, Commit statuses. Nothing else. Webhook inactive.
+  Pull requests, Commit statuses, Administration. Nothing else. Webhook
+  inactive. Administration is there only for the CodeQL section:
+  `GET repos/{owner}/{repo}/code-scanning/default-setup` needs
+  Administration: read (GitHub's "Permissions required for GitHub Apps"
+  table; dev-env#166, approved 2026-10-21). The workflow asks for it
+  when it mints each token. GitHub rejects a token request for a
+  permission the installation has not granted, so accept the grant on all
+  three installations before the workflow runs.
 - The private key lives in 1Password vault `Automation`, item `DIGEST_APP`
   (fields `client_id`, `private_key`). Use the attached
   `dependabot-digest-swm.2026-10-01.private-key.pem`, not the `private_key`
