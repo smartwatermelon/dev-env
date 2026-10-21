@@ -601,15 +601,17 @@ or be explicitly parked with a resume note, by then — see the tracker.
     "without Code Security" (8 private NOS repos and
     `claude-config-backup`). The digest App now has Administration: Read on
     all three installations.
-  - `dev-env#166` stays open only for the Code Security purchase decision.
+  - Code Security is not bought (Andrew, 2026-10-21). Semgrep CE through
+    `github-workflows` `semgrep-scan.yml` is the substitute, piloted on
+    `nightowlstudiollc/reliquarist`; its check fails on new findings but is
+    not required. The digest now shows which repos have Semgrep coverage.
 - **Fleet:** `jordan-paddock-pitch` is a full fleet member with a site
   check and the monitor (`dev-env#212`, `claude-config#764`). Its first
   `site-down` issue (`dev-env#213`) closed once Andrew added
   `NETLIFY_AUTH_TOKEN`. `kebab-tax#1405` and `kebab-tax-netlify#325` remove
   the dead `claude.yml`, so no fleet repo has a Claude assistant workflow.
-- **Open decisions:** `dev-env#166` (Code Security purchase),
-  `claude-config#750` gap 1 (accept a false positive on `grep 'git commit'`
-  to catch `sh -c 'git commit'`).
+- **Open decisions:** `claude-config#750` gap 1 (accept a false positive
+  on `grep 'git commit'` to catch `sh -c 'git commit'`).
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns

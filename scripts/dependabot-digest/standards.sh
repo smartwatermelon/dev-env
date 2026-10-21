@@ -237,19 +237,64 @@ JQ
 
 CQ_JSON=""
 set_cq() {
-  # set_cq <state> <detail> [exempt class]
+  # set_cq <state> <detail> [exempt class] [substitute] [substitute detail]
   CQ_JSON="$(jq -cn --arg s "$1" --arg d "$2" --arg c "${3-}" \
+    --arg sub "${4-}" --arg subd "${5-}" \
     '{state: $s, detail: (if $d == "" then null else $d end),
-      exemptClass: (if $c == "" then null else $c end)}' 2>/dev/null)"
+      exemptClass: (if $c == "" then null else $c end),
+      substitute: (if $sub == "" then null else $sub end),
+      substituteDetail: (if $subd == "" then null else $subd end)}' 2>/dev/null)"
   if [[ -z "${CQ_JSON}" ]]; then
-    CQ_JSON='{"state":"unreadable","detail":"could not encode the CodeQL result","exemptClass":null}'
+    CQ_JSON='{"state":"unreadable","detail":"could not encode the CodeQL result","exemptClass":null,"substitute":null,"substituteDetail":null}'
   fi
 }
 set_cq_exempt() { set_cq exempt "${CQ_EXEMPT_REASON[$1]-no reason recorded}" "$1"; }
 
+# Code Security is not bought (2026-10-21, dev-env#166). Semgrep CE,
+# called from this path, is the substitute.
+SG_PATH=".github/workflows/semgrep-scan.yml"
+# A job-level or step-level uses: line, so a commented-out one does not count.
+SG_USES='(^|\n)[ \t]*(-[ \t]+)?uses:[ \t]*["'"'"']?smartwatermelon/github-workflows/\.github/workflows/semgrep-scan\.yml@'
+
+# Prints "semgrep|none|unreadable<TAB>detail". Only a 404 is none.
+read -r -d '' sg_verdict <<'JQ'
+if type != "object" then "unreadable\tthe contents response is malformed"
+elif .type != "file" then "unreadable\tthe path is not a file: " + (.type | tostring)
+elif .encoding != "base64" or (.content | type) != "string"
+then "unreadable\tthe file content is not readable (encoding: " + (.encoding | tostring) + ")"
+else (try (.content | gsub("\\s"; "") | @base64d) catch null) as $text
+  | if ($text | type) != "string" then "unreadable\tthe file content could not be decoded"
+    elif ($text | test($uses)) then "semgrep\t"
+    else "none\tthe file exists but does not call the reusable semgrep-scan.yml workflow"
+    end
+end
+JQ
+
+probe_semgrep() {
+  local nwo="$1" body why verdict
+  if ! body="$(api "repos/${nwo}/contents/${SG_PATH}")"; then
+    why="$(last_err "no detail")"
+    why="${why%"${why##*[![:space:]]}"}"
+    # The repo just answered the default-setup read, so 404 means no file.
+    # Both signals, as for the paywall 403: status line and body.
+    if [[ "${why}" == *"(HTTP 404)"* ]] \
+      && jq -e 'type == "object" and .status == "404"' >/dev/null 2>&1 <<<"${body}"; then
+      printf 'none\t'
+    else
+      printf 'unreadable\tcannot read %s: %s' "${SG_PATH}" "${why}"
+    fi
+    return 0
+  fi
+  verdict="$(jq -r --arg uses "${SG_USES}" "${sg_verdict}" <<<"${body}" 2>/dev/null)"
+  case "${verdict%%$'\t'*}" in
+    semgrep | none | unreadable) printf '%s' "${verdict}" ;;
+    *) printf 'unreadable\tthe contents response is malformed' ;;
+  esac
+}
+
 # Sets CQ_JSON for one repo. Never fails: a failed read is a state.
 probe_codeql() {
-  local nwo="$1" fork="$2" private="$3" body why msg verdict state detail
+  local nwo="$1" fork="$2" private="$3" body why msg verdict state detail sg
   if ! body="$(api "repos/${nwo}/code-scanning/default-setup")"; then
     why="$(last_err "no detail")"
     msg="$(jq -r 'if type == "object" then .message // "" else "" end' <<<"${body}" 2>/dev/null)"
@@ -257,7 +302,9 @@ probe_codeql() {
     # private: a public repo has no paywall to explain it.
     if [[ "${why}" == *"(HTTP 403)"* && "${msg}" =~ ${CQ_NO_PRODUCT} \
       && "${private}" == "true" ]]; then
-      set_cq no-code-security "${msg}"
+      sg="$(probe_semgrep "${nwo}")"
+      [[ "${sg}" == *$'\t'* ]] || sg=$'unreadable\tthe Semgrep probe returned no result'
+      set_cq no-code-security "${msg}" "" "${sg%%$'\t'*}" "${sg#*$'\t'}"
     else
       set_cq unreadable "cannot read default setup: ${why}"
     fi

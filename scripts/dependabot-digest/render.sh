@@ -348,10 +348,31 @@ render_protection() {
   fi
 }
 
+# render_sg_list <state> <count> <heading> <blurb>: one Semgrep list.
+# Reads recs from render_codeql.
+render_sg_list() {
+  local state="$1" count="$2" heading="$3" blurb="$4" list
+  [[ "${count}" -gt 0 ]] || return 0
+  list="$(jq -r --arg s "${state}" '
+    def cell: tostring | gsub("[\r\n]+"; " ");
+    sort_by(.repo)[] | select(.s.state == $s)
+    | "- [" + .repo + "](https://github.com/" + .repo + ")"
+      + (if .s.detail then ": " + (.s.detail | cell) else "" end)' <<<"${recs}" 2>/dev/null)"
+  echo "#### ${heading}"
+  echo
+  if [[ -n "${blurb}" ]]; then
+    echo "${blurb}"
+    echo
+  fi
+  echo "${list:-**${count} repositories, but listing them failed.** See the run log.}"
+  echo
+}
+
 # dev-env#166. As for protection: unreadable is never on or off, and an
 # all-unreadable survey says so.
 render_codeql() {
   local file="$1" recs surveyed configured exempt flagged unreadable by_class owners rows
+  local nocs sg_cov sg_none sg_unk
   echo "## CodeQL"
   echo
   if [[ ! -r "${file}" ]] || ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
@@ -359,13 +380,19 @@ render_codeql() {
     echo
     return 0
   fi
-  # A record without a codeql object (an older or crashed survey) is
-  # unreadable, not clean.
+  # No codeql object (older or crashed survey) is unreadable, not clean.
+  # .s, the Semgrep substitute, is unreadable when missing or unknown.
   if ! recs="$(jq -cs '
     [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
      | .c = (if (.codeql | type) == "object" and (.codeql.state | type) == "string"
              then .codeql
-             else {state: "unreadable", detail: "no CodeQL result recorded", exemptClass: null} end)]
+             else {state: "unreadable", detail: "no CodeQL result recorded", exemptClass: null} end)
+     | .s = (if .c.state != "no-code-security" then null
+             elif .c.substitute == "semgrep" or .c.substitute == "none"
+             then {state: .c.substitute, detail: (.c.substituteDetail // null)}
+             elif .c.substitute == null then {state: "unreadable", detail: "no Semgrep result recorded"}
+             else {state: "unreadable",
+                   detail: (.c.substituteDetail // ("unknown Semgrep state: " + (.c.substitute | tostring)))} end)]
   ' "${file}" 2>/dev/null)" || [[ -z "${recs}" ]]; then
     echo "**Not checked.** The survey output could not be summarized, so no repository's CodeQL setup was verified."
     echo
@@ -377,6 +404,9 @@ render_codeql() {
   exempt="$(jq '[.[] | select(.c.state == "exempt")] | length' <<<"${recs}")"
   flagged="$(jq '[.[] | select(.c.state == "not-configured")] | length' <<<"${recs}")"
   nocs="$(jq '[.[] | select(.c.state == "no-code-security")] | length' <<<"${recs}")"
+  sg_cov="$(jq '[.[] | select(.s.state == "semgrep")] | length' <<<"${recs}")"
+  sg_none="$(jq '[.[] | select(.s.state == "none")] | length' <<<"${recs}")"
+  sg_unk=$((nocs - sg_cov - sg_none))
   unreadable=$((surveyed - configured - exempt - flagged - nocs))
 
   echo "Whether each repository has CodeQL default setup turned on. Exempt repositories are left off by a recorded decision for their class; they are counted, not listed."
@@ -389,7 +419,7 @@ render_codeql() {
     echo "**CodeQL setup could not be verified for any of ${surveyed} repositories.** Every read failed or returned no usable state. The likely cause is a token without \`Administration: Read\`, which the default-setup endpoint needs. Nothing here means CodeQL is on or off anywhere."
     echo
   else
-    echo "**${surveyed} repositories surveyed**: ${configured} configured, ${exempt} exempt, **${flagged} not configured, ${nocs} without Code Security, ${unreadable} unreadable.**"
+    echo "**${surveyed} repositories surveyed**: ${configured} configured, ${exempt} exempt, ${sg_cov} covered by Semgrep, **${flagged} not configured, ${sg_none} with no code scanning, ${sg_unk} with Semgrep coverage unreadable, ${unreadable} unreadable.**"
     echo
     if [[ "${exempt}" -gt 0 ]]; then
       by_class="$(jq -r '[.[] | select(.c.state == "exempt")] | group_by(.c.exemptClass)
@@ -422,16 +452,16 @@ render_codeql() {
       echo
     fi
   fi
-  # Listed by name, not exempt: the cost decision is open (dev-env#166).
+  # Listed by name, not exempt: Semgrep coverage is per repo and can lapse.
   if [[ "${nocs}" -gt 0 ]]; then
-    rows="$(jq -r '[.[] | select(.c.state == "no-code-security") | .repo] | sort[]
-      | "- [" + . + "](https://github.com/" + . + ")"' <<<"${recs}")"
-    echo "### Scanning off: paid Code Security not bought"
+    echo "### Without paid Code Security"
     echo
-    echo "GitHub refuses code scanning on these private repositories until the paid GitHub Code Security add-on is enabled. Whether to buy it is an open cost decision (dev-env#166)."
+    echo "GitHub refuses code scanning on these private repositories until the paid GitHub Code Security add-on is enabled. Code Security is not bought, by decision (2026-10-21, dev-env#166). Semgrep CE is the substitute: a caller at \`.github/workflows/semgrep-scan.yml\` runs the reusable \`semgrep-scan.yml\` workflow from smartwatermelon/github-workflows."
     echo
-    echo "${rows:-**${nocs} repositories, but listing them failed.** See the run log.}"
-    echo
+    render_sg_list semgrep "${sg_cov}" "Covered by Semgrep (CodeQL substitute)" ""
+    render_sg_list none "${sg_none}" "No code scanning: paid Code Security not bought, no Semgrep caller" ""
+    render_sg_list unreadable "${sg_unk}" "Semgrep coverage unreadable" \
+      "The Semgrep caller of these repositories could not be read, so their coverage is unknown: not present, not absent."
   fi
   if [[ -n "${owners}" ]]; then
     echo "**Not listed, so not surveyed:** ${owners}. CodeQL setup of their repositories is unknown."

@@ -153,6 +153,59 @@ else
   _fail "a malformed survey did not render CodeQL as not checked: ${cq_section}"
 fi
 
+# Semgrep CE (2026-10-21): no substitute field or an unknown one is unreadable.
+: | bash "${DIR}/render.sh" --standards "${FIX}/codeql-semgrep.ndjson" >"${WORK}/sg.md" 2>/dev/null
+_under() {
+  awk -v h="$1" '$0 == h {on = 1; next} on && /^(#|---|\*\*Not listed)/ {exit} on {print}' "${WORK}/sg.md"
+}
+sg_sum="$(sed -n '/^## CodeQL/,/^---/p' "${WORK}/sg.md")"
+if [[ "${sg_sum}" == *'**6 repositories surveyed**: 1 configured, 0 exempt, 1 covered by Semgrep, **0 not configured, 1 with no code scanning, 3 with Semgrep coverage unreadable, 0 unreadable.**'* ]]; then
+  _pass "the CodeQL summary counts each Semgrep substitute state"
+else
+  _fail "the CodeQL summary miscounts Semgrep states: ${sg_sum}"
+fi
+if [[ "${sg_sum}" == *"Code Security is not bought, by decision (2026-10-21"* \
+  && "${sg_sum}" == *"Semgrep CE is the substitute"* && "${sg_sum}" != *"open cost decision"* ]]; then
+  _pass "the section says Code Security is not bought by decision and names Semgrep CE"
+else
+  _fail "the section still calls Code Security an open decision: ${sg_sum}"
+fi
+if [[ "${sg_sum}" == *"No gaps"* ]]; then
+  _fail "a survey with repos lacking Code Security claims no gaps"
+else
+  _pass "a survey with repos lacking Code Security never claims no gaps"
+fi
+sg_cov="$(_under '#### Covered by Semgrep (CodeQL substitute)')"
+sg_none="$(_under '#### No code scanning: paid Code Security not bought, no Semgrep caller')"
+sg_unk="$(_under '#### Semgrep coverage unreadable')"
+if [[ "${sg_cov}" == *"- [o/sg-covered](https://github.com/o/sg-covered)"* \
+  && "${sg_cov}" != *"sg-none"* && "${sg_cov}" != *"sg-unreadable"* \
+  && "${sg_cov}" != *"sg-older"* && "${sg_cov}" != *"sg-odd"* ]]; then
+  _pass "only a semgrep record is listed as covered"
+else
+  _fail "the covered list is wrong: ${sg_cov}"
+fi
+if [[ "${sg_none}" == *"- [o/sg-none](https://github.com/o/sg-none)"* \
+  && "${sg_none}" != *"sg-covered"* && "${sg_none}" != *"sg-unreadable"* \
+  && "${sg_none}" != *"sg-older"* && "${sg_none}" != *"sg-odd"* ]]; then
+  _pass "only a none record is listed as no code scanning"
+else
+  _fail "the no-code-scanning list is wrong: ${sg_none}"
+fi
+if [[ "${sg_unk}" == *"- [o/sg-unreadable](https://github.com/o/sg-unreadable): cannot read"*"HTTP 502"* \
+  && "${sg_unk}" == *"- [o/sg-older](https://github.com/o/sg-older): no Semgrep result recorded"* \
+  && "${sg_unk}" == *"- [o/sg-odd](https://github.com/o/sg-odd): "* \
+  && "${sg_unk}" != *"sg-covered"* && "${sg_unk}" != *"sg-none]"* ]]; then
+  _pass "unreadable, older-survey and unknown records are listed as unreadable with a reason"
+else
+  _fail "the Semgrep-unreadable list is wrong: ${sg_unk}"
+fi
+if [[ "${sg_sum}" == *"[o/configured]"* ]]; then
+  _fail "a configured repo is listed in the CodeQL section"
+else
+  _pass "a configured repo is counted, not listed"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-render: all assertions passed"
 else
