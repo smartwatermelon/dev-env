@@ -132,6 +132,18 @@ else
   _fail "an empty queue did not render correctly"
 fi
 
+# dev-env#211: no survey, no protection section; a malformed one must not
+# read clean.
+_hasnt '## Branch protection' "no survey, no protection section"
+printf '%s\n' '{not json' >"${WORK}/bad.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/bad.ndjson" >"${WORK}/bad.md" 2>/dev/null
+prot_section="$(sed -n '/^## Branch protection/,/^---/p' "${WORK}/bad.md")"
+if [[ "${prot_section}" == *"**Not checked.**"* && "${prot_section}" != *"No gaps"* ]]; then
+  _pass "a malformed survey renders protection as not checked"
+else
+  _fail "a malformed survey did not render protection as not checked: ${prot_section}"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-render: all assertions passed"
 else

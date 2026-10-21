@@ -1,0 +1,47 @@
+[
+ {
+  "total_count": 6,
+  "repositories": [
+   {
+    "full_name": "smartwatermelon/dev-env",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "smartwatermelon/claude-config-backup",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": true
+   },
+   {
+    "full_name": "smartwatermelon/withheld",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "smartwatermelon/nullflag",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   },
+   {
+    "full_name": "smartwatermelon/noflags",
+    "default_branch": "main",
+    "archived": false
+   },
+   {
+    "full_name": "smartwatermelon/refused",
+    "default_branch": "main",
+    "archived": false,
+    "fork": false,
+    "private": false
+   }
+  ]
+ }
+]
