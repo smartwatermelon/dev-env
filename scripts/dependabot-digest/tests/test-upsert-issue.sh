@@ -13,6 +13,8 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
+# An exported gh function shadows the stub; Claude Code sessions export one.
+unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
