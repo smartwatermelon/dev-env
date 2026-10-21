@@ -2,7 +2,8 @@
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
-2026-10-12, 2026-10-13 to 10-16 and 2026-10-19 updates below.**
+2026-10-12, 2026-10-13 to 10-16, 2026-10-19 and 2026-10-19 to 10-21
+updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -497,8 +498,12 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **Pangram runs only where the route says.** `personify#119` (v2.2.0) and
   `claude-config#733`/`#734` make `pangram_check.py` ask the route first:
   exempt text gets exit 6 and no API call. Live on all four machines
-  2026-10-16. MIMOLETTE has no claude.ai plugin sync, so its personify is a
-  CLI install that updates only via `claude plugin update`.
+  2026-10-16. **Correction 2026-10-21:** MIMOLETTE gets personify from the
+  claude.ai sync like the other machines. The sync arrives only after a
+  `claude` run on that machine; the first one there was 2026-10-16. The CLI
+  install made that day was removed: the gate preferred its cache copy, so
+  it never updated. Checked 2026-10-21: the gate resolves the synced copy
+  (2.2.1).
 - **Versioning (`dev-env#72`, closed).** `github-workflows#195` adds an
   auto-tag workflow; scripts, claude-config and dotfiles tag every merge to
   `main`. `allup` refuses a scripts clone older than `v1.0.0`
@@ -544,7 +549,67 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **dev-env CI checks `sites.json` against claude-config's
   `copy-paths.conf`** (`dev-env#210`, closes `claude-config#725`).
 - **Open:** `claude-config#747` (a quoted `'; cd <dir>'` moves the gate's
-  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs).
+  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs). All but
+  `#750` closed by 2026-10-21, below.
+
+**2026-10-19 evening to 2026-10-21 update (Pacific):**
+
+- **Hooks and review (claude-config):**
+  - `#754` closes `#747`: the personify gate follows only a `cd` that
+    starts a command.
+  - `#753` closes `#732` by decision: CI skips the suite when only
+    `known-runtime.txt` changed. The merge-lock is still required.
+  - `#755` closes `#682` (the chunked arbiter has its own timeout); `#752`
+    closes `#683` (a test for its cached adversarial PASS).
+  - `#756`: the hook catches `gh pr ready`/`create` inside a quoted
+    substitution.
+  - `#757` closes `#553` and `#642`: gate-review scopes batch approval and
+    shows a suspension at stage and open.
+  - `#768`: the main-commit guard blocks `git -C "$VAR" commit` and a quoted
+    `"git" commit` (gaps 2 and 3 of `#750`). `#750` stays open: gap 1
+    waits on Andrew's call, gaps 4 and 5 are known limits.
+  - `#767`: the worktree hook allows `git worktree unlock`, audited like
+    `remove`. `lock`, `move` and `repair` stay blocked.
+  - `#765`: `CLAUDE.md` says to stop and surface an auto-mode classifier
+    denial at once, never route around it.
+  - Closed won't-fix: `#485`. The secret-leak hook stays strict, with no
+    heredoc exemption; write prose to a file and pass `--body-file` or
+    `commit -F`.
+- **Machine settings and launchers:** `claude-wrapper#143` adds
+  `claude-wrapper-lite`, which only layers the machine settings;
+  `dotfiles#448` uses it where the full wrapper is absent (arich-mac).
+  `claude-config#759` documents keeping machine settings out of the shared
+  `settings.json`. `claude-config#769` enables the sentry plugin on every
+  machine.
+- **`clauded`:** `dotfiles#455` (closes `#435`) added an `[a]uto / [y]olo`
+  prompt that defaulted to plain `claude`. That is auto mode only where
+  machine settings set it (ASIAGO), so on TILSIT and MIMOLETTE it started
+  ask mode. `dotfiles#457` makes YOLO the default: only `a` starts plain
+  `claude`. Confirmed on TILSIT, MIMOLETTE and arich-mac.
+- **gh wrapper (dotfiles):** `#443` and `#445` (closes `#444`) close the
+  `GH_REPO`, PR-URL and GraphQL draft and merge bypasses; `#446` refuses
+  GraphQL `enablePullRequestAutoMerge`; `#447` routes pilot repos through a
+  GitHub App token; `#456` (closes `#323`) checks that attached labels exist.
+  `gh-app-token.sh` reads the App key from the Keychain (`#449`), before
+  1Password (`#454`, closes `#450`). `#452`/`#453` close three length-cap
+  gaps.
+- **Daily digest (`dev-env#170`):**
+  - `dev-env#214` (closes `#211`) adds a "Branch protection" section. Run
+    `39661428846`: 40 surveyed, 38 require `standards-check`, 2 exempt.
+  - `dev-env#216` adds a "CodeQL" section. Run `39672157687`: 30
+    configured, 1 exempt (fork), 0 not configured, and 9 listed by name as
+    "without Code Security" (8 private NOS repos and
+    `claude-config-backup`). The digest App now has Administration: Read on
+    all three installations.
+  - `dev-env#166` stays open only for the Code Security purchase decision.
+- **Fleet:** `jordan-paddock-pitch` is a full fleet member with a site
+  check and the monitor (`dev-env#212`, `claude-config#764`). Its first
+  `site-down` issue (`dev-env#213`) closed once Andrew added
+  `NETLIFY_AUTH_TOKEN`. `kebab-tax#1405` and `kebab-tax-netlify#325` remove
+  the dead `claude.yml`, so no fleet repo has a Claude assistant workflow.
+- **Open decisions:** `dev-env#166` (Code Security purchase),
+  `claude-config#750` gap 1 (accept a false positive on `grep 'git commit'`
+  to catch `sh -c 'git commit'`).
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
