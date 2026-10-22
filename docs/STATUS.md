@@ -549,8 +549,8 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **dev-env CI checks `sites.json` against claude-config's
   `copy-paths.conf`** (`dev-env#210`, closes `claude-config#725`).
 - **Open:** `claude-config#747` (a quoted `'; cd <dir>'` moves the gate's
-  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs). All but
-  `#750` closed by 2026-10-21, below.
+  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs). All
+  closed by 2026-10-21, below.
 
 **2026-10-19 evening to 2026-10-21 update (Pacific):**
 
@@ -566,8 +566,9 @@ or be explicitly parked with a resume note, by then — see the tracker.
   - `#757` closes `#553` and `#642`: gate-review scopes batch approval and
     shows a suspension at stage and open.
   - `#768`: the main-commit guard blocks `git -C "$VAR" commit` and a quoted
-    `"git" commit` (gaps 2 and 3 of `#750`). `#750` stays open: gap 1
-    waits on Andrew's call, gaps 4 and 5 are known limits.
+    `"git" commit` (gaps 2 and 3 of `#750`). `#750` is closed as
+    superseded by `#659` (OS isolation plus server-side rules): no more
+    in-band string-parsing fixes (Andrew, 2026-10-21).
   - `#767`: the worktree hook allows `git worktree unlock`, audited like
     `remove`. `lock`, `move` and `repair` stay blocked.
   - `#765`: `CLAUDE.md` says to stop and surface an auto-mode classifier
@@ -610,8 +611,37 @@ or be explicitly parked with a resume note, by then — see the tracker.
   `site-down` issue (`dev-env#213`) closed once Andrew added
   `NETLIFY_AUTH_TOKEN`. `kebab-tax#1405` and `kebab-tax-netlify#325` remove
   the dead `claude.yml`, so no fleet repo has a Claude assistant workflow.
-- **Open decisions:** `claude-config#750` gap 1 (accept a false positive
-  on `grep 'git commit'` to catch `sh -c 'git commit'`).
+
+**2026-10-21 evening update (Pacific): Semgrep rollout:**
+
+- **Reusable workflow:** `github-workflows#198` adds `semgrep-scan.yml`
+  (Semgrep CE 1.182.0, pinned and Dependabot-bumped). PRs fail only on
+  findings new since the PR base; pushes to `main` and manual runs scan the
+  whole tree. An optional `SEMGREP_APP_TOKEN` switches to `semgrep ci`.
+  `#200` makes the README caller example match the stub, with a test. Tag
+  `semgrep-scan-v1` is at `fcc1dd9`.
+- **Rule (Andrew, 2026-10-21):** no red checks. A repo's existing findings
+  are fixed, so the fix takes effect, before its caller lands.
+- **Callers live on 6 private NOS repos**, each with a green first full
+  scan of `main`, 0 findings:
+  - `reliquarist`: `#107` upgrades pnpm 9.15.0 to 12.14.0 and sets
+    `minimumReleaseAge`, `trustPolicy: no-downgrade` and
+    `blockExoticSubdeps` (none exist in pnpm 9); `#108` adds the caller.
+  - `cleanroom#21`, `infinite-yaks#4`: caller only.
+  - `night-owl-studio#105`: caller, plus `--legacy-peer-deps` on the
+    Validate `npx html-validate` (npm 10.9.9 crashed in arborist
+    `#loadPeerSet`).
+  - `financial-agent#194`: caller, plus a `nosemgrep` on the venv re-exec
+    in `op_bootstrap.py` (a false positive: same script, own argv).
+  - `tensegrity#116`: caller, plus `min-release-age=7` in `.npmrc` (CI npm
+    11.19.0; EAS's npm version not checked).
+- **Known CE limit:** three JS rules (`cryptojs-weak-algorithm`,
+  `cors-default-config` for Express and Koa) need the Pro engine. CE skips
+  them with a warning.
+- **Not yet:** `kebab-tax` and `kebab-tax-netlify` (other session).
+  `dev-env#166` stays open until the digest lists these repos under
+  "Covered by Semgrep"; that run is also the first live test of its
+  private-repo reads.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
@@ -642,10 +672,10 @@ fine-grained PATs — one per owner — but `GH_TOKEN` in a session is the
 That one substitution produces two failure modes, and neither surfaces as an
 error:
 
-| Signature | Means | Fix |
-| --- | --- | --- |
-| **403** on `branches/*/protection` | wrong owner's token, or missing `Administration: Read-only` | present the owning account's token |
-| **404** on a repo you know exists | wrong owner's token | present the owning account's token |
+- **403** on `branches/*/protection`: wrong owner's token, or missing
+  `Administration: Read-only`. Fix: present the owning account's token.
+- **404** on a repo you know exists: wrong owner's token. Fix: present the
+  owning account's token.
 
 **Read these as diagnostics, not results.** A 403 is not a 404, and neither is
 an auth error — a probe using one token for every owner reads as a clean run
@@ -679,7 +709,8 @@ done | tee /tmp/fleet.txt | while read -r r; do
        --jq '.required_status_checks.contexts//[]|join(",")' 2>/dev/null)"
 done
 # Sanity-check the enumeration before trusting any count derived from it:
-test "$(wc -l < /tmp/fleet.txt)" -ge 42 || echo "UNDERCOUNT: token lacks All-repositories access"
+test "$(wc -l < /tmp/fleet.txt)" -ge 42 ||
+  echo "UNDERCOUNT: token lacks All-repositories access"
 ```
 
 **Do not work around a scope gap by unsetting `GH_TOKEN`.** Falling back to the
@@ -715,7 +746,7 @@ cheaper than recorded — wave 3 no longer gates it.
 | --- | --- |
 | Foundation (F) | F1, F3, F4 done. F2 open (latent hazard, not urgent). |
 | Identity / billing (I) | I3 done. I0, I1, I2 open. |
-| Fleet (W) | W0, W1, W2 done. W3 **33 of 40 done** (2026-10-01) — **critical path**. |
+| Fleet (W) | W0–W2 done. W3 **33 of 40** (2026-10-01): critical path. |
 | Local review (L) | L1 done. L2, L3, L4, L5 open. |
 | Runtime EOL (N) | N1a, N1b done. |
 
@@ -1246,14 +1277,32 @@ others.
 
 These are not oversights. Do not "fix" them without asking.
 
-| Item | Decision |
-| --- | --- |
-| Runbook Part D on TILSIT and MIMOLETTE | **Still pending on both** as of 2026-09-08; wrongly marked done earlier that day. Manual re-login by Andrew; verify with `grep user: ~/.config/gh/hosts.yml`. |
-| Splitting and rotating the shared token | **Moot (2026-10-12).** The token is deleted; nothing in CI uses Claude. See `docs/token-rotation.md`. |
-| `dev-env` visibility | **Stays public.** Considered and rejected: gitleaks over 67 commits found nothing, there are 0 forks, and going private would spend Actions minutes against the private budget while breaking the calendar event's `blob/main` link. |
-| `photo-game-poc` token copy | **Parked.** Its secret predates the 2026-06-29 mint, so it holds an older token with no recorded expiry. The repo is archived and runs nothing. |
-| Agent machine account and mobile merge gate | **Drafted 2026-09-27, starts after the hard stop.** The agent gets its own write-only GitHub account; Andrew approves PRs in the GitHub mobile app. Blocked on the support ticket and the `smartwatermelon` downgrade. A Slack front end is optional. See `docs/superpowers/specs/2026-09-27-agent-identity-merge-gate-design.md`. |
-| Five retired repo paths | **Resolved by 2026-10-01:** GitHub released the paths and all five now live in `smartwatermelon`. History: support ticket [4746770](https://help.github.com/ticket/personal/0/4746770), org scope. Supersedes 4729524, which was filed under user scope — the wrong scope, since the paths are now inherited by the org. That predecessor was closed by GitHub 2026-09-04 as self-service-only and reopened after the Team upgrade; no staff reply ever came. No response on the new ticket as of 2026-09-18. The move-list now names `smartwatermelon` for all five. |
+- **Runbook Part D on TILSIT and MIMOLETTE:** **still pending on both** as
+  of 2026-09-08; wrongly marked done earlier that day. Manual re-login by
+  Andrew; verify with `grep user: ~/.config/gh/hosts.yml`.
+- **Splitting and rotating the shared token:** **moot (2026-10-12).** The
+  token is deleted; nothing in CI uses Claude. See `docs/token-rotation.md`.
+- **`dev-env` visibility:** **stays public.** Considered and rejected:
+  gitleaks over 67 commits found nothing, there are 0 forks, and going
+  private would spend Actions minutes against the private budget while
+  breaking the calendar event's `blob/main` link.
+- **`photo-game-poc` token copy:** **parked.** Its secret predates the
+  2026-06-29 mint, so it holds an older token with no recorded expiry. The
+  repo is archived and runs nothing.
+- **Agent machine account and mobile merge gate:** **drafted 2026-09-27,
+  starts after the hard stop.** The agent gets its own write-only GitHub
+  account; Andrew approves PRs in the GitHub mobile app. Blocked on the
+  support ticket and the `smartwatermelon` downgrade. A Slack front end is
+  optional. See
+  `docs/superpowers/specs/2026-09-27-agent-identity-merge-gate-design.md`.
+- **Five retired repo paths:** **resolved by 2026-10-01:** GitHub released
+  the paths and all five now live in `smartwatermelon`. History: support
+  ticket [4746770](https://help.github.com/ticket/personal/0/4746770), org
+  scope. Supersedes 4729524, which was filed under user scope — the wrong
+  scope, since the paths are now inherited by the org. That predecessor was
+  closed by GitHub 2026-09-04 as self-service-only and reopened after the
+  Team upgrade; no staff reply ever came. No response on the new ticket as
+  of 2026-09-18. The move-list now names `smartwatermelon` for all five.
 
 ## Standing methodology
 
@@ -1274,11 +1323,14 @@ six accumulated.
 
 ## Key references
 
-| Document | Contents |
-| --- | --- |
-| `docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md` | The backlog itself: every item, the dependency graph, the false-OK catalog |
-| `docs/superpowers/specs/2026-09-03-org-migration-design.md` | Org migration design and runbook |
-| `docs/token-rotation.md` | Retired 2026-10-12: `CLAUDE_CODE_OAUTH_TOKEN` is deleted. Never contains a token |
-| `docs/runbooks/org-migration-rename.md` | Manual UI steps; Part D still pending on two machines |
-| `docs/WORKFLOW-DEEP-DIVE.md` | Enforcement layers: hooks, wrappers, CI/CD |
-| `scripts/org-migration/` | Snapshot/transfer/verify tooling; 38-test hermetic stub-`gh` suite |
+- `docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`: the
+  backlog itself: every item, the dependency graph, the false-OK catalog.
+- `docs/superpowers/specs/2026-09-03-org-migration-design.md`: org
+  migration design and runbook.
+- `docs/token-rotation.md`: retired 2026-10-12;
+  `CLAUDE_CODE_OAUTH_TOKEN` is deleted. Never contains a token.
+- `docs/runbooks/org-migration-rename.md`: manual UI steps for the org
+  migration.
+- `docs/WORKFLOW-DEEP-DIVE.md`: enforcement layers: hooks, wrappers, CI/CD.
+- `scripts/org-migration/`: snapshot/transfer/verify tooling; 38-test
+  hermetic stub-`gh` suite.
