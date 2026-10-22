@@ -549,8 +549,8 @@ or be explicitly parked with a resume note, by then — see the tracker.
 - **dev-env CI checks `sites.json` against claude-config's
   `copy-paths.conf`** (`dev-env#210`, closes `claude-config#725`).
 - **Open:** `claude-config#747` (a quoted `'; cd <dir>'` moves the gate's
-  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs). All but
-  `#750` closed by 2026-10-21, below.
+  route), `#750`, `#732` (fast CI for `known-runtime.txt`-only PRs). All
+  closed by 2026-10-21, below.
 
 **2026-10-19 evening to 2026-10-21 update (Pacific):**
 
@@ -566,8 +566,9 @@ or be explicitly parked with a resume note, by then — see the tracker.
   - `#757` closes `#553` and `#642`: gate-review scopes batch approval and
     shows a suspension at stage and open.
   - `#768`: the main-commit guard blocks `git -C "$VAR" commit` and a quoted
-    `"git" commit` (gaps 2 and 3 of `#750`). `#750` stays open: gap 1
-    waits on Andrew's call, gaps 4 and 5 are known limits.
+    `"git" commit` (gaps 2 and 3 of `#750`). `#750` is closed as
+    superseded by `#659` (OS isolation plus server-side rules): no more
+    in-band string-parsing fixes (Andrew, 2026-10-21).
   - `#767`: the worktree hook allows `git worktree unlock`, audited like
     `remove`. `lock`, `move` and `repair` stay blocked.
   - `#765`: `CLAUDE.md` says to stop and surface an auto-mode classifier
@@ -610,8 +611,37 @@ or be explicitly parked with a resume note, by then — see the tracker.
   `site-down` issue (`dev-env#213`) closed once Andrew added
   `NETLIFY_AUTH_TOKEN`. `kebab-tax#1405` and `kebab-tax-netlify#325` remove
   the dead `claude.yml`, so no fleet repo has a Claude assistant workflow.
-- **Open decisions:** `claude-config#750` gap 1 (accept a false positive
-  on `grep 'git commit'` to catch `sh -c 'git commit'`).
+
+**2026-10-21 evening update (Pacific): Semgrep rollout:**
+
+- **Reusable workflow:** `github-workflows#198` adds `semgrep-scan.yml`
+  (Semgrep CE 1.182.0, pinned and Dependabot-bumped). PRs fail only on
+  findings new since the PR base; pushes to `main` and manual runs scan the
+  whole tree. An optional `SEMGREP_APP_TOKEN` switches to `semgrep ci`.
+  `#200` makes the README caller example match the stub, with a test. Tag
+  `semgrep-scan-v1` is at `fcc1dd9`.
+- **Rule (Andrew, 2026-10-21):** no red checks. A repo's existing findings
+  are fixed, so the fix takes effect, before its caller lands.
+- **Callers live on 6 private NOS repos**, each with a green first full
+  scan of `main`, 0 findings:
+  - `reliquarist`: `#107` upgrades pnpm 9.15.0 to 12.14.0 and sets
+    `minimumReleaseAge`, `trustPolicy: no-downgrade` and
+    `blockExoticSubdeps` (none exist in pnpm 9); `#108` adds the caller.
+  - `cleanroom#21`, `infinite-yaks#4`: caller only.
+  - `night-owl-studio#105`: caller, plus `--legacy-peer-deps` on the
+    Validate `npx html-validate` (npm 10.9.9 crashed in arborist
+    `#loadPeerSet`).
+  - `financial-agent#194`: caller, plus a `nosemgrep` on the venv re-exec
+    in `op_bootstrap.py` (a false positive: same script, own argv).
+  - `tensegrity#116`: caller, plus `min-release-age=7` in `.npmrc` (CI npm
+    11.19.0; EAS's npm version not checked).
+- **Known CE limit:** three JS rules (`cryptojs-weak-algorithm`,
+  `cors-default-config` for Express and Koa) need the Pro engine. CE skips
+  them with a warning.
+- **Not yet:** `kebab-tax` and `kebab-tax-netlify` (other session).
+  `dev-env#166` stays open until the digest lists these repos under
+  "Covered by Semgrep"; that run is also the first live test of its
+  private-repo reads.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
