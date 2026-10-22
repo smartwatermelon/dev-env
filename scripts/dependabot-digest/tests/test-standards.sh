@@ -44,12 +44,15 @@ if [[ -f "${file%.json}.403.json" ]]; then
   echo "gh: $(jq -r '.message' "${file%.json}.403.json") (HTTP 403)" >&2
   exit 1
 fi
-# <name>.404.json: a missing file, as real gh reports it (2026-10-21 capture).
+# <name>.404.json: a 404 with a body; gh prints its message
+# to stderr (2026-10-21 captures).
 if [[ -f "${file%.json}.404.json" ]]; then
   cat "${file%.json}.404.json"
-  echo "gh: Not Found (HTTP 404)" >&2
+  echo "gh: $(jq -r '.message' "${file%.json}.404.json") (HTTP 404)" >&2
   exit 1
 fi
+# <name>.204: 204 No Content. Real gh prints nothing and exits 0.
+[[ -f "${file%.json}.204" ]] && exit 0
 if [[ ! -f "${file}" ]]; then
   echo "gh: Resource not accessible by integration (HTTP 403)" >&2
   exit 1
@@ -265,8 +268,10 @@ _has '## Branch protection' "the protection section is rendered" "${pbody}"
 _has '**17 repositories surveyed**: 6 require standards-check, 3 exempt, **4 need attention, 4 unreadable.**' \
   "the protection summary counts each state" "${pbody}"
 _has '- fork: 1 — a fork is not ours to govern (decided 2026-10-21, dev-env#211)' "exempt repos are counted by class with the reason" "${pbody}"
-_hasnt '[twistedmelonman/Instapaper-MCP]' "exempt repos are not listed" "${pbody}"
-_hasnt '[smartwatermelon/dev-env]' "required repos are not listed" "${pbody}"
+# The alerts section lists repos too, so look only at the protection section.
+sed -n '/^## Branch protection/,/^## CodeQL/p' "${pbody}" >"${WORK}/prot-section.md"
+_hasnt '[twistedmelonman/Instapaper-MCP]' "exempt repos are not listed" "${WORK}/prot-section.md"
+_hasnt '[smartwatermelon/dev-env]' "required repos are not listed" "${WORK}/prot-section.md"
 _has '| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNPROTECTED: the default branch has no protection |' \
   "an unprotected repo is listed with a link" "${pbody}"
 _has '| [nightowlstudiollc/nostd](https://github.com/nightowlstudiollc/nostd) | standards-check not required: requires only: test |' \
@@ -366,7 +371,7 @@ _has '- fork: 1 — a fork is not ours to scan (decided 2026-10-21, dev-env#166)
   "CodeQL exemptions are counted by class with the reason" "${pbody}"
 _hasnt '- no-code-security:' "no-code-security is not an exempt class" "${pbody}"
 _hasnt '| [nightowlstudiollc/cleanroom](' "a repo without Code Security is not a table row" "${pbody}"
-nocs_list="$(sed -n '/^### Without paid Code Security/,/^\(## \|---\|\*\*Not listed\)/p' "${pbody}")"
+nocs_list="$(sed -n '/^### Without paid Code Security/,/^## Dependabot alerts/p' "${pbody}")"
 if [[ "${nocs_list}" == *"not bought, by decision (2026-10-21"* \
   && "${nocs_list}" == *"Semgrep CE is the substitute"* \
   && "${nocs_list}" != *"open cost decision"* \
@@ -407,14 +412,14 @@ _has '| [nightowlstudiollc/tnjcleaning](https://github.com/nightowlstudiollc/tnj
   "a not-configured repo is listed with its languages" "${pbody}"
 _has '| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNREADABLE: cannot read default setup: ' \
   "a permission 403 is listed as unreadable with its reason" "${pbody}"
-cq_body="$(sed -n '/^## CodeQL/,/^---/p' "${pbody}")"
+cq_body="$(sed -n '/^## CodeQL/,/^## Dependabot alerts/p' "${pbody}")"
 for r in smartwatermelon/dev-env twistedmelonman/Instapaper-MCP nightowlstudiollc/nostd; do
   if [[ "${cq_body}" == *"[${r}]"* ]]; then _fail "configured or exempt repo ${r} is listed"; else _pass "configured or exempt repo ${r} is counted, not listed"; fi
 done
 
 # Every o and p read failed: a token without Administration: Read must not
 # render as a clean fleet.
-cq_all="$(sed -n '/^## CodeQL/,/^---/p' "${body}")"
+cq_all="$(sed -n '/^## CodeQL/,/^## Dependabot alerts/p' "${body}")"
 if [[ "${cq_all}" == *"**CodeQL setup could not be verified for any of 8 repositories.**"* \
   && "${cq_all}" == *'Administration: Read'* && "${cq_all}" != *"No gaps"* \
   && "${cq_all}" != *"repositories surveyed"* ]]; then
@@ -430,12 +435,78 @@ _hasnt '| Repo | CodeQL default setup |' "a fully configured CodeQL survey has n
 # A repo without Code Security alone is a gap, not "No gaps", and not a table row.
 jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "nightowlstudiollc/cleanroom")' "${prot}" >"${WORK}/cqnocs.ndjson"
 : | bash "${DIR}/render.sh" --standards "${WORK}/cqnocs.ndjson" >"${WORK}/cqnocs.md" 2>/dev/null
-sed -n '/^## CodeQL/,/^---/p' "${WORK}/cqnocs.md" >"${WORK}/cqnocs-section.md"
+sed -n '/^## CodeQL/,/^## Dependabot alerts/p' "${WORK}/cqnocs.md" >"${WORK}/cqnocs-section.md"
 _hasnt 'No gaps' "a repo without Code Security is never reported as no gaps" "${WORK}/cqnocs-section.md"
 _has '- [nightowlstudiollc/cleanroom]' "a lone repo without Code Security is listed by name" "${WORK}/cqnocs.md"
 _hasnt '| Repo | CodeQL default setup |' "a repo without Code Security is not a table row" "${WORK}/cqnocs.md"
 _has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no CodeQL result recorded |' \
   "a record without a codeql field is unreadable, not clean" "${WORK}/legacy.md"
+
+# Dependabot alerts. 2026-10-21 captures: dev-env 204,
+# Instapaper-MCP 404. The 403 is modeled, not captured.
+_al() {
+  local got
+  got="$(jq -r --arg r "$1" 'select(.repo == $r) | .alerts.state // "none"' "${prot}")"
+  if [[ "${got}" == "$2" ]]; then _pass "$3"; else _fail "$3 (alerts: '${got}', want '$2')"; fi
+}
+_al smartwatermelon/dev-env on "a 204 is on"
+_al nightowlstudiollc/cleanroom on "a 204 on a private repo is on"
+_al twistedmelonman/Instapaper-MCP off "a 404 saying alerts are disabled is off, even on a fork"
+_al nightowlstudiollc/tnjcleaning off "a disabled 404 on a public non-fork repo is off"
+_al nightowlstudiollc/nos-private unreadable \
+  "KNOWN-BAD: a bare 'Not Found' 404 is unreadable, never off"
+_al smartwatermelon/refused unreadable \
+  "KNOWN-BAD: a 'Resource not accessible by integration' 403 is unreadable, never off"
+_al smartwatermelon/nullflag unreadable \
+  "KNOWN-BAD: the disabled message on a 403 is unreadable, never off"
+_al smartwatermelon/withheld unreadable "a read that returns a body is unreadable, not on"
+_al twistedmelonman/tm-old none "an archived repo has no alerts result"
+if jq -e 'select(.repo == "smartwatermelon/refused") | .alerts.detail | test("Resource not accessible by integration")' "${prot}" >/dev/null 2>&1; then
+  _pass "the reason an alerts read failed is kept"
+else
+  _fail "the refused alerts read lost its reason"
+fi
+
+al_body="$(sed -n '/^## Dependabot alerts/,/^---/p' "${pbody}")"
+if [[ "${al_body}" == *'**17 repositories surveyed**: 2 on, **2 off, 13 unreadable.**'* ]]; then
+  _pass "the alerts summary counts each state"
+else
+  _fail "the alerts summary is wrong: ${al_body}"
+fi
+if [[ "${al_body}" == *'| [twistedmelonman/Instapaper-MCP](https://github.com/twistedmelonman/Instapaper-MCP) | OFF: Dependabot security alerts are turned off |'* \
+  && "${al_body}" == *'| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNREADABLE: cannot read the alerts setting: gh: Not Found (HTTP 404) |'* \
+  && "${al_body}" != *'[smartwatermelon/dev-env]'* && "${al_body}" != *'[nightowlstudiollc/cleanroom]'* \
+  && "${al_body}" != *'No gaps'* ]]; then
+  _pass "off and unreadable repos are listed; on repos are counted, not listed"
+else
+  _fail "the alerts table is wrong: ${al_body}"
+fi
+# Off rows sort above unreadable rows.
+first_row="$(grep -m1 '^| \[' <<<"${al_body}")"
+if [[ "${first_row}" == *"| OFF:"* ]]; then
+  _pass "off repos are listed before unreadable ones"
+else
+  _fail "the first alerts row is not an off repo: ${first_row}"
+fi
+
+# Every o and p read failed: a token without Administration: Read must not
+# render as alerts on everywhere.
+al_all="$(sed -n '/^## Dependabot alerts/,/^---/p' "${body}")"
+if [[ "${al_all}" == *"**Alerts could not be verified for any of 8 repositories.**"* \
+  && "${al_all}" == *'Administration: Read'* && "${al_all}" != *"No gaps"* \
+  && "${al_all}" != *"repositories surveyed"* && "${al_all}" == *'**Not listed, so not surveyed:** q.'* ]]; then
+  _pass "an all-unreadable alerts survey says it verified nothing and names the likely permission"
+else
+  _fail "an all-unreadable alerts survey read as a result: ${al_all}"
+fi
+
+jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "nightowlstudiollc/cleanroom")' "${prot}" >"${WORK}/alclean.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/alclean.ndjson" >"${WORK}/alclean.md" 2>/dev/null
+_has 'No gaps: every surveyed repository has Dependabot security alerts on.' \
+  "an all-on alerts survey says so" "${WORK}/alclean.md"
+_hasnt '| Repo | Dependabot alerts |' "an all-on alerts survey has no table" "${WORK}/alclean.md"
+_has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no alerts result recorded |' \
+  "a record without an alerts field is unreadable, not on" "${WORK}/legacy.md"
 
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-standards: all assertions passed"

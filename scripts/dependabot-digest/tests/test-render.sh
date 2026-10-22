@@ -146,11 +146,19 @@ else
 fi
 # dev-env#166: the same for the CodeQL section.
 _hasnt '## CodeQL' "no survey, no CodeQL section"
-cq_section="$(sed -n '/^## CodeQL/,/^---/p' "${WORK}/bad.md")"
+cq_section="$(sed -n '/^## CodeQL/,/^## Dependabot alerts/p' "${WORK}/bad.md")"
 if [[ "${cq_section}" == *"**Not checked.**"* && "${cq_section}" != *"No gaps"* ]]; then
   _pass "a malformed survey renders CodeQL as not checked"
 else
   _fail "a malformed survey did not render CodeQL as not checked: ${cq_section}"
+fi
+# The same for the Dependabot alerts section.
+_hasnt '## Dependabot alerts' "no survey, no alerts section"
+al_section="$(sed -n '/^## Dependabot alerts/,/^---/p' "${WORK}/bad.md")"
+if [[ "${al_section}" == *"**Not checked.**"* && "${al_section}" != *"No gaps"* ]]; then
+  _pass "a malformed survey renders alerts as not checked"
+else
+  _fail "a malformed survey did not render alerts as not checked: ${al_section}"
 fi
 
 # Semgrep CE (2026-10-21): no substitute field or an unknown one is unreadable.
@@ -158,7 +166,7 @@ fi
 _under() {
   awk -v h="$1" '$0 == h {on = 1; next} on && /^(#|---|\*\*Not listed)/ {exit} on {print}' "${WORK}/sg.md"
 }
-sg_sum="$(sed -n '/^## CodeQL/,/^---/p' "${WORK}/sg.md")"
+sg_sum="$(sed -n '/^## CodeQL/,/^## Dependabot alerts/p' "${WORK}/sg.md")"
 if [[ "${sg_sum}" == *'**6 repositories surveyed**: 1 configured, 0 exempt, 1 covered by Semgrep, **0 not configured, 1 with no code scanning, 3 with Semgrep coverage unreadable, 0 unreadable.**'* ]]; then
   _pass "the CodeQL summary counts each Semgrep substitute state"
 else
