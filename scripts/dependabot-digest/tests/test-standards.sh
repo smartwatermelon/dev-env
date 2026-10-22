@@ -451,7 +451,14 @@ _al() {
 }
 _al smartwatermelon/dev-env on "a 204 is on"
 _al nightowlstudiollc/cleanroom on "a 204 on a private repo is on"
-_al twistedmelonman/Instapaper-MCP off "a 404 saying alerts are disabled is off, even on a fork"
+_al twistedmelonman/Instapaper-MCP exempt "a fork with alerts off is exempt, not a gap"
+_al smartwatermelon/noflags unreadable \
+  "alerts off with no fork flag is unreadable: exemption cannot be decided"
+if jq -e 'select(.repo == "smartwatermelon/noflags") | .alerts.detail | test("no fork flag, so exemption cannot be decided")' "${prot}" >/dev/null 2>&1; then
+  _pass "the missing-fork-flag reason is kept for alerts"
+else
+  _fail "the missing-fork-flag alerts reason is wrong"
+fi
 _al nightowlstudiollc/tnjcleaning off "a disabled 404 on a public non-fork repo is off"
 _al nightowlstudiollc/nos-private unreadable \
   "KNOWN-BAD: a bare 'Not Found' 404 is unreadable, never off"
@@ -468,12 +475,14 @@ else
 fi
 
 al_body="$(sed -n '/^## Dependabot alerts/,/^---/p' "${pbody}")"
-if [[ "${al_body}" == *'**17 repositories surveyed**: 2 on, **2 off, 13 unreadable.**'* ]]; then
+if [[ "${al_body}" == *'**17 repositories surveyed**: 2 on, 1 exempt, **1 off, 13 unreadable.**'* ]]; then
   _pass "the alerts summary counts each state"
 else
   _fail "the alerts summary is wrong: ${al_body}"
 fi
-if [[ "${al_body}" == *'| [twistedmelonman/Instapaper-MCP](https://github.com/twistedmelonman/Instapaper-MCP) | OFF: Dependabot security alerts are turned off |'* \
+if [[ "${al_body}" == *'| [nightowlstudiollc/tnjcleaning](https://github.com/nightowlstudiollc/tnjcleaning) | OFF: Dependabot security alerts are turned off |'* \
+  && "${al_body}" == *'- fork: 1 — a fork is not ours to govern (decided 2026-10-21)'* \
+  && "${al_body}" != *'[twistedmelonman/Instapaper-MCP]'* \
   && "${al_body}" == *'| [nightowlstudiollc/nos-private](https://github.com/nightowlstudiollc/nos-private) | UNREADABLE: cannot read the alerts setting: gh: Not Found (HTTP 404) |'* \
   && "${al_body}" != *'[smartwatermelon/dev-env]'* && "${al_body}" != *'[nightowlstudiollc/cleanroom]'* \
   && "${al_body}" != *'No gaps'* ]]; then
@@ -502,7 +511,7 @@ fi
 
 jq -c 'select(.repo == "smartwatermelon/dev-env" or .repo == "nightowlstudiollc/cleanroom")' "${prot}" >"${WORK}/alclean.ndjson"
 : | bash "${DIR}/render.sh" --standards "${WORK}/alclean.ndjson" >"${WORK}/alclean.md" 2>/dev/null
-_has 'No gaps: every surveyed repository has Dependabot security alerts on.' \
+_has 'No gaps: every surveyed repository has Dependabot security alerts on or is exempt.' \
   "an all-on alerts survey says so" "${WORK}/alclean.md"
 _hasnt '| Repo | Dependabot alerts |' "an all-on alerts survey has no table" "${WORK}/alclean.md"
 _has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no alerts result recorded |' \
