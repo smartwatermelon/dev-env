@@ -336,20 +336,26 @@ probe_codeql() {
 # off (live capture 2026-10-21). Both need Administration: read.
 AL_OFF_MSG='Vulnerability alerts are disabled.'
 
+# Exempt classes are counted, not flagged. Only forks; private is no reason.
+declare -A AL_EXEMPT_REASON=(
+  [fork]="a fork is not ours to govern (decided 2026-10-21)"
+)
+
 ALERTS_JSON=""
 set_alerts() {
-  # set_alerts <state> <detail>
-  ALERTS_JSON="$(jq -cn --arg s "$1" --arg d "$2" \
-    '{state: $s, detail: (if $d == "" then null else $d end)}' 2>/dev/null)"
+  # set_alerts <state> <detail> [exempt class]
+  ALERTS_JSON="$(jq -cn --arg s "$1" --arg d "$2" --arg c "${3-}" \
+    '{state: $s, detail: (if $d == "" then null else $d end),
+      exemptClass: (if $c == "" then null else $c end)}' 2>/dev/null)"
   if [[ -z "${ALERTS_JSON}" ]]; then
-    ALERTS_JSON='{"state":"unreadable","detail":"could not encode the alerts result"}'
+    ALERTS_JSON='{"state":"unreadable","detail":"could not encode the alerts result","exemptClass":null}'
   fi
 }
 
 # Sets ALERTS_JSON for one repo; a failed read is a state.
 # A bare 404 hides what a token cannot see: never off.
 probe_alerts() {
-  local nwo="$1" body why
+  local nwo="$1" fork="$2" body why
   if ! body="$(api "repos/${nwo}/vulnerability-alerts")"; then
     why="$(last_err "no detail")"
     why="${why%"${why##*[![:space:]]}"}"
@@ -357,7 +363,14 @@ probe_alerts() {
     if [[ "${why}" == *"(HTTP 404)"* ]] \
       && jq -e --arg m "${AL_OFF_MSG}" 'type == "object" and .status == "404" and .message == $m' \
         >/dev/null 2>&1 <<<"${body}"; then
-      set_alerts off "Dependabot security alerts are turned off"
+      # A fork is exempt; without a fork flag, exemption cannot be decided.
+      if [[ "${fork}" == "true" ]]; then
+        set_alerts exempt "${AL_EXEMPT_REASON[fork]}" fork
+      elif [[ "${fork}" != "false" ]]; then
+        set_alerts unreadable "alerts are off, but the repository listing gave no fork flag, so exemption cannot be decided"
+      else
+        set_alerts off "Dependabot security alerts are turned off"
+      fi
     else
       set_alerts unreadable "cannot read the alerts setting: ${why}"
     fi
@@ -478,12 +491,12 @@ while IFS=$'\t' read -r nwo archived fork private branch; do
     set_prot unreadable "no default branch reported"
     # Default setup and alerts are per repo, not per branch, so both are read.
     probe_codeql "${nwo}" "${fork}" "${private}"
-    probe_alerts "${nwo}"
+    probe_alerts "${nwo}" "${fork}"
     emit "${nwo}" unreadable "no default branch reported"
   else
     probe_protection "${nwo}" "${branch}" "${fork}" "${private}"
     probe_codeql "${nwo}" "${fork}" "${private}"
-    probe_alerts "${nwo}"
+    probe_alerts "${nwo}" "${fork}"
     survey_repo "${nwo}" "${branch}"
   fi
 done <<<"${repo_list}"

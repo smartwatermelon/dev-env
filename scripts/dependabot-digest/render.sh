@@ -470,9 +470,9 @@ render_codeql() {
 }
 
 # Dependabot security alerts. As for CodeQL: unreadable is never on or off,
-# and an all-unreadable survey says so. No class is exempt.
+# and an all-unreadable survey says so. Forks are exempt, as above.
 render_alerts() {
-  local file="$1" recs surveyed on off unreadable owners rows
+  local file="$1" recs surveyed on off exempt unreadable by_class owners rows
   echo "## Dependabot alerts"
   echo
   if [[ ! -r "${file}" ]] || ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
@@ -495,9 +495,10 @@ render_alerts() {
   surveyed="$(jq 'length' <<<"${recs}")"
   on="$(jq '[.[] | select(.a.state == "on")] | length' <<<"${recs}")"
   off="$(jq '[.[] | select(.a.state == "off")] | length' <<<"${recs}")"
-  unreadable=$((surveyed - on - off))
+  exempt="$(jq '[.[] | select(.a.state == "exempt")] | length' <<<"${recs}")"
+  unreadable=$((surveyed - on - off - exempt))
 
-  echo "Whether each repository has Dependabot security alerts turned on. Off is a gap for every repository; no class is exempt."
+  echo "Whether each repository has Dependabot security alerts turned on. Off is a gap unless the repository is exempt."
   echo
   if [[ "${surveyed}" -eq 0 ]]; then
     echo "**No repository was surveyed**, so no alerts setting was verified."
@@ -507,10 +508,18 @@ render_alerts() {
     echo "**Alerts could not be verified for any of ${surveyed} repositories.** Every read failed or returned no usable state. The likely cause is a token without \`Administration: Read\`, which the vulnerability-alerts endpoint needs. Nothing here means alerts are on or off anywhere."
     echo
   else
-    echo "**${surveyed} repositories surveyed**: ${on} on, **${off} off, ${unreadable} unreadable.**"
+    echo "**${surveyed} repositories surveyed**: ${on} on, ${exempt} exempt, **${off} off, ${unreadable} unreadable.**"
     echo
+    if [[ "${exempt}" -gt 0 ]]; then
+      by_class="$(jq -r '[.[] | select(.a.state == "exempt")] | group_by(.a.exemptClass)
+        | map("- \(.[0].a.exemptClass // "unknown class"): \(length) — \(.[0].a.detail // "no reason recorded")") | join("\n")' <<<"${recs}")"
+      echo "Exempt by class:"
+      echo
+      echo "${by_class}"
+      echo
+    fi
     if [[ "${off}" -eq 0 && "${unreadable}" -eq 0 ]]; then
-      echo "No gaps: every surveyed repository has Dependabot security alerts on."
+      echo "No gaps: every surveyed repository has Dependabot security alerts on or is exempt."
       echo
     fi
   fi
@@ -519,7 +528,7 @@ render_alerts() {
       def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
       def name: if .a.state == "off" then "OFF" else "UNREADABLE" end;
       sort_by((if .a.state == "off" then 0 else 1 end), .repo)[]
-      | select(.a.state != "on")
+      | select(.a.state != "on" and .a.state != "exempt")
       | "| [" + .repo + "](https://github.com/" + .repo + ") | " + name
         + (if .a.detail then ": " + (.a.detail | cell) else "" end) + " |"
     ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
