@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repo is the **dev-env infrastructure repository** — it contains documentation, design plans, templates, and hook extensions for Andrew's Claude Code development environment. It is not an application codebase and there is no build step, but it is not command-free either:
 
-- **Tests**: `bash scripts/org-migration/tests/run-tests.sh` runs the hermetic stub-`gh` suite for the org-migration tooling. Run it after any change under `scripts/org-migration/`. `bash scripts/dependabot-digest/tests/run-tests.sh` covers the Dependabot digest classifier and renderer; run it after any change under `scripts/dependabot-digest/`. `bash scripts/site-monitor/tests/run-tests.sh` covers the production-site monitor's alert transitions; run it after any change under `scripts/site-monitor/`.
+- **Tests**: each tool has `tests/test-*.sh` files and a `tests/run-tests.sh` runner (org-migration, dependabot-digest, site-monitor). Locally, run only the `test-*.sh` files for the code you changed. The runners are the full suites: they run in CI only (`.github/workflows/tests.yml`) and refuse to run outside GitHub Actions.
 - **Lint**: `shellcheck -S info <script>` applies to every shell script in the repo, and must be clean with no `# shellcheck disable` directives.
 
 ## Repository Structure
@@ -19,7 +19,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
   - `docs/token-rotation.md` — Retired 2026-10-12: no repo runs Claude in CI and `CLAUDE_CODE_OAUTH_TOKEN` is deleted; never contains a token
   - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
-- `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
+- `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/`
 - `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue, plus each repo's standards-check warnings, default-branch protection, CodeQL default setup and Dependabot security alerts (`standards.sh`); run by `.github/workflows/dependabot-digest.yml`. Credentials (a GitHub App) are installed by hand: see `docs/runbooks/dependabot-digest-credentials.md`
 - `scripts/site-monitor/` — Every 15 minutes, checks each production Netlify site in `sites.json` and its latest `site-check` run; keeps one `site-down` issue and pushes ntfy.sh alerts. Run by `.github/workflows/site-monitor.yml`, which a launchd job on MIMOLETTE starts through `dispatch-monitor.sh` because GitHub's cron never fired. The `NTFY_TOPIC` secret and the dispatch token are installed by hand: see `docs/runbooks/site-monitor-ntfy.md`
 - `.project-hooks/pre-commit` and `.project-hooks/pre-push` — Project-specific git hook extensions, run by the global hooks at `~/.config/git/hooks/` when executable
