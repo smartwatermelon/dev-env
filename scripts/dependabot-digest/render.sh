@@ -469,10 +469,80 @@ render_codeql() {
   fi
 }
 
+# Dependabot security alerts. As for CodeQL: unreadable is never on or off,
+# and an all-unreadable survey says so. No class is exempt.
+render_alerts() {
+  local file="$1" recs surveyed on off unreadable owners rows
+  echo "## Dependabot alerts"
+  echo
+  if [[ ! -r "${file}" ]] || ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
+    echo "**Not checked.** The survey produced no readable result, so no repository's alerts setting was verified."
+    echo
+    return 0
+  fi
+  # No alerts object (older or crashed survey) is unreadable, not on.
+  if ! recs="$(jq -cs '
+    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
+     | .a = (if (.alerts | type) == "object" and (.alerts.state | type) == "string"
+             then .alerts
+             else {state: "unreadable", detail: "no alerts result recorded"} end)]
+  ' "${file}" 2>/dev/null)" || [[ -z "${recs}" ]]; then
+    echo "**Not checked.** The survey output could not be summarized, so no repository's alerts setting was verified."
+    echo
+    return 0
+  fi
+  owners="$(jq -rs '[.[] | select(type == "object" and .repo == null and .state == "unlisted") | .owner] | unique | join(", ")' "${file}" 2>/dev/null)"
+  surveyed="$(jq 'length' <<<"${recs}")"
+  on="$(jq '[.[] | select(.a.state == "on")] | length' <<<"${recs}")"
+  off="$(jq '[.[] | select(.a.state == "off")] | length' <<<"${recs}")"
+  unreadable=$((surveyed - on - off))
+
+  echo "Whether each repository has Dependabot security alerts turned on. Off is a gap for every repository; no class is exempt."
+  echo
+  if [[ "${surveyed}" -eq 0 ]]; then
+    echo "**No repository was surveyed**, so no alerts setting was verified."
+    echo
+  elif [[ "${unreadable}" -eq "${surveyed}" ]]; then
+    # Zero gaps out of zero reads is not "all on".
+    echo "**Alerts could not be verified for any of ${surveyed} repositories.** Every read failed or returned no usable state. The likely cause is a token without \`Administration: Read\`, which the vulnerability-alerts endpoint needs. Nothing here means alerts are on or off anywhere."
+    echo
+  else
+    echo "**${surveyed} repositories surveyed**: ${on} on, **${off} off, ${unreadable} unreadable.**"
+    echo
+    if [[ "${off}" -eq 0 && "${unreadable}" -eq 0 ]]; then
+      echo "No gaps: every surveyed repository has Dependabot security alerts on."
+      echo
+    fi
+  fi
+  if [[ "${off}" -gt 0 || "${unreadable}" -gt 0 ]]; then
+    if ! rows="$(jq -r '
+      def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
+      def name: if .a.state == "off" then "OFF" else "UNREADABLE" end;
+      sort_by((if .a.state == "off" then 0 else 1 end), .repo)[]
+      | select(.a.state != "on")
+      | "| [" + .repo + "](https://github.com/" + .repo + ") | " + name
+        + (if .a.detail then ": " + (.a.detail | cell) else "" end) + " |"
+    ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
+      echo "**Some repositories need attention, but listing them failed.** See the run log."
+      echo
+    else
+      echo "| Repo | Dependabot alerts |"
+      echo "| --- | --- |"
+      echo "${rows}"
+      echo
+    fi
+  fi
+  if [[ -n "${owners}" ]]; then
+    echo "**Not listed, so not surveyed:** ${owners}. The alerts setting of their repositories is unknown."
+    echo
+  fi
+}
+
 if [[ -n "${standards_file}" ]]; then
   render_standards "${standards_file}"
   render_protection "${standards_file}"
   render_codeql "${standards_file}"
+  render_alerts "${standards_file}"
 fi
 
 echo "---"

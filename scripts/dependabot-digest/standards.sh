@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Usage: standards.sh <owner>. Prints one JSON record per repo: standards-check
 # annotations, or the reason none were read, plus the default branch's
-# protection state (dev-env#211) and CodeQL default setup (dev-env#166).
+# protection state (dev-env#211), CodeQL default setup (dev-env#166) and
+# whether Dependabot security alerts are on.
 set -uo pipefail
 unset CDPATH
 
@@ -36,6 +37,7 @@ emit() {
     --argjson ann "${6:-[]}" --arg runAt "${7-}" \
     --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
     --argjson prot "${PROT_JSON:-null}" --argjson cq "${CQ_JSON:-null}" \
+    --argjson al "${ALERTS_JSON:-null}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
@@ -43,10 +45,10 @@ emit() {
       runAt: (if $runAt == "" then null else $runAt end),
       rulesAt: (if $rulesAt == "" then null else $rulesAt end),
       rulesErr: (if $rulesErr == "" then null else $rulesErr end),
-      annotations: $ann, protection: $prot, codeql: $cq}' 2>/dev/null)"
-  # If jq fails, the repo must still appear. Protection and CodeQL are unknown.
+      annotations: $ann, protection: $prot, codeql: $cq, alerts: $al}' 2>/dev/null)"
+  # If jq fails, the repo must still appear. Protection, CodeQL, alerts unknown.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null,"alerts":null}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -330,6 +332,45 @@ probe_codeql() {
   esac
 }
 
+# Dependabot security alerts: 204 is on; 404 with this exact body message is
+# off (live capture 2026-10-21). Both need Administration: read.
+AL_OFF_MSG='Vulnerability alerts are disabled.'
+
+ALERTS_JSON=""
+set_alerts() {
+  # set_alerts <state> <detail>
+  ALERTS_JSON="$(jq -cn --arg s "$1" --arg d "$2" \
+    '{state: $s, detail: (if $d == "" then null else $d end)}' 2>/dev/null)"
+  if [[ -z "${ALERTS_JSON}" ]]; then
+    ALERTS_JSON='{"state":"unreadable","detail":"could not encode the alerts result"}'
+  fi
+}
+
+# Sets ALERTS_JSON for one repo; a failed read is a state.
+# A bare 404 hides what a token cannot see: never off.
+probe_alerts() {
+  local nwo="$1" body why
+  if ! body="$(api "repos/${nwo}/vulnerability-alerts")"; then
+    why="$(last_err "no detail")"
+    why="${why%"${why##*[![:space:]]}"}"
+    # Both signals, as for Semgrep: the status line and the exact body message.
+    if [[ "${why}" == *"(HTTP 404)"* ]] \
+      && jq -e --arg m "${AL_OFF_MSG}" 'type == "object" and .status == "404" and .message == $m' \
+        >/dev/null 2>&1 <<<"${body}"; then
+      set_alerts off "Dependabot security alerts are turned off"
+    else
+      set_alerts unreadable "cannot read the alerts setting: ${why}"
+    fi
+    return 0
+  fi
+  # 204 has no body. Anything else is not the documented answer.
+  if [[ -n "${body//[[:space:]]/}" ]]; then
+    set_alerts unreadable "the alerts read returned an unexpected body"
+  else
+    set_alerts on ""
+  fi
+}
+
 survey_repo() {
   local nwo="$1" branch="$2" head pulls pr pr_head run source ann count url
   if ! head="$(api "repos/${nwo}/commits/${branch}" --jq '.sha')" \
@@ -430,16 +471,19 @@ while IFS=$'\t' read -r nwo archived fork private branch; do
   [[ -z "${nwo}" ]] && continue
   PROT_JSON=""
   CQ_JSON=""
+  ALERTS_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
   elif [[ -z "${branch}" ]]; then
     set_prot unreadable "no default branch reported"
-    # Default setup is per repo, not per branch, so it is still read.
+    # Default setup and alerts are per repo, not per branch, so both are read.
     probe_codeql "${nwo}" "${fork}" "${private}"
+    probe_alerts "${nwo}"
     emit "${nwo}" unreadable "no default branch reported"
   else
     probe_protection "${nwo}" "${branch}" "${fork}" "${private}"
     probe_codeql "${nwo}" "${fork}" "${private}"
+    probe_alerts "${nwo}"
     survey_repo "${nwo}" "${branch}"
   fi
 done <<<"${repo_list}"
