@@ -643,6 +643,34 @@ or be explicitly parked with a resume note, by then — see the tracker.
   "Covered by Semgrep"; that run is also the first live test of its
   private-repo reads.
 
+**2026-10-21 late update (Pacific): Semgrep required, alerts, lint drift:**
+
+- **Semgrep is a required check** (`semgrep-scan / semgrep`, app 15368) on
+  `main` of the 6 repos above; existing checks and `strict` kept.
+  `github-workflows#201` says so in the README, so Dependabot auto-merge
+  waits on it. `kebab-tax#1409` and `kebab-tax-netlify#326` track the last
+  two repos (NOS project 1, Backlog).
+- **Dependabot alerts were off on 7 NOS repos** (kebab-tax, tensegrity,
+  financial-agent, night-owl-studio, infinite-yaks, reliquarist,
+  tnjcleaning) and `smartwatermelon/vpn-lan-bridge`. Andrew turned them on;
+  each read back as on. Security updates were left off. `dev-env#220` adds a
+  "Dependabot alerts" digest section (on, off, or unreadable; only the exact
+  "disabled" 404 counts as off). `#221` exempts forks (Andrew: "we don't do
+  forks"), so `twistedmelonman/Instapaper-MCP` stays off.
+- **reliquarist:** `#109` bumps fastlane 2.232.2 to 2.241.1, pulling rubyzip
+  3.7.0 (GHSA-47m2-wp7j-p9vc); no CI job runs fastlane. `#110` applies
+  Prettier to 34 YAML and Markdown files and adds a `Format check` CI step.
+  Open: `pnpm audit` reports 129 advisories (5 critical), nearly all
+  transitive dev/build deps; GitHub showed 8 alerts while its graph built.
+- **tensegrity EAS:** no `image` or `node` in `eas.json`, so SDK 54's image
+  (Node 20.19.4, npm 10.9.3, per Expo docs) ignores `min-release-age`.
+  Pinning `node` is open for Andrew.
+- **markdownlint config:** `dotfiles#458` adds a `markdownlint-cli2` PATH
+  shim that passes the commit gate's canonical config when the cwd has none,
+  plus a drift test. `github-workflows#202` fails CI when
+  `standards/markdownlint.json` drifts from dotfiles. Installed and checked
+  on ASIAGO, TILSIT and MIMOLETTE.
+
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
 still need one-time setup (see dev-env issue tracker); this file stays the
