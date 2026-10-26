@@ -2,8 +2,8 @@
 
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
-2026-10-12, 2026-10-13 to 10-16, 2026-10-19 and 2026-10-19 to 10-21
-updates below.**
+2026-10-12, 2026-10-13 to 10-16, 2026-10-19, 2026-10-19 to 10-21 and
+2026-10-22 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -670,6 +670,15 @@ or be explicitly parked with a resume note, by then — see the tracker.
   plus a drift test. `github-workflows#202` fails CI when
   `standards/markdownlint.json` drifts from dotfiles. Installed and checked
   on ASIAGO, TILSIT and MIMOLETTE.
+
+**2026-10-22 update (Pacific): text gate v3:**
+
+- **Text gate v3 shipped 2026-10-22:** routes are `review | exempt`, Pangram
+  is out, `gate-lint.sh` (Vale plus length caps) warns on exempt and blocks
+  on review, and approval works by editor, `approve <code>` in chat, or a
+  draft PR. Full suites run in CI only for claude-config and dotfiles;
+  `dev-env#224` reverted the dev-env part. Design note:
+  `docs/superpowers/specs/2026-10-22-text-gate-v3.md`.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
