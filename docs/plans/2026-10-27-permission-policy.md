@@ -85,59 +85,99 @@ From the Claude Code docs (2.1.312), quoted in the session report:
 
 ### Worktrees (sandbox `.git/config`, 7 + harness guard 31)
 
-**A, through the harness.** Tested end to end on 2026-10-27 in dev-env, a repo
-where `.git/config` was confirmed write-protected first.
+**A, one method: raw git, in every repo.** Revised 2026-10-27 evening. An
+earlier draft used `EnterWorktree`; Andrew rejected it, and a hybrid, after
+testing showed the harness tools cover only part of the work. Shipped in
+claude-config#798 (procedure, audit-only `add`, EnterWorktree refused with the
+raw command); claude-config#800 (main-commit deny messages) is open.
 
-1. Create: `EnterWorktree`, then `git switch -c <prefix>/<name>`
-   (`claude/...` on personal repos, `arich/...` on beacon-biosignals).
-   `git branch -m` is not used: it renames the ref but exits 128 on the config
-   update. The remote sees only the branch name.
-2. Work, commit, `git push origin <branch>` (no `-u`; it writes `.git/config`),
+1. Create:
+   `git -C /abs/repo worktree add --no-track -b claude/<name> .claude/worktrees/<name> origin/main`
+   (`arich/...` on beacon-biosignals). `--no-track` skips the upstream
+   setting, the only `.git/config` write, so this works in the session's
+   launch repo too. Then `git -C <worktree> rev-parse --show-toplevel` must
+   print the worktree path before any other git command there.
+2. Work with absolute paths (`git -C <worktree>`, Edit with full paths).
+   Commit, `git push origin <branch>` (no `-u`; it writes `.git/config`),
    `gh pr create --head <branch>`.
-3. After the merge: check that `gh pr view --json state,headRefName` shows
-   `MERGED` for the current branch and `git status` is clean. Then
-   `ExitWorktree` with `remove` and `discard_changes: true`. This rule
-   pre-authorizes that flag under those two conditions only. A squash merge
-   never puts the branch's commits on `main`, so the tool always asks for it.
-4. Delete the branch made in step 1. **Test first:**
-   `git update-ref -d refs/heads/<branch>` should delete it without touching
-   `.git/config`. If it works, it replaces `git branch -D`, which deletes the
-   ref but prints an unactionable config warning.
-5. `ExitWorktree remove` works only while the session is still inside the
-   worktree it created. It cannot remove a worktree left with `keep`, one
-   from an earlier session, or one re-entered by `path`. A sandboxed
-   `git worktree remove` fails too: Claude Code's own `.claude/.cc-writes`
-   folder inside the worktree is write-denied. It also leaves an empty
-   `.git/worktrees/<name>/` folder that the sandbox will not remove (rule not
-   identified).
+3. After the merge, **the agent tries first:** only when
+   `gh pr view --json state,headRefName` shows `MERGED` for that branch and
+   `git -C <worktree> status --porcelain` is empty, run
+   `git -C /abs/repo worktree remove --force .claude/worktrees/<name>`.
+   Only if that exits 0, delete the branch with
+   `git -C /abs/repo update-ref -d refs/heads/<branch>` (tested: no config
+   write, unlike `git branch -D`). Never chain the two without checking the
+   first: on 2026-10-27 a failed remove followed by the branch delete left a
+   half-removed worktree on a missing branch.
+4. **If the remove fails, the agent stops there** and leaves the worktree
+   for the reaper (below). It does not retry in another form.
+5. Coming back to a kept worktree needs no tool: keep working in it by
+   absolute path.
 
-   **B: agents never remove a kept worktree.** When the PR is still open, the
-   agent leaves with `keep`. A nightly `worktree-reaper.sh` (scripts repo, own
-   LaunchAgent, outside the sandbox) checks every worktree under
-   `~/Developer/*/.claude/worktrees/`. If the tree is clean and `gh` shows its
-   branch's PR as `MERGED`, it runs `git worktree remove`, deletes the branch
-   and runs `git worktree prune`. Anything else (dirty, no PR, PR open), it
-   only reports. Nothing is scheduled today: the nightly `updates` job runs
-   package updates only, and `my-repos` is not scheduled.
-6. Coming back to a kept worktree (for example to fix a review finding)
-   uses `EnterWorktree` with `path`. **A, done:** `hook-block-enter-worktree.sh`
-   used to reject `path`, because it only validated the `name` of a new
-   worktree. Since claude-config#796 (merged 2026-10-27) it accepts a `path`
-   that is an existing worktree under that repo's `.claude/worktrees/`.
+Why not `EnterWorktree`/`ExitWorktree`: they work only in the launch repo;
+`ExitWorktree` removes only a worktree made in the same session; entering
+while a background agent runs in the main checkout takes Bash from that
+agent; the branch comes out as `worktree-<name>`; and the removal left
+`.git/worktrees/<name>/` metadata that the sandbox will not let
+`git worktree prune` delete.
+
+Launch-repo gaps found on 2026-10-27 (sandbox, not hooks; both hypotheses
+fit every observation, not confirmed from the sandbox source):
+
+- **Creating `.git/worktrees/` itself is denied.** When a repo has no
+  worktrees left, `prune` deletes the folder, and the next `worktree add`
+  fails with "could not create leading directories". Adding a worktree
+  inside an existing `.git/worktrees/` works. Workaround until fixed: the
+  operator runs `mkdir <repo>/.git/worktrees`. Better: have the reaper
+  leave an empty `.git/worktrees/` in place.
+- **A worktree that existed when the session started cannot be removed by
+  that session.** The sandbox's deny list names files inside it
+  (`.claude/settings.json`, `.claude/skills`, `.claude/.cc-writes`), so git
+  cannot delete the folder. Worktrees created during the session were
+  removed cleanly. This is the case step 4 hands to the reaper.
+
+**The reaper** (`worktree-reaper.sh`, scripts repo, its own LaunchAgent,
+nightly, outside the sandbox) removes merged worktrees that agents could
+not. It deletes things on a schedule with no one watching, so it gets
+extensive testing and several independent backstops before it runs for
+real:
+
+- **Report-only first.** It ships in dry-run mode and only reports what it
+  would remove. Removal is enabled by a separate, later change after Andrew
+  has read at least a week of reports.
+- **Allowlist, not denylist.** A candidate must resolve (realpath, symlinks
+  followed) to exactly `~/Developer/<repo>/.claude/worktrees/<name>`, with
+  `<repo>` a real git checkout and `<name>` a plain slug, and must appear in
+  `git -C ~/Developer/<repo> worktree list --porcelain`. Anything else is
+  reported, never touched.
+- **Every removal condition is checked independently, right before acting:**
+  `gh` shows the PR for that exact branch as `MERGED`; the PR's head SHA
+  equals the worktree's `HEAD` (no local commits after the merge);
+  `status --porcelain --ignored` is empty; the worktree is not locked; and
+  no process has its working directory inside it (`lsof +D`). A `gh` error
+  or a missing PR means skip, not remove.
+- **Git does the deleting.** Removal is `git worktree remove` (with `--force`
+  only after the clean check), then `update-ref -d`. No `rm`, `find -delete`
+  or `rm -rf` anywhere in the script.
+- **A per-run cap** (for example 10 removals); above it, the run stops and
+  reports. Every action and skip is logged with the reason.
+- **Tests (Protocol 3, destructive code):** every git and `gh` call goes
+  through an injected `*_BIN` variable, and the suite runs fully stubbed:
+  each skip condition, each allowlist rejection (`..`, symlink out of tree,
+  `$HOME`, `/`, a primary checkout, a non-slug name), the cap, and `gh`
+  failures. Safety tests assert on the stub's recorded arguments, never on a
+  real delete. The red-phase run and the first real-git integration run
+  happen in a disposable VM on mimolette, never on a work machine.
 
 Constraints learned:
 
-- Do not call `EnterWorktree` while background agents are running in the main
-  checkout. The isolation checks cover every subagent, and an agent whose
-  working directory is the main checkout loses Bash entirely. Start agents
-  after entering, or with `isolation: "worktree"`.
-- Inside a worktree session, git commands must be simple: one git call, a
-  literal path, no `GIT_CONFIG_*`, no loops or `bash -c` around git.
+- Inside a worktree, git commands must be simple: one git call, a literal
+  path, no `GIT_CONFIG_*`, no loops or `bash -c` around git.
 - `hook-block-git-worktree.sh` (10 false positives on `$W/.claude/worktrees`)
-  becomes simpler: block raw `git worktree add` and point to `EnterWorktree`.
-- Protocol 6's `git -C <primary> pull` after a merge is dropped. Primary
-  checkouts are updated by `my-repos`, not by agents (it also hit the
-  protected `CLAUDE.md` 4 times).
+  now audits `add` instead of blocking it; an out-of-scope path is logged,
+  and the reaper's report lists any worktree outside `.claude/worktrees/`.
+- Protocol 6's `git -C <primary> pull` after a merge stays until `my-repos`
+  is scheduled to update primary checkouts.
 
 ### Hooks
 
@@ -156,7 +196,7 @@ principles:
 | --- | --- | --- |
 | Copy gate: `git add` and `git commit` in one call | 56 / 20 | **A.** The PreToolUse hook reads the index before the call, so it cannot see what `git add` will stage. Move the copy check into the git pre-commit hook, which sees the final index. Then the call shape no longer matters. Until that ships, the hook message already names the split. |
 | Repo cannot be resolved: `git -C $VAR`, `cd …`, `env -C` (personify, main-commit hooks) | 57 / 15+ | **A.** Most cases assign the variable in the same command (`W=/abs/path; git -C "$W" …`). Resolve literal assignments made earlier in the same command text, and `cd <literal>` before git. Block only what stays unresolved, and say which part could not be resolved. |
-| Worktree path check on `$W/...` | 10 / 7 | **B**, see Worktrees. |
+| Worktree path check on `$W/...` | 10 / 7 | **A, done (claude-config#798):** `add` is audited, not blocked. See Worktrees. |
 | Copy gate: no approval for public copy | 31 / up to 17 | Correct block. No change. |
 | Secret-leak hook | 15 / 10 | Mostly correct. One false positive on `env \| grep -c` (prints a count). No change; the hook message already gives the safe forms. |
 | Copy gate: a redirect target read as a commit pathspec (`git commit -F msg > out.log`) | found 2026-10-27, after the count | **A.** `_commit_args_ok` skips the `>` word but denies the next word as a path. Skip the target of a spaced redirect too. |
@@ -198,7 +238,7 @@ with `autoMode.allow` prose in the per-machine settings:
 | Source | Answer |
 | --- | --- |
 | `fsmonitor_ipc__send_query` on every git command | The sandbox blocks the daemon socket, so sandboxed git already runs without fsmonitor. **Decided 2026-10-27: off for Claude sessions only**, on for Andrew's terminal. Candidate: `GIT_CONFIG_COUNT`/`KEY_0`/`VALUE_0` in the shared settings `env`. **Test first:** the worktree guard refuses inline `GIT_CONFIG_COUNT`; whether it also refuses when the value comes from settings `env` is not known. If it does, look for another Claude-only switch (for example a `GIT_CONFIG_GLOBAL` file that includes the real config and overrides `core.fsmonitor`). Fallback, only with Andrew's approval: off everywhere (measured 20 ms or less for `git status` on the largest local repo, 1,163 files). |
-| `branch -D` config warning | Worktrees step 4 (`update-ref -d`). |
+| `branch -D` config warning | Worktrees step 3 (`update-ref -d`). |
 | Reviewer network denials | Sandbox network, first row. |
 | Pre-push reviewer: "Credit balance is too low; retrying on subscription" | Working as designed (Andrew, 2026-10-27): `claude -p` uses the monthly $100 Max API credit first and falls back to the subscription when it runs out. Optional: reword the line so it reads as expected behavior, not a failure. |
 
@@ -275,28 +315,39 @@ must be compared with the split below so that nothing it relies on is lost.
 
 ## Follow-up work, by repo
 
-None of this is done in this PR.
+Done on 2026-10-27: claude-config#799 (repo resolution of same-command
+assignments and `cd <literal>`, quoted parens, the copy gate's
+redirect-target false positive; replayed 57 of 60 rows passing) and
+claude-config#798 (one worktree method, Protocol 1 and 6, `add` audit-only,
+EnterWorktree refused).
 
-- **claude-config, hooks (largest gain):** copy check moved to the git
-  pre-commit hook; repo resolution of same-command assignments and
-  `cd <literal>`; the compound excluded-command check;
-  `hook-block-git-worktree.sh` simplified; the `merge-lock` substring fix;
-  the copy gate's redirect-target false positive.
-  Each hook change is validated against the matching rows of
-  `denials.jsonl`: replay the blocked commands and confirm the false
-  positives pass and the correct blocks still block.
-- **claude-config, policy:** Protocol 1 and 6 rewritten for the worktree
-  procedure; the shared half of the settings split.
+Next, in rough order:
+
+- **review hooks (next session):** start the commit and push reviewers
+  without MCP servers or telemetry. Every review today printed about 30
+  sandbox network denials (`mcp-proxy.anthropic.com`, `mcp.context7.com`,
+  `mcp.sentry.dev`, `http-intake.logs.us5.datadoghq.com`); the reviews still
+  passed, so it is noise, but it buries real denials.
+- **review hooks, arbiter (next session):** on hook files, a BLOCKING
+  finding stops the commit even when the arbiter sides with the other
+  reviewer. On claude-config#799 the arbiter overruled a real BLOCKING
+  finding (`"$(...)"` no longer denied); it was caught only by reading the
+  full review output.
+- **scripts:** `worktree-reaper.sh` and its LaunchAgent, report-only first,
+  with the backstops and tests in the Worktrees section; it also keeps an
+  empty `.git/worktrees/` in each repo. `dotall-fleet` waits on the
+  `.local` test.
+- **claude-config, hooks:** copy check moved to the git pre-commit hook
+  (36 rows of `add` and `commit` in one call); the compound
+  excluded-command check; the `merge-lock` substring fix. Validate each
+  against the matching rows of `denials.jsonl`, as #799 did.
+- **claude-config, policy:** the shared half of the settings split.
 - **claude-wrapper:** tracked per-host overlay files and the installer that
   writes `machine-settings.json` from them.
-- **claude-config:** `hook-block-enter-worktree.sh` accepts `path`
-  re-entry into an existing worktree. Done in claude-config#796.
-- **scripts:** `worktree-reaper.sh` and its LaunchAgent; `dotall-fleet`
-  waits on the `.local` test.
 - **dotfiles / claude-config:** the Claude-only fsmonitor switch (after its
   test); gh-wrapper test `/tmp` paths.
 - **Fleet audit:** inventory each Mac's existing settings files and drift
   before the settings split ships.
-- **review hooks:** reviewers without MCP or telemetry.
-- **Tests to run first:** `update-ref -d` branch delete; `.local` resolution
-  in the sandbox; settings `env` versus the worktree guard.
+- **Tests to run first:** `.local` resolution in the sandbox; settings `env`
+  versus the worktree guard. (`update-ref -d` branch delete: tested
+  2026-10-27, works.)
