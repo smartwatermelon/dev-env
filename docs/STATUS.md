@@ -682,12 +682,14 @@ or be explicitly parked with a resume note, by then — see the tracker.
 
 **2026-10-27 update (Pacific): permission policy:**
 
-- **Proposal, waiting on decisions:**
+- **Proposal, decisions recorded 2026-10-27:**
   `docs/plans/2026-10-27-permission-policy.md`. An inventory of every block
   since 2026-10-15 found 633: hooks 220 (every affected session), sandbox
   network 307 rows, classifier 15, permission rules 0. Every blocked action
   gets A (make it work) or B (change the procedure), never "ask Andrew".
   Worktrees move to `EnterWorktree`/`ExitWorktree`, tested end to end.
+  Still open: the three tests to run first, the fleet settings audit, and the
+  hook and settings work listed by repo.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
