@@ -101,11 +101,27 @@ where `.git/config` was confirmed write-protected first.
    `git update-ref -d refs/heads/<branch>` should delete it without touching
    `.git/config`. If it works, it replaces `git branch -D`, which deletes the
    ref but prints an unactionable config warning.
-5. `ExitWorktree remove` leaves an empty `.git/worktrees/<name>/` folder. The
-   sandbox denies removing that folder; which rule denies it is not
-   identified. The scheduled `my-repos` run (outside the sandbox) runs
-   `git worktree prune` in each repo. Prune is git's own cleanup, so no
-   hand-written delete is needed.
+5. `ExitWorktree remove` works only while the session is still inside the
+   worktree it created. It cannot remove a worktree left with `keep`, one
+   from an earlier session, or one re-entered by `path`. A sandboxed
+   `git worktree remove` fails too: Claude Code's own `.claude/.cc-writes`
+   folder inside the worktree is write-denied. It also leaves an empty
+   `.git/worktrees/<name>/` folder that the sandbox will not remove (rule not
+   identified).
+
+   **B: agents never remove a kept worktree.** When the PR is still open, the
+   agent leaves with `keep`. A nightly `worktree-reaper.sh` (scripts repo, own
+   LaunchAgent, outside the sandbox) checks every worktree under
+   `~/Developer/*/.claude/worktrees/`. If the tree is clean and `gh` shows its
+   branch's PR as `MERGED`, it runs `git worktree remove`, deletes the branch
+   and runs `git worktree prune`. Anything else (dirty, no PR, PR open), it
+   only reports. Nothing is scheduled today: the nightly `updates` job runs
+   package updates only, and `my-repos` is not scheduled.
+6. Coming back to a kept worktree (for example to fix a review finding)
+   uses `EnterWorktree` with `path`. **A:** `hook-block-enter-worktree.sh`
+   rejects `path` today, because it only validates the `name` of a new
+   worktree. It must accept a `path` that is an existing worktree under that
+   repo's `.claude/worktrees/`.
 
 Constraints learned:
 
@@ -269,8 +285,10 @@ None of this is done in this PR.
   procedure; the shared half of the settings split.
 - **claude-wrapper:** tracked per-host overlay files and the installer that
   writes `machine-settings.json` from them.
-- **scripts:** `my-repos` runs `git worktree prune`; `dotall-fleet` waits on
-  the `.local` test.
+- **claude-config:** `hook-block-enter-worktree.sh` accepts `path`
+  re-entry into an existing worktree.
+- **scripts:** `worktree-reaper.sh` and its LaunchAgent; `dotall-fleet`
+  waits on the `.local` test.
 - **dotfiles / claude-config:** the Claude-only fsmonitor switch (after its
   test); gh-wrapper test `/tmp` paths.
 - **Fleet audit:** inventory each Mac's existing settings files and drift
