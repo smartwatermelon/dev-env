@@ -1,6 +1,6 @@
 # Plan: one permission policy for sandbox, rules, classifier and hooks
 
-**Status:** proposal, waiting for Andrew's decisions (marked **Decide**)
+**Status:** proposal; Andrew's decisions recorded 2026-10-27
 **Date:** 2026-10-27
 **Author:** arich (drafted by Claude Code)
 
@@ -151,7 +151,7 @@ principles:
 | `gh pr merge` in a compound or piped command cannot write `~/.claude/merge-locks` | 10 | **B.** Excluded commands are written bare: no `cd`, pipe or `&&`. Add a PreToolUse check that rejects the compound form *before* it runs, with the bare form in the message, so the failure is instant and says what to do. |
 | `gate-review.sh` compound form cannot write `~/.claude/gate-review` | 5 | **B**, same check. |
 | Scripts that hard-code `/tmp` (`post-push-status.sh`, gh-wrapper tests) | 8 | **A.** Fix the scripts to use `$TMPDIR`. Do not add `/tmp` to `allowWrite`. |
-| `ps` blocked | 1 | **Decide:** add `ps *` to `excludedCommands` (read-only) or leave it. |
+| `ps` blocked | 1 | **A** (decided 2026-10-27): add `ps *` to the shared `excludedCommands`. It only reads the process list. |
 
 ### Sandbox network
 
@@ -178,10 +178,10 @@ with `autoMode.allow` prose in the per-machine settings:
 
 | Source | Answer |
 | --- | --- |
-| `fsmonitor_ipc__send_query` on every git command | The sandbox blocks the daemon socket, so sandboxed git already runs without fsmonitor. **Decide:** (a) turn it off in `dotfiles/git/config` (measured: `git status` without it takes 20 ms or less on the largest local repo, 1,163 files; repos on other machines not measured), or (b) turn it off for Claude sessions only with `GIT_CONFIG_*` in settings `env`. (b) is untested: the worktree guard refuses inline `GIT_CONFIG_COUNT`, and whether it sees the settings `env` is not known. |
+| `fsmonitor_ipc__send_query` on every git command | The sandbox blocks the daemon socket, so sandboxed git already runs without fsmonitor. **Decided 2026-10-27: off for Claude sessions only**, on for Andrew's terminal. Candidate: `GIT_CONFIG_COUNT`/`KEY_0`/`VALUE_0` in the shared settings `env`. **Test first:** the worktree guard refuses inline `GIT_CONFIG_COUNT`; whether it also refuses when the value comes from settings `env` is not known. If it does, look for another Claude-only switch (for example a `GIT_CONFIG_GLOBAL` file that includes the real config and overrides `core.fsmonitor`). Fallback, only with Andrew's approval: off everywhere (measured 20 ms or less for `git status` on the largest local repo, 1,163 files). |
 | `branch -D` config warning | Worktrees step 4 (`update-ref -d`). |
 | Reviewer network denials | Sandbox network, first row. |
-| Pre-push reviewer: "Credit balance is too low; retrying on subscription" | An account state, not a sandbox issue. Every push runs a failed API-key attempt first. **Decide:** top up, or make the subscription the first choice. |
+| Pre-push reviewer: "Credit balance is too low; retrying on subscription" | Working as designed (Andrew, 2026-10-27): `claude -p` uses the monthly $100 Max API credit first and falls back to the subscription when it runs out. Optional: reword the line so it reads as expected behavior, not a failure. |
 
 ## General permission rules
 
@@ -235,7 +235,10 @@ leak). Several sandbox entries are also specific to this Mac: its
 **Rule: global settings everywhere, with a local overlay per machine.**
 `--settings` arrays concatenate with the shared file and objects merge by key
 (measured 2026-10-20), so an overlay can add entries but never remove shared
-ones. That makes the shared file a floor every machine gets. **Decide:**
+ones. That makes the shared file a floor every machine gets. **Decided
+2026-10-27.** Before the move, audit the fleet: each Mac may already have its
+own `machine-settings.json`, `settings.local.json` or other drift, and each
+must be compared with the split below so that nothing it relies on is lost.
 
 - **Shared (`claude-config` `settings.json`, tracked and reviewed):** the
   sandbox switches (`enabled`, `failIfUnavailable`, `allowUnsandboxedCommands`,
@@ -268,7 +271,10 @@ None of this is done in this PR.
   writes `machine-settings.json` from them.
 - **scripts:** `my-repos` runs `git worktree prune`; `dotall-fleet` waits on
   the `.local` test.
-- **dotfiles:** fsmonitor (after the decision); gh-wrapper test `/tmp` paths.
+- **dotfiles / claude-config:** the Claude-only fsmonitor switch (after its
+  test); gh-wrapper test `/tmp` paths.
+- **Fleet audit:** inventory each Mac's existing settings files and drift
+  before the settings split ships.
 - **review hooks:** reviewers without MCP or telemetry.
 - **Tests to run first:** `update-ref -d` branch delete; `.local` resolution
   in the sandbox; settings `env` versus the worktree guard.
