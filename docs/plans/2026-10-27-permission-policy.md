@@ -34,8 +34,10 @@ error lines, and that is how the 2026-10-27 `worktree add` failure was missed.
 
 A script read all 413 transcripts under `~/.claude/projects` (subagents
 included) and paired every tool call with its result. Output, kept outside the
-repo: `scratchpad/denials-v2/` (`denials.jsonl`, `patterns.csv`,
-`report.md`) in session `cbe34707`. Probes were counted separately (43).
+repo: `~/.local/state/permission-policy/denials-v2/` (`denials.jsonl`,
+`patterns.csv`, `report.md`, and the `extract.py` and `report.py` scripts that
+made them), on the Mac that ran session `cbe34707`. Probes were counted
+separately (43).
 
 | Layer | Denials | Sessions |
 | --- | --- | --- |
@@ -118,10 +120,10 @@ where `.git/config` was confirmed write-protected first.
    only reports. Nothing is scheduled today: the nightly `updates` job runs
    package updates only, and `my-repos` is not scheduled.
 6. Coming back to a kept worktree (for example to fix a review finding)
-   uses `EnterWorktree` with `path`. **A:** `hook-block-enter-worktree.sh`
-   rejects `path` today, because it only validates the `name` of a new
-   worktree. It must accept a `path` that is an existing worktree under that
-   repo's `.claude/worktrees/`.
+   uses `EnterWorktree` with `path`. **A, done:** `hook-block-enter-worktree.sh`
+   used to reject `path`, because it only validated the `name` of a new
+   worktree. Since claude-config#796 (merged 2026-10-27) it accepts a `path`
+   that is an existing worktree under that repo's `.claude/worktrees/`.
 
 Constraints learned:
 
@@ -157,6 +159,7 @@ principles:
 | Worktree path check on `$W/...` | 10 / 7 | **B**, see Worktrees. |
 | Copy gate: no approval for public copy | 31 / up to 17 | Correct block. No change. |
 | Secret-leak hook | 15 / 10 | Mostly correct. One false positive on `env \| grep -c` (prints a count). No change; the hook message already gives the safe forms. |
+| Copy gate: a redirect target read as a commit pathspec (`git commit -F msg > out.log`) | found 2026-10-27, after the count | **A.** `_commit_args_ok` skips the `>` word but denies the next word as a path. Skip the target of a spaced redirect too. |
 | `merge-lock.sh authorize` matched inside quoted text | 3 / 2 | **A.** Match the command position, not a substring. Low priority. |
 | Fail-closed when a hook cannot run | 3 / 2 | Correct block (deploy ordering). |
 
@@ -277,7 +280,8 @@ None of this is done in this PR.
 - **claude-config, hooks (largest gain):** copy check moved to the git
   pre-commit hook; repo resolution of same-command assignments and
   `cd <literal>`; the compound excluded-command check;
-  `hook-block-git-worktree.sh` simplified; the `merge-lock` substring fix.
+  `hook-block-git-worktree.sh` simplified; the `merge-lock` substring fix;
+  the copy gate's redirect-target false positive.
   Each hook change is validated against the matching rows of
   `denials.jsonl`: replay the blocked commands and confirm the false
   positives pass and the correct blocks still block.
@@ -286,7 +290,7 @@ None of this is done in this PR.
 - **claude-wrapper:** tracked per-host overlay files and the installer that
   writes `machine-settings.json` from them.
 - **claude-config:** `hook-block-enter-worktree.sh` accepts `path`
-  re-entry into an existing worktree.
+  re-entry into an existing worktree. Done in claude-config#796.
 - **scripts:** `worktree-reaper.sh` and its LaunchAgent; `dotall-fleet`
   waits on the `.local` test.
 - **dotfiles / claude-config:** the Claude-only fsmonitor switch (after its
