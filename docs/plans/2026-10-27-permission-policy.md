@@ -228,12 +228,28 @@ rule matches spaces, so a narrower allow rule could still match `--admin`.
 The sandbox block and the `autoMode` block are in
 `~/.config/claude-code/machine-settings.json`, a plain file with no repo and
 no history. The 2026-10-20 plan keeps `autoMode` per machine (the Beacon
-leak). **Decide:**
+leak). Several sandbox entries are also specific to this Mac: its
+`/var/folders/...` temp folder, the personal Google Drive path, and
+`/private/tmp/claude-501` (a user ID that differs on the work Mac).
 
-- `sandbox` and `permissions` move to `claude-config` `settings.json`
-  (shared, tracked, reviewed).
-- `autoMode` stays per machine, generated from a tracked per-host file by an
-  installer (the lock-sync pattern), so each machine's copy has a source.
+**Rule: global settings everywhere, with a local overlay per machine.**
+`--settings` arrays concatenate with the shared file and objects merge by key
+(measured 2026-10-20), so an overlay can add entries but never remove shared
+ones. That makes the shared file a floor every machine gets. **Decide:**
+
+- **Shared (`claude-config` `settings.json`, tracked and reviewed):** the
+  sandbox switches (`enabled`, `failIfUnavailable`, `allowUnsandboxedCommands`,
+  `autoAllowBashIfSandboxed`); `allowWrite` entries written with `~` and
+  valid on every Mac (`~/Developer`, `~/.local/state`, `~/.cache`,
+  `~/Library/Caches`); shared `excludedCommands`, network domains,
+  `permissions` rules; and `autoMode` entries true on every machine.
+- **Per machine (the overlay, `machine-settings.json`):** host-specific paths
+  (temp folder, Drive folder, user-ID paths), `defaultMode`, and `autoMode`
+  `environment` text that names this machine's hosts and trust. Each host's
+  overlay is generated from a tracked per-host file by an installer (the
+  lock-sync pattern), so it has a source and history.
+- The settings move needs a check on each machine before it ships: a session
+  on the work Mac must start with the shared sandbox and no ASIAGO paths.
 
 ## Follow-up work, by repo
 
@@ -247,7 +263,9 @@ None of this is done in this PR.
   `denials.jsonl`: replay the blocked commands and confirm the false
   positives pass and the correct blocks still block.
 - **claude-config, policy:** Protocol 1 and 6 rewritten for the worktree
-  procedure; the settings move.
+  procedure; the shared half of the settings split.
+- **claude-wrapper:** tracked per-host overlay files and the installer that
+  writes `machine-settings.json` from them.
 - **scripts:** `my-repos` runs `git worktree prune`; `dotall-fleet` waits on
   the `.local` test.
 - **dotfiles:** fsmonitor (after the decision); gh-wrapper test `/tmp` paths.
