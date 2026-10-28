@@ -1351,6 +1351,11 @@ These are not oversights. Do not "fix" them without asking.
   closed by GitHub 2026-09-04 as self-service-only and reopened after the
   Team upgrade; no staff reply ever came. No response on the new ticket as
   of 2026-09-18. The move-list now names `smartwatermelon` for all five.
+- **Syncing per-machine Claude settings:** **proposed 2026-10-28, not
+  scheduled.** Each machine's `machine-settings.json` got the same merged
+  `autoMode` base that day, and nothing carries later changes between
+  machines. See `docs/plans/2026-10-28-machine-settings-sync.md`; the live
+  check of the overlays is `dev-env#236`, also deferred.
 
 ## Standing methodology
 

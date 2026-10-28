@@ -67,9 +67,19 @@ machine-local Claude config files unattended.
 - `--settings` does not stack (last flag wins) and arrays concatenate with
   `settings.json`, so each machine's overlay must stay one complete file.
 
-## Found while checking (fix before building on it)
+## Found while checking (resolved 2026-10-28)
 
-ASIAGO's backup job runs and commits, but its clone was **1024 commits ahead
-of `origin`** on 2026-10-28; nothing has pushed since 2026-09-08 PDT. The
-history exists only on ASIAGO. Find out why the push fails before relying on
-this repo as an off-machine copy.
+ASIAGO's backup job ran and committed, but its clone was more than 1000 commits
+ahead of `origin` on 2026-10-28; nothing had pushed since 2026-09-08 PDT.
+Cause: a commit reached the remote from elsewhere on 2026-09-08, so every
+later push was rejected non-fast-forward, and the script sent push stderr to
+`/dev/null`, so the log said only "push failed". The clone was repaired by
+hand, and scripts#17 makes the job rebase once on a rejected push and log
+git's error. ASIAGO pushed again at 11:21 and 11:36 PDT that day.
+
+## Related
+
+- dev-env#236: check that auto mode obeys the overlays, and which other
+  machines need one.
+- claude-config#804: `/auto-mode-setup` writes `autoMode` into the deploy
+  clone.
