@@ -3,7 +3,7 @@
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
 2026-10-12, 2026-10-13 to 10-16, 2026-10-19, 2026-10-19 to 10-21,
-2026-10-22 and 2026-10-27 updates below.**
+2026-10-22, 2026-10-27 and 2026-10-29 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -687,9 +687,15 @@ or be explicitly parked with a resume note, by then — see the tracker.
   since 2026-10-15 found 633: hooks 220 (every affected session), sandbox
   network 307 rows, classifier 15, permission rules 0. Every blocked action
   gets A (make it work) or B (change the procedure), never "ask Andrew".
-  Worktrees move to `EnterWorktree`/`ExitWorktree`, tested end to end.
-  Still open: the three tests to run first, the fleet settings audit, and the
+  Worktrees use one method, raw git (`worktree add --no-track`), in every
+  repo; `EnterWorktree` is refused (claude-config#798, dev-env#233). This
+  replaces the `EnterWorktree` direction first recorded here.
+  Still open: the tests to run first, the fleet settings audit, and the
   hook and settings work listed by repo.
+- **2026-10-29:** review hooks start without MCP servers (claude-config#801),
+  headless deploy uses cron (#803), the arbiter clears a block only with
+  quoted proof (#805), and Andrew can override one blocked review by code
+  (#806). The plan's follow-up list records each one.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns

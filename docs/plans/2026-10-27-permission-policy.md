@@ -321,18 +321,27 @@ redirect-target false positive; replayed 57 of 60 rows passing) and
 claude-config#798 (one worktree method, Protocol 1 and 6, `add` audit-only,
 EnterWorktree refused).
 
+Done on 2026-10-28 and 2026-10-29:
+
+- claude-config#801: every reviewer run starts without MCP servers or
+  telemetry, which removes the ~30 sandbox network denials per review.
+- claude-config#803: headless deploy schedules with cron when the user has
+  no GUI login (TILSIT); exactly one scheduler runs.
+- claude-config#805: the arbiter (Opus, read-only tools) clears a block only
+  with a REFUTED ruling that quotes 20 or more characters found in the staged
+  blob. This replaces the earlier idea of exempting hook files: no review
+  exemptions (Andrew, 2026-10-28).
+- claude-config#806: Andrew can override one blocked review by typing
+  `override <code>` in chat. The code binds the mode and the diff hash, and
+  the approval lasts 30 minutes. `docs/CODE-REVIEW.md` holds the threat
+  model; the real boundary is `dev-env#158`.
+
 Next, in rough order:
 
-- **review hooks (next session):** start the commit and push reviewers
-  without MCP servers or telemetry. Every review today printed about 30
-  sandbox network denials (`mcp-proxy.anthropic.com`, `mcp.context7.com`,
-  `mcp.sentry.dev`, `http-intake.logs.us5.datadoghq.com`); the reviews still
-  passed, so it is noise, but it buries real denials.
-- **review hooks, arbiter (next session):** on hook files, a BLOCKING
-  finding stops the commit even when the arbiter sides with the other
-  reviewer. On claude-config#799 the arbiter overruled a real BLOCKING
-  finding (`"$(...)"` no longer denied); it was caught only by reading the
-  full review output.
+- **claude-config, `approve-hash` split (design not yet approved):** move
+  it out of `gate-review.sh *` in excludedCommands into a script the chat
+  hook calls, then narrow the regex to a second layer. The regex today both
+  over-blocks (text mentions) and under-blocks (quoted or escaped forms).
 - **scripts:** `worktree-reaper.sh` and its LaunchAgent, report-only first,
   with the backstops and tests in the Worktrees section; it also keeps an
   empty `.git/worktrees/` in each repo. `dotall-fleet` waits on the
