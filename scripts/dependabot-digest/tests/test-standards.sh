@@ -83,10 +83,10 @@ _state() {
 
 # Every listed repository must yield exactly one record.
 o_count="$(jq -s '[.[] | select(.owner == "o")] | length' "${out}")"
-if [[ "${o_count}" == "9" ]]; then
-  _pass "every listed repo yields one record (9 of 9, across two pages)"
+if [[ "${o_count}" == "8" ]]; then
+  _pass "every listed repo yields one record (8 of 8, across two pages)"
 else
-  _fail "owner o yielded ${o_count} records for 9 listed repos"
+  _fail "owner o yielded ${o_count} records for 8 listed repos"
 fi
 
 _state o/warned ok "a merged PR's run is found when the default-branch head has none"
@@ -96,7 +96,6 @@ _state o/nulled unreadable "nulled check-run entries are unreadable, not 'no run
 _state o/short unreadable "fewer annotations than the run reports is unreadable, not clean"
 _state o/direct no-pr "a direct-push head with no run is reported"
 _state o/old archived "an archived repo is named as skipped"
-_state o/sleepy dormant "a repo with the dormant topic is named as skipped"
 _state o/forbidden unreadable "a refused read is unreadable"
 
 # Re-runs leave several runs on one commit. Only the latest counts.
@@ -175,8 +174,6 @@ _has '| o/nulled | UNREADABLE:' "a nulled run is shown as unreadable" "${body}"
 _has '| o/norun | no standards-check run:' "a repo with no run is shown by name" "${body}"
 _has '| all of q | OWNER NOT LISTED:' "an unlistable owner is shown" "${body}"
 _has 'Archived, not surveyed: o/old.' "archived repos are named" "${body}"
-_has 'Dormant, not surveyed: o/sleepy.' "dormant repos are named" "${body}"
-_hasnt '| o/sleepy |' "a dormant repo is not listed as not checked" "${body}"
 _has 'not that the whole repository is' "the scope limit of a PR run is stated" "${body}"
 _hasnt 'No warnings:' "a section with warnings does not claim none" "${body}"
 

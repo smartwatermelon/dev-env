@@ -1,6 +1,6 @@
 [
  {
-  "total_count": 9,
+  "total_count": 8,
   "repositories": [
    {
     "full_name": "o/warned",
@@ -25,7 +25,7 @@
   ]
  },
  {
-  "total_count": 9,
+  "total_count": 8,
   "repositories": [
    {
     "full_name": "o/short",
@@ -46,15 +46,6 @@
     "full_name": "o/forbidden",
     "default_branch": "main",
     "archived": false
-   },
-   {
-    "full_name": "o/sleepy",
-    "default_branch": "main",
-    "archived": false,
-    "topics": [
-     "swift",
-     "dormant"
-    ]
    }
   ]
  }

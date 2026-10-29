@@ -468,8 +468,7 @@ if ! repos="$(api --paginate --slurp "installation/repositories?per_page=100")" 
          and ([.[].repositories[]] | length) >= (.[0].total_count // 0)
       then [.[].repositories[]] | sort_by(.full_name)[]
            | [.full_name, (.archived | tostring), (.fork | tostring),
-              (.private | tostring), (any(.topics[]?; . == "dormant") | tostring),
-              (.default_branch // "")] | @tsv
+              (.private | tostring), (.default_branch // "")] | @tsv
       else error("bad shape") end' <<<"${repos}" 2>/dev/null)"; then
   emit_err "" unlisted "cannot list the repositories this token can read" "unexpected response shape"
   exit 0
@@ -481,16 +480,13 @@ fi
 
 # The branch is last: tab is whitespace to read, so an empty field in the
 # middle would shift the ones after it.
-while IFS=$'\t' read -r nwo archived fork private dormant branch; do
+while IFS=$'\t' read -r nwo archived fork private branch; do
   [[ -z "${nwo}" ]] && continue
   PROT_JSON=""
   CQ_JSON=""
   ALERTS_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
-  elif [[ "${dormant}" == "true" ]]; then
-    # The `dormant` topic: kept, not archived, but gets no further work.
-    emit "${nwo}" dormant "dormant; not surveyed"
   elif [[ -z "${branch}" ]]; then
     set_prot unreadable "no default branch reported"
     # Default setup and alerts are per repo, not per branch, so both are read.
