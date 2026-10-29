@@ -18,7 +18,7 @@ unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
-WORK="/tmp/dd-upsert-test-$$"
+WORK="${TMPDIR:-/tmp}/dd-upsert-test-$$"
 BIN="${WORK}/bin"
 mkdir -p "${BIN}"
 trap 'rm -rf "${WORK}"' EXIT

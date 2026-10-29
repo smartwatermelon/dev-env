@@ -123,7 +123,7 @@ fi
 
 # dev-env#179. Keep three outcomes apart: warnings, clean, not checked.
 render_standards() {
-  local file="$1" recs checked clean warned unchecked archived rows lines view stale stale_repos undated rules_at rules_err
+  local file="$1" recs checked clean warned unchecked archived dormant rows lines view stale stale_repos undated rules_at rules_err
   echo "## Standards warnings"
   echo
   if [[ ! -r "${file}" ]]; then
@@ -145,7 +145,7 @@ render_standards() {
   fi
   echo "Warning- and notice-level annotations from each repository's latest \`standards-check\` run that vetted its default branch. Fleet callers run only on pull requests, so that is usually the run on the head commit of the PR that produced the default-branch head. A PR run lints only the files that PR changed (node-floor always checks the whole repo), so \"no warnings\" means that run was clean, not that the whole repository is. Routine notices (no Markdown, shell or YAML files, no workflows) are omitted, a notice repeated across repositories is shown once, and repositories with nothing to list are counted, not listed."
   echo
-  unchecked="$(jq -s '[.[] | select(.state != "ok" and .state != "archived")] | length' <<<"${recs}")"
+  unchecked="$(jq -s '[.[] | select(.state != "ok" and .state != "archived" and .state != "dormant")] | length' <<<"${recs}")"
 
   # Drop routine notices; collapse repeated ones. Never touch warnings.
   if ! view="$(jq -cs '
@@ -246,7 +246,7 @@ render_standards() {
       def state_name: {"unreadable": "UNREADABLE", "unlisted": "OWNER NOT LISTED",
                        "no-run": "no standards-check run", "no-pr": "no run, no merged PR",
                        "in-progress": "run in progress"}[.state] // .state;
-      select(.state != "ok" and .state != "archived")
+      select(.state != "ok" and .state != "archived" and .state != "dormant")
       | "| " + (.repo // ("all of " + .owner)) + " | " + state_name + ": " + (.detail | cell) + " |"
     ' <<<"${recs}")" || [[ -z "${rows}" ]]; then
       echo "**${unchecked} repositories were not checked, and the list could not be rendered.** See the run log."
@@ -262,6 +262,11 @@ render_standards() {
   archived="$(jq -rs '[.[] | select(.state == "archived") | .repo] | join(", ")' <<<"${recs}")"
   if [[ -n "${archived}" ]]; then
     echo "Archived, not surveyed: ${archived}."
+    echo
+  fi
+  dormant="$(jq -rs '[.[] | select(.state == "dormant") | .repo] | join(", ")' <<<"${recs}")"
+  if [[ -n "${dormant}" ]]; then
+    echo "Dormant, not surveyed: ${dormant}."
     echo
   fi
 }
@@ -280,7 +285,7 @@ render_protection() {
   # A record without a protection object (an older or crashed survey) is
   # unreadable, not clean.
   if ! recs="$(jq -cs '
-    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
+    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived" and .state != "dormant")
      | .p = (if (.protection | type) == "object"
                 and (.protection.state | type) == "string"
              then .protection
@@ -383,7 +388,7 @@ render_codeql() {
   # No codeql object (older or crashed survey) is unreadable, not clean.
   # .s, the Semgrep substitute, is unreadable when missing or unknown.
   if ! recs="$(jq -cs '
-    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
+    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived" and .state != "dormant")
      | .c = (if (.codeql | type) == "object" and (.codeql.state | type) == "string"
              then .codeql
              else {state: "unreadable", detail: "no CodeQL result recorded", exemptClass: null} end)
@@ -482,7 +487,7 @@ render_alerts() {
   fi
   # No alerts object (older or crashed survey) is unreadable, not on.
   if ! recs="$(jq -cs '
-    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
+    [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived" and .state != "dormant")
      | .a = (if (.alerts | type) == "object" and (.alerts.state | type) == "string"
              then .alerts
              else {state: "unreadable", detail: "no alerts result recorded"} end)]

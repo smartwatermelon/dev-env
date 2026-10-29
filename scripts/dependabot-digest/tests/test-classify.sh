@@ -11,7 +11,7 @@ unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLASSIFY="${HERE}/../classify.sh"
 FIX="${HERE}/fixtures"
-WORK="/tmp/dd-classify-test-$$"
+WORK="${TMPDIR:-/tmp}/dd-classify-test-$$"
 mkdir -p "${WORK}"
 trap 'rm -rf "${WORK}"' EXIT
 
