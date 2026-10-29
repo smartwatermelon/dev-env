@@ -36,26 +36,42 @@ never on a dev machine.
 The private key is the risk. Whoever holds it can mint a token for **any**
 repository the App is installed on, with every permission the App has. Scoping
 the secret or the token does not limit a stolen key; only the installation
-and the permission list do. So the design keeps the key away from code that
-could leak it, and keeps each token small.
+and the permission list do. So the installation list is the blast radius,
+and the design keeps the key away from code that could leak it.
 
-1. **Only one step ever sees the key.** The gate's token step,
-   `actions/create-github-app-token`, pinned to a commit SHA. No other step and
-   no caller workflow references `MERGE_APP_PRIVATE_KEY`. GitHub injects a
-   secret only into a workflow that names it, so other workflows in the same
-   repository, and any third-party actions they run, cannot read it.
-2. **That step runs base-branch code only.** The gate runs on
+1. **The installation covers only caller repositories.** Install the App on
+   **Only select repositories**: the same caller lists as the secrets in step
+   4. A stolen key then writes only to repositories that already run the
+   gate. When a repository gains a caller, add it to the installation and to
+   both secrets.
+2. **Only one step ever reads the key.** The gate is a reusable workflow, so
+   it sees a caller secret only when the caller passes it. Each caller passes
+   exactly the two secrets by name:
+
+   ```yaml
+   secrets:
+     MERGE_APP_CLIENT_ID: ${{ secrets.MERGE_APP_CLIENT_ID }}
+     MERGE_APP_PRIVATE_KEY: ${{ secrets.MERGE_APP_PRIVATE_KEY }}
+   ```
+
+   Never `secrets: inherit`, which would hand the gate every secret the caller
+   can see. Inside the gate, only the token step
+   (`actions/create-github-app-token`, pinned to a commit SHA) reads them.
+   GitHub injects a secret only into a workflow that names it, so the
+   repository's other workflows, and any third-party actions they run, cannot
+   read it.
+3. **The token step runs base-branch code only.** The gate runs on
    `pull_request_target` and never checks out or runs PR code. A Dependabot PR
    cannot change the gate, because the caller pins a tag in
    `smartwatermelon/github-workflows`.
-3. **Each token covers one repository.** The gate asks for a token limited to
+4. **Each token covers one repository.** The gate asks for a token limited to
    the current repository (`repositories:`) and to the listed permissions
    (`permission-*:` inputs). A token that leaks from one run writes only to
    that repository, and expires within an hour.
-4. **The secret reaches only caller repositories.** Visibility is
+5. **The secret reaches only caller repositories.** Visibility is
    **selected**: the repositories that have a gate caller. This keeps the key
    out of the environment of any repository without a caller.
-5. **The key exists in two places only:** the 1Password `MERGE_APP` item, and
+6. **The key exists in two places only:** the 1Password `MERGE_APP` item, and
    the organization secrets. It never goes on a dev machine; `op read` pipes
    it straight to `gh secret set`.
 
@@ -64,9 +80,12 @@ Workflows) workflow files in every repository the App is installed on, until
 the key is revoked on the App's page. Revoking the key stops it at once: the
 next token request fails, and tokens already minted expire within an hour.
 
-Who can reach the key: anyone who can change the gate in
-`smartwatermelon/github-workflows` and move a caller's tag. That is already
-someone who can write to the fleet's shared workflows.
+Who can reach the key: anyone who can push a workflow to the default branch
+of a caller repository, because that workflow can name the organization
+secret. Anyone who can move a gate tag in `smartwatermelon/github-workflows`
+can reach it too. Both already have write access to the fleet. A pull request
+alone cannot: `pull_request` runs from forks get no secrets, and
+`pull_request_target` runs the base branch's workflow, not the PR's.
 
 ## 1. Create the App
 
@@ -110,8 +129,10 @@ bump merges without it, an agent will propose removing it.
 
 ## 3. Install the App
 
-Install it on `smartwatermelon` and on `nightowlstudiollc`, with **All
-repositories** on each. `twistedmelonman` has no repository with a gate
+Install it on `smartwatermelon` and on `nightowlstudiollc`, with **Only
+select repositories** on each: the caller lists in step 4. The installation
+list is the blast radius of a stolen key (see "Security model"), so keep it
+equal to the caller list. `twistedmelonman` has no repository with a gate
 caller (checked 2026-10-29), so it does not need the App yet.
 
 ## 4. Set the organization secrets
@@ -119,7 +140,10 @@ caller (checked 2026-10-29), so it does not need the App yet.
 Each secret is set twice per organization: as an **Actions** secret and as a
 **Dependabot** secret. GitHub's documentation does not say which store a
 `pull_request_target` run started by Dependabot reads, so both are set. The
-first canary run shows which one it used. After that, an agent will propose
+Actions store is the expected one: the Dependabot troubleshooting page lists
+the events that get only Dependabot secrets and says `pull_request_target`
+"does not have these limitations". The first canary run shows which one it
+used. After that, an agent will propose
 deleting the unused copy.
 
 Organization secrets with **selected** visibility reach only the caller
@@ -167,6 +191,17 @@ done
 Each organization must list both names under both stores. Then tell the agent.
 It runs the v3.1 canary, and the evidence is a `push` run on `main` for the
 merge commit. A green gate run alone is not that evidence.
+
+## What the agent does after
+
+1. v3.1 of the gate declares the two secrets under `on.workflow_call.secrets`
+   and mints a token for the current repository with
+   `actions/create-github-app-token`, pinned to a commit SHA.
+2. Every caller changes two things: its tag pin, and a `secrets:` block that
+   passes the two secrets by name (see "Security model", item 2). So the
+   rollout edits each caller; it is not a tag bump.
+3. The canary (projectinsomnia) runs first. Its evidence is a `push` run on
+   `main` for the merge commit.
 
 ## Rotation
 
