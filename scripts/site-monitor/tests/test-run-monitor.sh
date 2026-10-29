@@ -8,7 +8,7 @@ unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
-WORK="/tmp/site-monitor-test-$$"
+WORK="${TMPDIR:-/tmp}/site-monitor-test-$$"
 BIN="${WORK}/bin"
 mkdir -p "${BIN}"
 trap 'rm -rf "${WORK}"' EXIT

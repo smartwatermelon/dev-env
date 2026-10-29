@@ -8,10 +8,10 @@ unset CDPATH
 # PATH, so without this the stub below is bypassed and the real gh runs
 # against the network. Unset it (and the token/host vars) for the whole test.
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
-export HOME="/tmp/om-transfer-home-$$"
+export HOME="${TMPDIR:-/tmp}/om-transfer-home-$$"
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TRANSFER="${HERE}/../transfer.sh"
-WORK="/tmp/om-transfer-test-$$"
+WORK="${TMPDIR:-/tmp}/om-transfer-test-$$"
 mkdir -p "${WORK}/bin" "${WORK}/state" "${HOME}"
 trap 'rm -rf "${WORK}" "${HOME}"' EXIT
 fail=0
