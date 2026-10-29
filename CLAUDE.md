@@ -18,6 +18,7 @@ This repo is the **dev-env infrastructure repository** — it contains documenta
   - `docs/local-code-review-options.md` — Research on local review tooling (Semgrep, Sentry/Seer, adversarial reviewer enhancements)
   - `docs/runbooks/` — Step-by-step manual procedures (UI actions the agent cannot perform)
   - `docs/token-rotation.md` — Retired 2026-10-12: no repo runs Claude in CI and `CLAUDE_CODE_OAUTH_TOKEN` is deleted; never contains a token
+  - `docs/runbooks/dependabot-merge-app.md` — The write App (`dependabot-merge-swm`) the github-workflows Dependabot gate merges with from v3.1, so `main` CI runs after a gate merge; its permissions, org secrets, and why it is separate from the read-only Apps
   - `docs/runbooks/fleet-probe-token-scopes.md` — The two fine-grained-PAT properties a fleet probe needs (`Administration: Read-only` + All-repositories), and why an under-scoped token returns wrong numbers instead of errors
 - `scripts/org-migration/` — Snapshot/transfer/verify tooling for the 2026-09 org migration; tests in `scripts/org-migration/tests/run-tests.sh`
 - `scripts/dependabot-digest/` — Collects open Dependabot PRs across all three owners and upserts one digest issue describing the queue, plus each repo's standards-check warnings, default-branch protection, CodeQL default setup and Dependabot security alerts (`standards.sh`); run by `.github/workflows/dependabot-digest.yml`. Credentials (a GitHub App) are installed by hand: see `docs/runbooks/dependabot-digest-credentials.md`
