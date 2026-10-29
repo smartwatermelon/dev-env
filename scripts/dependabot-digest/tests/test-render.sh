@@ -9,7 +9,7 @@ unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
 FIX="${HERE}/fixtures"
-WORK="/tmp/dd-render-test-$$"
+WORK="${TMPDIR:-/tmp}/dd-render-test-$$"
 mkdir -p "${WORK}"
 trap 'rm -rf "${WORK}"' EXIT
 

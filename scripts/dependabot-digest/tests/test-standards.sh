@@ -10,7 +10,7 @@ unset -f gh
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
 FIX="${HERE}/fixtures/standards"
-WORK="/tmp/dd-standards-test-$$"
+WORK="${TMPDIR:-/tmp}/dd-standards-test-$$"
 BIN="${WORK}/bin"
 mkdir -p "${BIN}"
 trap 'rm -rf "${WORK}"' EXIT

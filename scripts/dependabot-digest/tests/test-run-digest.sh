@@ -9,7 +9,7 @@ unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."
-WORK="/tmp/dd-run-test-$$"
+WORK="${TMPDIR:-/tmp}/dd-run-test-$$"
 BIN="${WORK}/bin"
 mkdir -p "${BIN}"
 trap 'rm -rf "${WORK}"' EXIT
