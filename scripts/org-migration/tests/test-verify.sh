@@ -8,10 +8,10 @@ unset CDPATH
 # PATH, so without this the stub below is bypassed and the real gh runs
 # against the network. Unset it (and the token/host vars) for the whole test.
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
-export HOME="/tmp/om-verify-home-$$"
+export HOME="${TMPDIR:-/tmp}/om-verify-home-$$"
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERIFY="${HERE}/../verify.sh"
-WORK="/tmp/om-verify-test-$$"
+WORK="${TMPDIR:-/tmp}/om-verify-test-$$"
 mkdir -p "${WORK}/bin" "${WORK}/base" "${WORK}/clones" "${HOME}"
 trap 'rm -rf "${WORK}" "${HOME}"' EXIT
 fail=0

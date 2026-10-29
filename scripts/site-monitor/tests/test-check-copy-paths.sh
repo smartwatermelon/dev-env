@@ -6,7 +6,7 @@ unset CDPATH
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${HERE}/../check-copy-paths.sh"
 FIX="${HERE}/fixtures/copy-paths"
-WORK="/tmp/site-monitor-copy-paths-test-$$"
+WORK="${TMPDIR:-/tmp}/site-monitor-copy-paths-test-$$"
 mkdir -p "${WORK}"
 trap 'rm -f "${WORK}"/*; rmdir "${WORK}"' EXIT
 

@@ -6,7 +6,7 @@ unset BASH_ENV GH_TOKEN MONITOR_REPO GITHUB_API_URL
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${HERE}/../dispatch-monitor.sh"
-WORK="/tmp/site-monitor-dispatch-test-$$"
+WORK="${TMPDIR:-/tmp}/site-monitor-dispatch-test-$$"
 BIN="${WORK}/bin"
 mkdir -p "${BIN}"
 trap 'rm -rf "${WORK}"' EXIT
