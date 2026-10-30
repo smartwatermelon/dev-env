@@ -1,0 +1,516 @@
+{
+  "date": "2026-10-30",
+  "scope": "Repository source only. No current live Mac settings, telemetry or native authentication read.",
+  "snapshots": {
+    "claude-config": "dc09578b3dd134c87a584d9d00cd70f89b5f658a",
+    "claude-wrapper": "b4c54c50ceb1db6786dc09235d7c6b5f9b6ad56c",
+    "dotfiles": "41f7f72561878ccfca5aa7f2716ebf1ba8e0ed70",
+    "dev-env": "4e6f0d5fa5cbc72b90a481a8ae57d4bddfc5b895",
+    "scripts": "980d5865baa09611546b8c4a69576863e2ddc662",
+    "github-workflows": "728a4c3e5b9400ad9bc4d2b6442d5c6a42b3cf56"
+  },
+  "components": [
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-all.sh",
+      "sha256": "91c0d968b7212e95124ed2937533836e9defd66506d31901089f39445f9ed8e8",
+      "requirement": "Single enforcement entry point",
+      "disposition": "replace",
+      "reason": "Required child presence does not cover failures; replace shell-pattern dispatch with trusted controller decisions."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-secret-leak.sh",
+      "sha256": "c297686e63478a7176f5c0a03111370de76dde7a0f316ff134e217f132ce2c8d",
+      "requirement": "Prevent credential disclosure",
+      "disposition": "replace",
+      "reason": "Detector failure explicitly allows unchecked execution; remove host vault credentials from agent and use scoped credential boundaries."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-secret-leak.py",
+      "sha256": "288d3f1b7d29b0b3a3099860e160c3bf673ca2b6324d9d0fd060a6ead07331ec",
+      "requirement": "Detect secret output",
+      "disposition": "retain_as_advisory",
+      "reason": "Useful leak detection, not a complete secret boundary; arbitrary programs can encode values."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-gate-dir-write.sh",
+      "sha256": "a088562195971763b26fc6f588d8157ec9df73871900e698960ebbe6516eef5b",
+      "requirement": "Protect human approvals",
+      "disposition": "replace",
+      "reason": "Command-text matching cannot protect state against arbitrary code; use controller-owned ledger."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-merge-locks-write.sh",
+      "sha256": "cc290ff9025a1eda885e91b02d91101ecc2573b1dfaa9214cfbba4cf66f4e86d",
+      "requirement": "Protect approval files from file tools",
+      "disposition": "replace",
+      "reason": "Suffix regex cannot replace OS ownership and authenticated decision records."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-no-verify.sh",
+      "sha256": "bb26fb279c1b88cd78ce2a73dc4243b2af8d958fa04b435e54ad0e7c0f77cff5",
+      "requirement": "Require commit checks",
+      "disposition": "retire_after_gate",
+      "reason": "Local lint remains useful; repository-side required checks and broker write authority replace command-spelling enforcement."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-short-no-verify.sh",
+      "sha256": "f548b4903a91d4274d232db785cb28e1ec091daa2a7856e5e316e88a0c49cdf2",
+      "requirement": "Block alternate no-verify spelling",
+      "disposition": "retire_after_gate",
+      "reason": "Same requirement as long-form blocker; unnecessary once local hook bypass cannot grant publish/merge authority."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-main-commit.sh",
+      "sha256": "1821601366b4b05ee406d4b254765111c9d49d226cce47e4d22a6c42a8fb039e",
+      "requirement": "Protect primary checkout and main branch",
+      "disposition": "replace",
+      "reason": "Disposable guest workspaces and repo-side ref policy remove dependence on shell parsing."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-personify.sh",
+      "sha256": "8f60a6a19eeaed893931ce021654c176f850ef330038d431078b97a9235056f3",
+      "requirement": "Human review of external text",
+      "disposition": "migrate",
+      "reason": "Keep relevant human copy approval as an explicit publish capability; keep formatting out of security engine."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-check-commit-message.py",
+      "sha256": "2da1359239beeb153bdb75342387eb87fc67939db2c7be1d359ca7822c3990c9",
+      "requirement": "Validate commit message and approval",
+      "disposition": "split",
+      "reason": "Retain deterministic quality lint; move human approval to broker ledger."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-merge-lock-authorize.sh",
+      "sha256": "7905f635c8b430b58747c213ba0f9184f7c67f95d11814f2ad9e65af9a001db5",
+      "requirement": "Human-only merge authorization",
+      "disposition": "replace",
+      "reason": "Substring matching does not authenticate an authorizer; use host-only authenticated approval."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-api-merge.sh",
+      "sha256": "159d4c4d0de36cd51d7a0a96c4359ac56a385372bf565b9677197fdd02a83952",
+      "requirement": "Prevent alternate merge endpoint",
+      "disposition": "replace",
+      "reason": "Raw GitHub write credentials must leave agent; one bounded API client checks exact action and head."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-gh-auth.sh",
+      "sha256": "fa541a2abfcf0b0bcbab8cb52d060f8209b93c8dedb4ffe27e8610aa62d87d6d",
+      "requirement": "Protect human keyring token",
+      "disposition": "replace",
+      "reason": "Remove host Keychain from guest entirely instead of trying to block gh subcommands."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-git-worktree.sh",
+      "sha256": "59913d1ba7a94e22742856fd570c339d16cfe891f1ff2168f6de3c6f069d149f",
+      "requirement": "Constrain worktree lifecycle",
+      "disposition": "replace",
+      "reason": "Structured guest capability validates repository identity and paths without arbitrary shell equivalence."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-block-enter-worktree.sh",
+      "sha256": "aea90af555d4829bca84d646d49be0289ff113b84f1f5d142cc828dba693bea3",
+      "requirement": "One consistent worktree procedure",
+      "disposition": "retire_after_gate",
+      "reason": "Retire if guest capability owns lifecycle across supported entrypoints; prove coverage first."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-redact-secret-output.py",
+      "sha256": "61585eadcfc78c9bf23499a772f25cde7c071e161aa91289db0cccb706ffe985",
+      "requirement": "Reduce exposed secrets",
+      "disposition": "retain_as_advisory",
+      "reason": "PostToolUse output is already visible; redaction must not be claimed as prevention."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-session-start.sh",
+      "sha256": "6223f261c1ee47bd65848b632c5e23f05b9e2b1f62f7edd282e3e9cb44d29b3c",
+      "requirement": "Load context and surface health",
+      "disposition": "retain_rewrite",
+      "reason": "Display trusted release/blocked status; never load untrusted host project startup code."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-budget-guard.sh",
+      "sha256": "e25a7375764d2e3159d0c06e2009862a64ea8cd17b5cb9e66da1a1cbc4a54c7b",
+      "requirement": "Bound spend",
+      "disposition": "retain_separate",
+      "reason": "Cost control, not authorization; ensure Stop behavior cannot force blocked-work retry loops."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-gate-inline-approve.sh",
+      "sha256": "f64fe7fc4ab112e1a01dc53515773e900fdac87d4e6b2f6f275f718b9e9ce799",
+      "requirement": "Recognize human text approval",
+      "disposition": "replace",
+      "reason": "Model-visible words do not authenticate human decisions; bind approval in trusted UI to exact operation."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/hook-review-override.sh",
+      "sha256": "97ca8f2a34decbb5807989dc50613341de13b020b62acf935893ed39a2f8c350",
+      "requirement": "Human review exception",
+      "disposition": "replace",
+      "reason": "Overrides belong in authenticated, bounded, audited ledger rather than agent-writable state."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "settings.json",
+      "sha256": "654453931e047c31713cd40ecc2e9bf13040074dd095d359fee383a343825e2b",
+      "requirement": "Shared session defaults",
+      "disposition": "split",
+      "reason": "Keep ergonomics separate from immutable guest floor; no machine-wide host bypass prohibition."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "CLAUDE.md",
+      "sha256": "aade563e70586f139906d00e1bc87577d962fd6472664aafc7cf1f3f2dd73503",
+      "requirement": "Agent behavioral contract",
+      "disposition": "rewrite",
+      "reason": "Generalize denial handling to all sources; remove assumption every block proves misconduct."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "install.sh",
+      "sha256": "3927674de98a27b9e47f0a4c11ea5bc143c8060a983910016d92fe208a0f042d",
+      "requirement": "Deploy runtime config",
+      "disposition": "split",
+      "reason": "Keep convenience symlinks; exclude security package; sealed security releases need independent activation."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/claude-config-deploy.sh",
+      "sha256": "58367e21004b57420e406f880c60a208f9a50ab490354fa86de3a95b6b4b903d",
+      "requirement": "Update installed config",
+      "disposition": "replace_security_path",
+      "reason": "A user-owned main-following updater must not activate security code without explicit release approval."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/claude-incognito.sh",
+      "sha256": "7eac7560a7d3b6e11319106ab72bc5400c514152706245f08b46cd07a7e88ba4",
+      "requirement": "Ephemeral headless work",
+      "disposition": "rewrite",
+      "reason": "Default bypass is inappropriate for ordinary guest; privacy mode must not imply privileged execution."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/blocked-audit.sh",
+      "sha256": "53bc6127b09bc568f4751be742a0012c518eaabb8c12a2a3e0852d49ff7d196f",
+      "requirement": "Review denial evidence",
+      "disposition": "replace",
+      "reason": "Legacy command log lacks trustworthy source/correlation/privacy and contains test noise."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "scripts/merge-audit.sh",
+      "sha256": "e8a441b52f93020e3a9937587f5372da4948be87d0bbc5fba9eb690a62d93f63",
+      "requirement": "Audit merge outcomes",
+      "disposition": "migrate",
+      "reason": "Retain outcome observability using controller/GitHub correlation without raw command persistence."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "hooks/merge-lock.sh",
+      "sha256": "3061f3ae119f53431d819be64277f3f2a0e97413b32706a6382fc6e6fd46352f",
+      "requirement": "Bound merge authorization",
+      "disposition": "replace",
+      "reason": "Move approval authority out of user-owned files; bind one-use grant to repo, PR and head SHA."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "hooks/pre-merge-review.sh",
+      "sha256": "803e48021a9c4d91bcc5eb0319bc25f3e68066abce3ecf84ef00df20a5f6ff2e",
+      "requirement": "Review merge readiness",
+      "disposition": "split",
+      "reason": "Retain independent check/review evidence; controller checks authority and exact revision."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "hooks/run-review.sh",
+      "sha256": "9890a8d4a078ddbd892f12a5951a939bdcc65ff79cb7f193bc4be2233d7eb073",
+      "requirement": "Code review",
+      "disposition": "retain_rewrite",
+      "reason": "Keep quality analysis isolated and credential-free; model verdict cannot create authority."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "gate-rules.conf",
+      "sha256": "8f2346df7f52c8459963ca1aad26b14cb03232bb20f6a2cbf4f6b9828e3563d2",
+      "requirement": "Route text review",
+      "disposition": "migrate",
+      "reason": "One versioned policy controls external text capability; no writable routing exemptions."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "merge-lock-policy.conf",
+      "sha256": "d49c1f93482b18bcbfe338849f05c01fa48d6d8145f82c3a9eb7505dc1d37ea8",
+      "requirement": "Route merge approval",
+      "disposition": "migrate",
+      "reason": "Central trusted capability policy replaces shell and CLI exceptions."
+    },
+    {
+      "repository": "smartwatermelon/claude-config",
+      "path": "copy-paths.conf",
+      "sha256": "c945757a3599e0620e12b4b233150d0eaa527ea65a5a28304a0951eae8e8c444",
+      "requirement": "Identify external copy",
+      "disposition": "retain_separate",
+      "reason": "Content/quality routing remains useful; not an agent privilege boundary."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "bin/claude-wrapper",
+      "sha256": "e5d4e46f761603df34ed5adb8e6c73a9896bb71b9e4b6d32e2ebaa37c2b043ed",
+      "requirement": "Start Claude session",
+      "disposition": "rewrite",
+      "reason": "Separate guest launch from authenticated human host profiles."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "bin/claude-wrapper-lite",
+      "sha256": "4452e4b2f084d22f0a51860219ea3d892629f178d1560679c90d24b42b2c1ff5",
+      "requirement": "Minimal session launch",
+      "disposition": "consolidate",
+      "reason": "Share one sealed launch contract; do not duplicate security policy in two wrappers."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/machine-settings.sh",
+      "sha256": "8790a893a645096520b237d24b80d8cf19b8e9052823d02fae7905f20232625d",
+      "requirement": "Host preference overlay",
+      "disposition": "retain_nonsecurity",
+      "reason": "Optional --settings overlay cannot be required containment."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/credentials.sh",
+      "sha256": "7d6aabaab16e0761383e11828f81bf33c73fc8c05a8a044b5d3d40d31505d367",
+      "requirement": "Select and load credentials",
+      "disposition": "replace_agent_path",
+      "reason": "Do not expose 1Password service-account or broad GitHub write tokens to ordinary agents."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/secrets-loader.sh",
+      "sha256": "f5e9199af9fa53a98c643dd9a01a271988cd9ad4bb54d449c320c087f88888ac",
+      "requirement": "Per-project secrets",
+      "disposition": "replace_agent_path",
+      "reason": "Guest receives only explicitly scoped task credentials; host never loads agent-authored secret references."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/pre-launch.sh",
+      "sha256": "4ad38ae4931e063e1f780284d21d0f169f0ab9c2468bf6203571db5615b8eb43",
+      "requirement": "Project startup",
+      "disposition": "remove_from_host_agent_path",
+      "reason": "Sources repository code after secret injection; run project setup only inside isolated guest."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/binary-discovery.sh",
+      "sha256": "c80bfd2658989792f38581e1060c7dac13785f3becd8c4016d5a1c5d049a1d61",
+      "requirement": "Find executable",
+      "disposition": "rewrite_for_release",
+      "reason": "Pin trusted executable release/provenance; ownership and mode alone are insufficient."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/git-identity.sh",
+      "sha256": "69908e2046ea3f2acfa7c94c4a8016868d285141a106944367dc8485c4009f87",
+      "requirement": "Attribute commits",
+      "disposition": "retain_nonsecurity",
+      "reason": "Author/committer and SSH identity selection are useful attribution, not confinement."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/permissions.sh",
+      "sha256": "966bfd84be1ef8209801aeddcf83a08d3a052c62c23cb045eddc4db35039c791",
+      "requirement": "Check file modes",
+      "disposition": "retain_nonsecurity",
+      "reason": "Local permission hygiene cannot distinguish same-user human and agent."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/path-security.sh",
+      "sha256": "3ce8cf36060879003e5153c62bac462ccbb206d82bfbccdb3e0810dbb0e2366a",
+      "requirement": "Resolve paths",
+      "disposition": "retain_review",
+      "reason": "Path checks remain useful but require immutable parent/context to resist races."
+    },
+    {
+      "repository": "smartwatermelon/claude-wrapper",
+      "path": "lib/remote-session.sh",
+      "sha256": "73ecfab9fa37ca00eabc55935aa2b5b9d07c0e84b0ab837a4e674cd3b3d6ddc2",
+      "requirement": "Remote control UX",
+      "disposition": "retain_review",
+      "reason": "Enable only if remote sessions remain inside same guest trust boundary."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "bash/aliases.sh",
+      "sha256": "108832790c3ac12d071959429af8a525337282a43171c4029f1947e2733c7a73",
+      "requirement": "Launch conveniences",
+      "disposition": "rewrite_privileged_after_approval",
+      "reason": "Keep clauded/suclauded human functions; replace timeout bypass with native authenticated launch."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "bash/gh-wrapper.sh",
+      "sha256": "24f42a96eb78b80a20d381cb01aec405569afdd64791182fe0acf62a0a83780f",
+      "requirement": "GitHub gate interception",
+      "disposition": "retire_security_role",
+      "reason": "Credential-free guest plus bounded external broker removes shell interception as authority."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "bash/git-wrapper.sh",
+      "sha256": "8406a57e7097088643c7619c1c91c19409d3ed6835dc3f22236960acf6b24a27",
+      "requirement": "Git workflow interception",
+      "disposition": "retire_security_role",
+      "reason": "Keep ergonomic checks if useful, but security comes from guest/remote policy."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "bash/gpush-wrapper.sh",
+      "sha256": "1a5d6f295004d3476a0c981453b3aa82584fddc635c11c9628bac3c61f0ca727",
+      "requirement": "Push workflow interception",
+      "disposition": "retire_security_role",
+      "reason": "Enforce publishing at credential boundary rather than shell function identity."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "bash/functions.sh",
+      "sha256": "d848db07bb8baf9d8476caf0c9c9f11bd3a935a3db55831de9109f07fd5b38e0",
+      "requirement": "Shared shell functions",
+      "disposition": "retain_trim",
+      "reason": "Remove obsolete security interception once broker is proven; keep unrelated functions."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "git/hooks/pre-commit",
+      "sha256": "45e25f6852f2d03a71cbf8e7e1c5e846f87b25fdcd3c1dee01a7ba7a0d3f9e52",
+      "requirement": "Local lint and review",
+      "disposition": "retain_quality",
+      "reason": "Useful developer feedback; not unbypassable security."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "git/hooks/pre-push",
+      "sha256": "d3c1e20fcd98c1192496af026950e5533784539381864d932fe7dba05608d449",
+      "requirement": "Push quality gates",
+      "disposition": "retain_quality_trim",
+      "reason": "Environment-driven opt-outs cannot authorize remote writes; retire duplicate security logic."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "git/hooks/commit-msg",
+      "sha256": "8493e256eeb6e8fe8d94984edbdcade9783ddcf3971d5cf71b7f478f6e023324",
+      "requirement": "Commit text validation",
+      "disposition": "retain_quality",
+      "reason": "Quality lint can remain; authority is separate."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "git/hooks/post-checkout",
+      "sha256": "d8a1ed9edfb7bd1fab428f6b3f71e1d2fdbf94bfa02796dba1ebf8ebc01bc719",
+      "requirement": "Scaffold checkout",
+      "disposition": "retain_guest_only",
+      "reason": "Never run repository-influenced hooks in trusted host controller."
+    },
+    {
+      "repository": "smartwatermelon/dotfiles",
+      "path": "git/hooks/post-commit",
+      "sha256": "3f0f1bea77bc6f01b0781106f68c3aaf801fbc5d7eaac768c1b1470919295003",
+      "requirement": "Post-commit work",
+      "disposition": "retain_guest_only",
+      "reason": "Keep only needed quality tasks in guest, not as authorization signals."
+    },
+    {
+      "repository": "smartwatermelon/scripts",
+      "path": "my-repos.sh",
+      "sha256": "aeae047c1614d0323b9e91dfca66828358a6a38659b237635006bd6f13f37b57",
+      "requirement": "Fleet repository maintenance",
+      "disposition": "retain_human_ops",
+      "reason": "Command belongs to scripts, not a separate repo; does not grant agent authority."
+    },
+    {
+      "repository": "smartwatermelon/scripts",
+      "path": "lib/repo-walker.sh",
+      "sha256": "9902601e487a176977d35ac33b24598aa72623df07c50661d13a7ffcab673b85",
+      "requirement": "Fetch/pull/report repositories",
+      "disposition": "retain_human_ops",
+      "reason": "Can switch branches/pull and repair remotes; do not execute on host as an unrestricted agent capability."
+    },
+    {
+      "repository": "smartwatermelon/scripts",
+      "path": "refresh-claude-secrets.sh",
+      "sha256": "d76f1b7621b606d1cf97b5eea1724860249990ba2e6117856246eb3a61cc302b",
+      "requirement": "Credential maintenance",
+      "disposition": "restrict_host",
+      "reason": "Keep credential refresh outside guest and unauthenticated capability routes."
+    },
+    {
+      "repository": "smartwatermelon/scripts",
+      "path": "claude-config-backup.sh",
+      "sha256": "a635c066f566d71434f1aa8983dae8cd83d0a75d8c5842d7b5df8c8f82c0110b",
+      "requirement": "Backup runtime state",
+      "disposition": "retain_review",
+      "reason": "Independent recovery remains useful; ensure logs/credentials not exported through guest."
+    },
+    {
+      "repository": "smartwatermelon/scripts",
+      "path": "docs/plans/2026-10-23-mimolette-vm-test-runner.md",
+      "sha256": "1b9ead8cb5629c6b1ddbaabdce753080c8b958f0b1b980d825695b1efe2b548f",
+      "requirement": "Disposable native test design",
+      "disposition": "supersede_details",
+      "reason": "Not built; headless launch/network isolation unresolved; no host destructive probes required."
+    },
+    {
+      "repository": "smartwatermelon/github-workflows",
+      "path": ".github/workflows/standards-check.yml",
+      "sha256": "0d3c5832ff0197b515f4c69c5beb98ea921e6513ee3ad8d9e688b7bdbc3b9f2b",
+      "requirement": "Independent CI quality",
+      "disposition": "retain",
+      "reason": "Remote deterministic checks remain necessary."
+    },
+    {
+      "repository": "smartwatermelon/github-workflows",
+      "path": ".github/workflows/dependabot-auto-merge.yml",
+      "sha256": "c4694f36814a2d804379f6ccc931b82cb10c57fc3ecd450cbd4ec08bad6b8b18",
+      "requirement": "Automated dependency merge",
+      "disposition": "retain_audit_credentials",
+      "reason": "Privileged trigger is a separate actor; never execute untrusted checkout with merge credentials."
+    },
+    {
+      "repository": "smartwatermelon/github-workflows",
+      "path": ".github/workflows/claude-assistant.yml",
+      "sha256": "ab5a5247663030b84be1fe1c572d6220971e85846439abccabe253b988bf0407",
+      "requirement": "CI agent runtime",
+      "disposition": "audit_separate_runtime",
+      "reason": "Cloud agents need explicit token and execution boundary; host wrapper does not constrain them."
+    }
+  ],
+  "live_removals_authorized": false,
+  "notes": [
+    "Disposition is conditional on replacement acceptance tests; no live control removed.",
+    "my-repos is scripts/my-repos.sh; no smartwatermelon/my-repos repository exists.",
+    "No worktree reaper implementation was found among tracked scripts paths; do not presume it is installed."
+  ]
+}
