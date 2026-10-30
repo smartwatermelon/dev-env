@@ -39,6 +39,47 @@ else
   echo "**${total} open Dependabot PRs**, ${actionable} awaiting action, oldest ${oldest} days."
   echo
 
+  # dev-env#228: the auto-merge path's failures. Reasons follow the v3
+  # gate's label contract.
+  not_merged="$(jq -c 'select(.notMerged == true)' <<<"${input}")"
+  if [[ -n "${not_merged}" ]]; then
+    echo "## Not merged automatically"
+    echo
+    echo "Open past the deadline (${DIGEST_STALE_HOURS:-6} hours) or labeled \`dependabot-blocked\` by the auto-merge gate. Fix a red default branch first: it blocks every Dependabot PR in that repository, security fixes included."
+    echo
+    if ! nm_rows="$(jq -r '
+      def act: {
+        "main-red": "Fix the default branch first; it is red on the same checks.",
+        "red-check": "Fix the bump: a check fails on this PR.",
+        "timeout": "Re-run, or look at slow checks.",
+        "no-checks": "Add a required check such as standards-check.",
+        "no-sanity-check": "Name a sanity check (tests or build) in the auto-merge caller.",
+        "cannot-evaluate": "Investigate the gate run.",
+        "merge-failed": "Check branch protection and approvals.",
+        "conflicted": "Comment `@dependabot recreate`.",
+        "behind": "Comment `@dependabot rebase`.",
+        "hook-blocked": "A NEUTRAL check or requested changes; see the pre-merge hook section below.",
+        "not-attempted": "Check the auto-merge caller: v3 pin, allow_auto_merge, merge App installed.",
+        "still-running": "Checks still running past the deadline: look for a stuck check."
+      }[.notMergedReason] // "Read the gate run.";
+      def age: if .ageHours == null then (.ageDays | tostring) + "d"
+               elif .ageHours < 48 then (.ageHours | tostring) + "h"
+               else (.ageDays | tostring) + "d" end;
+      # main-red first: one fix there unblocks every PR in the repository.
+      [inputs] | sort_by((if .notMergedReason == "main-red" then 0 else 1 end), .repo, .number)[]
+      | "| [" + .repo + "#" + (.number | tostring) + "](https://github.com/" + .repo + "/pull/" + (.number | tostring) + ") "
+        + "| " + (.notMergedReason // "unknown") + " | " + act + " | " + age + " |"
+    ' -n <<<"${not_merged}" 2>/dev/null)" || [[ -z "${nm_rows}" ]]; then
+      nm_count="$(jq -s 'length' <<<"${not_merged}")"
+      echo "**${nm_count} PRs were not merged automatically, but listing them failed.** See the run log."
+    else
+      echo '| PR | Reason | Who acts | Age |'
+      echo '| --- | --- | --- | --- |'
+      echo "${nm_rows}"
+    fi
+    echo
+  fi
+
   # Buckets in the order a human should work them: things that need only a
   # decision first, things that need work last.
   render_bucket() {
@@ -469,25 +510,26 @@ render_codeql() {
   fi
 }
 
-# Dependabot security alerts. As for CodeQL: unreadable is never on or off,
-# and an all-unreadable survey says so. Forks are exempt, as above.
-render_alerts() {
-  local file="$1" recs surveyed on off exempt unreadable by_class owners rows
-  echo "## Dependabot alerts"
+# Alerts and security updates (#228). Args: field heading label Title what
+# endpoint column noun.
+render_setting() {
+  local field="$1" heading="$2" label="$3" title="$4" what="$5" endpoint="$6" column="$7" noun="$8"
+  local file="${standards_file}" recs surveyed on off paused exempt unreadable by_class owners rows gaps
+  echo "## ${heading}"
   echo
   if [[ ! -r "${file}" ]] || ! jq -e -s 'type == "array"' "${file}" >/dev/null 2>&1; then
-    echo "**Not checked.** The survey produced no readable result, so no repository's alerts setting was verified."
+    echo "**Not checked.** The survey produced no readable result, so no repository's ${what} was verified."
     echo
     return 0
   fi
-  # No alerts object (older or crashed survey) is unreadable, not on.
-  if ! recs="$(jq -cs '
+  # No result object (older or crashed survey) is unreadable, not on.
+  if ! recs="$(jq -cs --arg f "${field}" --arg noun "${noun}" '
     [.[] | select(type == "object" and (.repo | type == "string") and .state != "archived")
-     | .a = (if (.alerts | type) == "object" and (.alerts.state | type) == "string"
-             then .alerts
-             else {state: "unreadable", detail: "no alerts result recorded"} end)]
+     | .a = (if (.[$f] | type) == "object" and (.[$f].state | type) == "string"
+             then .[$f]
+             else {state: "unreadable", detail: ("no " + $noun + " result recorded")} end)]
   ' "${file}" 2>/dev/null)" || [[ -z "${recs}" ]]; then
-    echo "**Not checked.** The survey output could not be summarized, so no repository's alerts setting was verified."
+    echo "**Not checked.** The survey output could not be summarized, so no repository's ${what} was verified."
     echo
     return 0
   fi
@@ -495,20 +537,26 @@ render_alerts() {
   surveyed="$(jq 'length' <<<"${recs}")"
   on="$(jq '[.[] | select(.a.state == "on")] | length' <<<"${recs}")"
   off="$(jq '[.[] | select(.a.state == "off")] | length' <<<"${recs}")"
+  paused="$(jq '[.[] | select(.a.state == "paused")] | length' <<<"${recs}")"
   exempt="$(jq '[.[] | select(.a.state == "exempt")] | length' <<<"${recs}")"
-  unreadable=$((surveyed - on - off - exempt))
+  unreadable=$((surveyed - on - off - paused - exempt))
+  gaps=$((off + paused))
 
-  echo "Whether each repository has Dependabot security alerts turned on. Off is a gap unless the repository is exempt."
+  echo "Whether each repository has ${label} turned on. Off is a gap unless the repository is exempt."
   echo
   if [[ "${surveyed}" -eq 0 ]]; then
-    echo "**No repository was surveyed**, so no alerts setting was verified."
+    echo "**No repository was surveyed**, so no ${what} was verified."
     echo
   elif [[ "${unreadable}" -eq "${surveyed}" ]]; then
     # Zero gaps out of zero reads is not "all on".
-    echo "**Alerts could not be verified for any of ${surveyed} repositories.** Every read failed or returned no usable state. The likely cause is a token without \`Administration: Read\`, which the vulnerability-alerts endpoint needs. Nothing here means alerts are on or off anywhere."
+    echo "**${title} could not be verified for any of ${surveyed} repositories.** Every read failed or returned no usable state. The likely cause is a token without \`Administration: Read\`, which the ${endpoint} endpoint needs. Nothing here means ${title,,} are on or off anywhere."
     echo
   else
-    echo "**${surveyed} repositories surveyed**: ${on} on, ${exempt} exempt, **${off} off, ${unreadable} unreadable.**"
+    if [[ "${paused}" -gt 0 ]]; then
+      echo "**${surveyed} repositories surveyed**: ${on} on, ${exempt} exempt, **${off} off, ${paused} paused, ${unreadable} unreadable.**"
+    else
+      echo "**${surveyed} repositories surveyed**: ${on} on, ${exempt} exempt, **${off} off, ${unreadable} unreadable.**"
+    fi
     echo
     if [[ "${exempt}" -gt 0 ]]; then
       by_class="$(jq -r '[.[] | select(.a.state == "exempt")] | group_by(.a.exemptClass)
@@ -518,16 +566,16 @@ render_alerts() {
       echo "${by_class}"
       echo
     fi
-    if [[ "${off}" -eq 0 && "${unreadable}" -eq 0 ]]; then
-      echo "No gaps: every surveyed repository has Dependabot security alerts on or is exempt."
+    if [[ "${gaps}" -eq 0 && "${unreadable}" -eq 0 ]]; then
+      echo "No gaps: every surveyed repository has ${label} on or is exempt."
       echo
     fi
   fi
-  if [[ "${off}" -gt 0 || "${unreadable}" -gt 0 ]]; then
+  if [[ "${gaps}" -gt 0 || "${unreadable}" -gt 0 ]]; then
     if ! rows="$(jq -r '
       def cell: tostring | gsub("[\r\n]+"; " ") | gsub("\\|"; "\\|");
-      def name: if .a.state == "off" then "OFF" else "UNREADABLE" end;
-      sort_by((if .a.state == "off" then 0 else 1 end), .repo)[]
+      def name: {"off": "OFF", "paused": "PAUSED"}[.a.state] // "UNREADABLE";
+      sort_by(({"off": 0, "paused": 1}[.a.state] // 2), .repo)[]
       | select(.a.state != "on" and .a.state != "exempt")
       | "| [" + .repo + "](https://github.com/" + .repo + ") | " + name
         + (if .a.detail then ": " + (.a.detail | cell) else "" end) + " |"
@@ -535,14 +583,14 @@ render_alerts() {
       echo "**Some repositories need attention, but listing them failed.** See the run log."
       echo
     else
-      echo "| Repo | Dependabot alerts |"
+      echo "| Repo | ${column} |"
       echo "| --- | --- |"
       echo "${rows}"
       echo
     fi
   fi
   if [[ -n "${owners}" ]]; then
-    echo "**Not listed, so not surveyed:** ${owners}. The alerts setting of their repositories is unknown."
+    echo "**Not listed, so not surveyed:** ${owners}. The ${what} of their repositories is unknown."
     echo
   fi
 }
@@ -551,7 +599,10 @@ if [[ -n "${standards_file}" ]]; then
   render_standards "${standards_file}"
   render_protection "${standards_file}"
   render_codeql "${standards_file}"
-  render_alerts "${standards_file}"
+  render_setting alerts "Dependabot alerts" "Dependabot security alerts" \
+    Alerts "alerts setting" vulnerability-alerts "Dependabot alerts" alerts
+  render_setting securityUpdates "Dependabot security updates" "Dependabot security updates" \
+    "Security updates" "security-updates setting" automated-security-fixes "Dependabot security updates" security-updates
 fi
 
 echo "---"

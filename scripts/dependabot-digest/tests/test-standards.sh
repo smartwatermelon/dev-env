@@ -474,7 +474,7 @@ else
   _fail "the refused alerts read lost its reason"
 fi
 
-al_body="$(sed -n '/^## Dependabot alerts/,/^---/p' "${pbody}")"
+al_body="$(sed -n '/^## Dependabot alerts/,/^## Dependabot security updates/p' "${pbody}")"
 if [[ "${al_body}" == *'**17 repositories surveyed**: 2 on, 1 exempt, **1 off, 13 unreadable.**'* ]]; then
   _pass "the alerts summary counts each state"
 else
@@ -500,7 +500,7 @@ fi
 
 # Every o and p read failed: a token without Administration: Read must not
 # render as alerts on everywhere.
-al_all="$(sed -n '/^## Dependabot alerts/,/^---/p' "${body}")"
+al_all="$(sed -n '/^## Dependabot alerts/,/^## Dependabot security updates/p' "${body}")"
 if [[ "${al_all}" == *"**Alerts could not be verified for any of 8 repositories.**"* \
   && "${al_all}" == *'Administration: Read'* && "${al_all}" != *"No gaps"* \
   && "${al_all}" != *"repositories surveyed"* && "${al_all}" == *'**Not listed, so not surveyed:** q.'* ]]; then
@@ -516,6 +516,69 @@ _has 'No gaps: every surveyed repository has Dependabot security alerts on or is
 _hasnt '| Repo | Dependabot alerts |' "an all-on alerts survey has no table" "${WORK}/alclean.md"
 _has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no alerts result recorded |' \
   "a record without an alerts field is unreadable, not on" "${WORK}/legacy.md"
+
+# Security updates (dev-env#228). Captured 2026-10-30: 200 with enabled
+# true, paused false. The off answer is not captured.
+_sf() {
+  local got
+  got="$(jq -r --arg r "$1" 'select(.repo == $r) | .securityUpdates.state // "none"' "${prot}")"
+  if [[ "${got}" == "$2" ]]; then _pass "$3"; else _fail "$3 (security updates: '${got}', want '$2')"; fi
+}
+_sf smartwatermelon/dev-env on "enabled and not paused is on"
+_sf nightowlstudiollc/cleanroom on "on for a private repo is on"
+_sf nightowlstudiollc/tnjcleaning off "enabled false on a non-fork is off"
+_sf smartwatermelon/withheld paused "enabled but paused is paused, a gap"
+_sf twistedmelonman/Instapaper-MCP exempt "a fork with security updates off is exempt"
+_sf smartwatermelon/noflags unreadable \
+  "off with no fork flag is unreadable: exemption cannot be decided"
+_sf smartwatermelon/nullflag unreadable "KNOWN-BAD: a null enabled flag is unreadable, never off"
+_sf smartwatermelon/claude-config-backup unreadable \
+  "KNOWN-BAD: enabled with no paused flag is unreadable, never on"
+_sf nightowlstudiollc/nos-private unreadable \
+  "KNOWN-BAD: a 404 is unreadable, never off (the off answer is not captured)"
+_sf smartwatermelon/refused unreadable "KNOWN-BAD: a 403 is unreadable, never off"
+_sf twistedmelonman/tm-old none "an archived repo has no security-updates result"
+if jq -e 'select(.repo == "smartwatermelon/refused") | .securityUpdates.detail | test("Resource not accessible by integration")' "${prot}" >/dev/null 2>&1; then
+  _pass "the reason a security-updates read failed is kept"
+else
+  _fail "the refused security-updates read lost its reason"
+fi
+
+sf_body="$(sed -n '/^## Dependabot security updates/,/^---/p' "${pbody}")"
+if [[ "${sf_body}" == *'**17 repositories surveyed**: 2 on, 1 exempt, **1 off, 1 paused, 12 unreadable.**'* ]]; then
+  _pass "the security-updates summary counts each state, paused included"
+else
+  _fail "the security-updates summary is wrong: ${sf_body}"
+fi
+if [[ "${sf_body}" == *'| [nightowlstudiollc/tnjcleaning](https://github.com/nightowlstudiollc/tnjcleaning) | OFF: Dependabot security updates are turned off |'* \
+  && "${sf_body}" == *'| [smartwatermelon/withheld](https://github.com/smartwatermelon/withheld) | PAUSED: Dependabot security updates are paused |'* \
+  && "${sf_body}" == *'| Repo | Dependabot security updates |'* \
+  && "${sf_body}" != *'[smartwatermelon/dev-env]'* && "${sf_body}" != *'[twistedmelonman/Instapaper-MCP]'* \
+  && "${sf_body}" != *'No gaps'* ]]; then
+  _pass "off, paused and unreadable repos are listed; on and exempt repos are not"
+else
+  _fail "the security-updates table is wrong: ${sf_body}"
+fi
+sf_rows="$(grep '^| \[' <<<"${sf_body}")"
+sf_row1="${sf_rows%%$'\n'*}"
+sf_rest="${sf_rows#*$'\n'}"
+sf_row2="${sf_rest%%$'\n'*}"
+if [[ "${sf_row1}" == *"| OFF:"* && "${sf_row2}" == *"| PAUSED:"* ]]; then
+  _pass "off rows come first, then paused, then unreadable"
+else
+  _fail "security-updates rows are out of order: ${sf_rows}"
+fi
+sf_all="$(sed -n '/^## Dependabot security updates/,/^---/p' "${body}")"
+if [[ "${sf_all}" == *"**Security updates could not be verified for any of 8 repositories.**"* \
+  && "${sf_all}" == *'automated-security-fixes endpoint'* && "${sf_all}" != *"No gaps"* ]]; then
+  _pass "an all-unreadable security-updates survey says it verified nothing"
+else
+  _fail "an all-unreadable security-updates survey read as a result: ${sf_all}"
+fi
+_has 'No gaps: every surveyed repository has Dependabot security updates on or is exempt.' \
+  "an all-on security-updates survey says so" "${WORK}/alclean.md"
+_has '| [o/legacy](https://github.com/o/legacy) | UNREADABLE: no security-updates result recorded |' \
+  "a record without a securityUpdates field is unreadable, not on" "${WORK}/legacy.md"
 
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-standards: all assertions passed"

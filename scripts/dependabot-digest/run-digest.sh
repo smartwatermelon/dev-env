@@ -121,9 +121,52 @@ else
   title="Dependabot queue: ${actionable} of ${count} PRs awaiting action"
 fi
 
+# dev-env#228: a daily issue nobody reads is how PRs sat unseen before
+# (dev-env#120), so the automatic path's failures also go to ntfy.
+nm_count="$(jq -s '[.[] | select(.notMerged == true)] | length' "${classified}" 2>/dev/null)"
+if [[ ! "${nm_count}" =~ ^[0-9]+$ ]]; then
+  echo "run-digest.sh: could not count PRs that were not merged automatically;" \
+    "refusing to publish a digest that may hide them" >&2
+  exit 1
+fi
+
 if [[ "${dry_run}" == "true" ]]; then
   cat "${body}"
+  [[ "${nm_count}" -gt 0 ]] && echo "run-digest.sh: dry run; would push an ntfy alert for ${nm_count} PRs" >&2
   exit 0
 fi
 
-GH_TOKEN="${issue_token}" bash "${HERE}/upsert-issue.sh" "${ISSUE_REPO}" "${title}" <"${body}"
+upserted="$(GH_TOKEN="${issue_token}" bash "${HERE}/upsert-issue.sh" "${ISSUE_REPO}" "${title}" <"${body}")" || exit $?
+printf '%s\n' "${upserted}"
+# upsert-issue.sh prints "updated <repo>#<n>" or "created <url>".
+issue_url="https://github.com/${ISSUE_REPO}/issues"
+if [[ "${upserted}" =~ ^updated\ ([^#[:space:]]+)#([0-9]+)$ ]]; then
+  issue_url="https://github.com/${BASH_REMATCH[1]}/issues/${BASH_REMATCH[2]}"
+elif [[ "${upserted}" =~ ^created\ (https://[^[:space:]]+)$ ]]; then
+  issue_url="${BASH_REMATCH[1]}"
+fi
+
+[[ "${nm_count}" -eq 0 ]] && exit 0
+# The topic is the secret. It goes only in the URL; curl output is discarded
+# so no error can echo it.
+if [[ -z "${NTFY_TOPIC-}" ]]; then
+  echo "::error::NTFY_TOPIC is empty; ${nm_count} PRs not merged automatically, and no alert was sent. See docs/runbooks/site-monitor-ntfy.md"
+  exit 1
+fi
+main_red="$(jq -s '[.[] | select(.notMerged == true and .notMergedReason == "main-red")] | length' "${classified}" 2>/dev/null)"
+nm_title="Dependabot: ${nm_count} PRs not merged automatically"
+[[ "${main_red:-0}" -gt 0 ]] && nm_title+=", ${main_red} behind a red default branch"
+nm_lines="$(jq -rs '[.[] | select(.notMerged == true)]
+  | sort_by((if .notMergedReason == "main-red" then 0 else 1 end), .repo, .number)
+  | (.[:10][] | "\(.repo)#\(.number): \(.notMergedReason)"),
+    (if length > 10 then "and \(length - 10) more" else empty end)' "${classified}" 2>/dev/null)"
+priority=3
+[[ "${main_red:-0}" -gt 0 ]] && priority=4
+if ! printf '%s' "${nm_lines:-see the digest issue}" | curl -fsS --max-time 20 --retry 2 \
+  -H "Title: ${nm_title}" -H "Priority: ${priority}" -H "Tags: package" \
+  -H "Click: ${issue_url}" \
+  --data-binary @- "${NTFY_BASE:-https://ntfy.sh}/${NTFY_TOPIC}" >/dev/null 2>&1; then
+  echo "::error::ntfy delivery failed for '${nm_title}'"
+  exit 1
+fi
+echo "ntfy: sent priority ${priority}: ${nm_title}"

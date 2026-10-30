@@ -187,6 +187,57 @@ else
 fi
 
 
+# dev-env#228: a PR the automatic path did not merge. The synthetic fixture is
+# dated 2026-09-01, so every record there is past the deadline.
+expect_nm() {
+  local repo="$1" want="$2" why="$3" got
+  got="$(jq -r --arg r "${repo}" 'select(.repo == $r) | "\(.notMerged) \(.notMergedReason)"' "$4")"
+  if [[ "${got}" == "${want}" ]]; then _pass "${repo}: ${want} (${why})"; else _fail "${repo}: expected '${want}', got '${got}' (${why})"; fi
+}
+expect_nm o/ready "true not-attempted" "green but still open: the gate did not merge it" "${out}"
+expect_nm o/needswork "true red-check" "its own required check failed" "${out}"
+expect_nm o/inherited "true main-red" "every failure is also red on the base branch" "${out}"
+expect_nm o/baseunknown "true red-check" \
+  "base state unreadable: never blamed on main" "${out}"
+expect_nm o/conflicted "true conflicted" "a conflict stops the merge" "${out}"
+expect_nm o/held "false null" "a held PR was parked on purpose" "${out}"
+
+# Fresh records, so the age deadline can be tested on both sides.
+fresh="${WORK}/fresh.ndjson"
+hour_ago="$(date -u -v-1H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null)" \
+  || hour_ago="$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')"
+jq -c --arg t "${hour_ago}" '
+  select(.repo == "o/ready" or .repo == "o/needswork")
+  | .createdAt = $t | .updatedAt = $t' "${FIX}/synthetic.ndjson" >"${fresh}"
+jq -c --arg t "${hour_ago}" '
+  select(.repo == "o/ready")
+  | .repo = "o/gatelabel" | .createdAt = $t | .updatedAt = $t
+  | .labels += ["dependabot-blocked", "dependabot-blocked:main-red"]' "${FIX}/synthetic.ndjson" >>"${fresh}"
+jq -c 'select(.repo == "o/ready") | .repo = "o/barelabel" | .labels += ["dependabot-blocked"]' \
+  "${FIX}/synthetic.ndjson" >>"${fresh}"
+fout="${WORK}/fresh.out"
+if ! bash "${CLASSIFY}" <"${fresh}" >"${fout}" 2>"${WORK}/fresh.err"; then
+  _fail "classify.sh exited non-zero on fresh records"
+fi
+expect_nm o/ready "false null" "an hour-old PR is inside the deadline" "${fout}"
+expect_nm o/needswork "false null" "an hour-old red PR is inside the deadline too" "${fout}"
+expect_nm o/gatelabel "true main-red" \
+  "the gate's reason label counts at once and wins over the computed reason" "${fout}"
+expect_nm o/barelabel "true unknown" "a bare dependabot-blocked label with no reason is unknown" "${fout}"
+# An empty stream is all() true, so the count must match the input too.
+fresh_n="$(grep -c . "${fresh}")"
+if DIGEST_STALE_HOURS=0 bash "${CLASSIFY}" <"${fresh}" \
+  | jq -e -s --argjson n "${fresh_n}" 'length == $n and $n > 0 and all(.[]; .notMerged)' >/dev/null 2>&1; then
+  _pass "DIGEST_STALE_HOURS moves the deadline"
+else
+  _fail "DIGEST_STALE_HOURS=0 did not mark every record not merged"
+fi
+if DIGEST_STALE_HOURS=six bash "${CLASSIFY}" <"${fresh}" >/dev/null 2>&1; then
+  _fail "a non-numeric DIGEST_STALE_HOURS was accepted"
+else
+  _pass "a non-numeric DIGEST_STALE_HOURS is refused"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-classify: all assertions passed"
 else

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Usage: standards.sh <owner>. Prints one JSON record per repo: standards-check
-# annotations, or the reason none were read, plus the default branch's
-# protection state (dev-env#211), CodeQL default setup (dev-env#166) and
-# whether Dependabot security alerts are on.
+# Usage: standards.sh <owner>. One JSON record per repo: annotations,
+# protection, CodeQL, alerts, security updates.
 set -uo pipefail
 unset CDPATH
 
@@ -37,7 +35,7 @@ emit() {
     --argjson ann "${6:-[]}" --arg runAt "${7-}" \
     --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
     --argjson prot "${PROT_JSON:-null}" --argjson cq "${CQ_JSON:-null}" \
-    --argjson al "${ALERTS_JSON:-null}" \
+    --argjson al "${ALERTS_JSON:-null}" --argjson sf "${SF_JSON:-null}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
@@ -45,10 +43,11 @@ emit() {
       runAt: (if $runAt == "" then null else $runAt end),
       rulesAt: (if $rulesAt == "" then null else $rulesAt end),
       rulesErr: (if $rulesErr == "" then null else $rulesErr end),
-      annotations: $ann, protection: $prot, codeql: $cq, alerts: $al}' 2>/dev/null)"
-  # If jq fails, the repo must still appear. Protection, CodeQL, alerts unknown.
+      annotations: $ann, protection: $prot, codeql: $cq, alerts: $al,
+      securityUpdates: $sf}' 2>/dev/null)"
+  # If jq fails, the repo must still appear. Every setting is unknown.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null,"alerts":null}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null,"alerts":null,"securityUpdates":null}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -384,6 +383,58 @@ probe_alerts() {
   fi
 }
 
+# dev-env#228: security updates. Only 200 with enabled false is off; the
+# real off answer is not captured, so any other status is unreadable.
+SF_JSON=""
+set_secfix() {
+  # set_secfix <state> <detail> [exempt class]
+  SF_JSON="$(jq -cn --arg s "$1" --arg d "$2" --arg c "${3-}" \
+    '{state: $s, detail: (if $d == "" then null else $d end),
+      exemptClass: (if $c == "" then null else $c end)}' 2>/dev/null)"
+  if [[ -z "${SF_JSON}" ]]; then
+    SF_JSON='{"state":"unreadable","detail":"could not encode the security-updates result","exemptClass":null}'
+  fi
+}
+
+# Prints "state<TAB>detail". An odd field is unreadable, never a result.
+read -r -d '' sf_verdict <<'JQ'
+if type != "object" or (.enabled | type) != "boolean"
+then "unreadable\tthe security-updates response is malformed"
+elif .enabled == false then "off\tDependabot security updates are turned off"
+elif (.paused | type) != "boolean" then "unreadable\ton, but the paused flag is missing"
+elif .paused then "paused\tDependabot security updates are paused"
+else "on\t"
+end
+JQ
+
+# Sets SF_JSON for one repo; a failed read is a state.
+probe_secfix() {
+  local nwo="$1" fork="$2" body why verdict state detail
+  if ! body="$(api "repos/${nwo}/automated-security-fixes")"; then
+    why="$(last_err "no detail")"
+    why="${why%"${why##*[![:space:]]}"}"
+    set_secfix unreadable "cannot read the security-updates setting: ${why}"
+    return 0
+  fi
+  verdict="$(jq -r "${sf_verdict}" <<<"${body}" 2>/dev/null)"
+  state="${verdict%%$'\t'*}"
+  detail="${verdict#*$'\t'}"
+  case "${state}" in
+    on | unreadable) set_secfix "${state}" "${detail}" ;;
+    off | paused)
+      # A fork is exempt; without a fork flag, exemption cannot be decided.
+      if [[ "${fork}" == "true" ]]; then
+        set_secfix exempt "${AL_EXEMPT_REASON[fork]}" fork
+      elif [[ "${fork}" != "false" ]]; then
+        set_secfix unreadable "security updates are ${state}, but the repository listing gave no fork flag, so exemption cannot be decided"
+      else
+        set_secfix "${state}" "${detail}"
+      fi
+      ;;
+    *) set_secfix unreadable "the security-updates response is malformed" ;;
+  esac
+}
+
 survey_repo() {
   local nwo="$1" branch="$2" head pulls pr pr_head run source ann count url
   if ! head="$(api "repos/${nwo}/commits/${branch}" --jq '.sha')" \
@@ -485,18 +536,21 @@ while IFS=$'\t' read -r nwo archived fork private branch; do
   PROT_JSON=""
   CQ_JSON=""
   ALERTS_JSON=""
+  SF_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
   elif [[ -z "${branch}" ]]; then
     set_prot unreadable "no default branch reported"
-    # Default setup and alerts are per repo, not per branch, so both are read.
+    # Default setup, alerts and security updates are per repo, so all are read.
     probe_codeql "${nwo}" "${fork}" "${private}"
     probe_alerts "${nwo}" "${fork}"
+    probe_secfix "${nwo}" "${fork}"
     emit "${nwo}" unreadable "no default branch reported"
   else
     probe_protection "${nwo}" "${branch}" "${fork}" "${private}"
     probe_codeql "${nwo}" "${fork}" "${private}"
     probe_alerts "${nwo}" "${fork}"
+    probe_secfix "${nwo}" "${fork}"
     survey_repo "${nwo}" "${branch}"
   fi
 done <<<"${repo_list}"

@@ -57,7 +57,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
-          # Reads CodeQL default setup (dev-env#166) and the Dependabot alerts setting.
+          # Reads CodeQL default setup (dev-env#166), the Dependabot alerts setting,
+          # and the security-updates setting (dev-env#228).
           permission-administration: read
 
       - name: Mint a token for nightowlstudiollc
@@ -71,7 +72,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
-          # Reads CodeQL default setup (dev-env#166) and the Dependabot alerts setting.
+          # Reads CodeQL default setup (dev-env#166), the Dependabot alerts setting,
+          # and the security-updates setting (dev-env#228).
           permission-administration: read
 
       - name: Mint a token for twistedmelonman
@@ -85,7 +87,8 @@ jobs:
           permission-contents: read
           permission-pull-requests: read
           permission-statuses: read
-          # Reads CodeQL default setup (dev-env#166) and the Dependabot alerts setting.
+          # Reads CodeQL default setup (dev-env#166), the Dependabot alerts setting,
+          # and the security-updates setting (dev-env#228).
           permission-administration: read
 
       - name: Build and publish the digest
@@ -108,6 +111,9 @@ jobs:
           DIGEST_PROBE_TWISTEDMELONMAN: twistedmelonman/ralph-burndown
           # Used only to write the issue in this repository.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # dev-env#228: PRs the auto-merge gate did not merge are pushed here,
+          # the same topic the site monitor uses. Empty with such PRs fails the run.
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           bash scripts/dependabot-digest/run-digest.sh --run-url "${RUN_URL}"

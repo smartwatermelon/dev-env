@@ -36,6 +36,8 @@
 #                    checks are failing. Merging is possible and probably wrong.
 #   waiting-on-ci    Required checks still queued or running.
 #   held             A human labelled it to stay put, or it is a draft.
+#
+# notMerged (dev-env#228): open DIGEST_STALE_HOURS or more, or gate-labeled.
 set -uo pipefail
 unset CDPATH
 
@@ -46,6 +48,13 @@ hold_labels='["hold","on-hold","do-not-merge","blocked","wip"]'
 # Check-name prefixes whose NEUTRAL the hook does not treat as blocking. Kept
 # byte-identical to the hook's own list; if the hook's list changes, this must.
 neutral_ok='["Pages changed","Header rules","Redirect rules","Seer"]'
+
+# dev-env#228: a Dependabot PR open this long is an auto-merge failure.
+stale_hours="${DIGEST_STALE_HOURS:-6}"
+if [[ ! "${stale_hours}" =~ ^[0-9]+$ ]]; then
+  echo "classify.sh: DIGEST_STALE_HOURS must be a whole number, got '${stale_hours}'" >&2
+  exit 2
+fi
 
 # Buffer the input so the record count can be compared before and after. jq
 # drops any record whose expression raises, and does so without a non-zero exit
@@ -72,7 +81,8 @@ if [[ "${in_count}" -eq 0 ]]; then
   exit 0
 fi
 
-output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_ok}" '
+output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_ok}" \
+  --argjson stale_hours "${stale_hours}" '
   # A check counts as failed only on a conclusive negative. SKIPPED and NEUTRAL
   # are deliberately absent: SKIPPED means the job chose not to run, and NEUTRAL
   # is handled separately because the hook treats it as blocking rather than as
@@ -112,6 +122,7 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
   | (.reviewDecision == "CHANGES_REQUESTED") as $changes_requested
 
   | .ageDays = (((now - (.createdAt | fromdateiso8601)) / 86400) | floor)
+  | .ageHours = (((now - (.createdAt | fromdateiso8601)) / 3600) | floor)
   | .staleDays = (((now - (.updatedAt | fromdateiso8601)) / 86400) | floor)
   | .requiredCount = ($req | length)
   # Deduplicate: a matrix job reports one check per leg under a single name
@@ -152,6 +163,27 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
       elif .mergeable == "MERGEABLE" then "ready-to-merge"
       else "waiting-on-ci"
       end)
+
+  # dev-env#228: the v3 gate labels a PR it will not merge (contract on
+  # the issue). Unlabeled: reason from state. Held is parked, not failed.
+  | ([.labels[] | select(startswith("dependabot-blocked:")) | ltrimstr("dependabot-blocked:")]
+     | first // null) as $gate_reason
+  | (any(.labels[]; . == "dependabot-blocked" or startswith("dependabot-blocked:"))) as $gate_blocked
+  | .gateReason = $gate_reason
+  | .notMerged = (.bucket != "held" and ($gate_blocked or .ageHours >= $stale_hours))
+  | .notMergedReason = (
+      if .notMerged | not then null
+      elif $gate_reason != null then $gate_reason
+      elif $gate_blocked then "unknown"
+      elif .bucket == "checks-unreadable" then "cannot-evaluate"
+      elif .bucket == "needs-work" or .bucket == "advisory-red" then
+        (if .baseRedKnown and (.ownFailures | length) == 0 and (.inheritedFailures | length) > 0
+         then "main-red" else "red-check" end)
+      elif .bucket == "conflicted" then "conflicted"
+      elif .bucket == "update-branch" then "behind"
+      elif .bucket == "hook-blocked" then "hook-blocked"
+      elif .bucket == "ready-to-merge" then "not-attempted"
+      else "still-running" end)
 
   # Why this PR is not already merged by the auto-merge workflow. State only
   # what was computed from the title, never a guess: the workflow declines

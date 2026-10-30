@@ -181,6 +181,54 @@ else
   _fail "the digest has no CodeQL section, or it hides the unlisted owner"
 fi
 
+# dev-env#228: the stub PR is from 2026-09-01, so it is past the deadline and
+# must reach ntfy. The curl stub records its arguments and stdin.
+cat >"${BIN}/curl" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"${CURL_LOG}"
+cat >"${CURL_LOG}.body"
+exit "${CURL_RC:-0}"
+STUB
+chmod +x "${BIN}/curl"
+publish() { # publish <topic> <curl rc>; prints the exit code
+  : >"${WORK}/curl.log"
+  rm -f "${WORK}/curl.log.body"
+  PATH="${BIN}:${PATH}" DIGEST_OWNERS="one" DIGEST_TOKEN_ONE="t" \
+    NTFY_TOPIC="$1" NTFY_BASE="https://ntfy.test" CURL_LOG="${WORK}/curl.log" CURL_RC="$2" \
+    bash "${DIR}/run-digest.sh" >"${WORK}/publish.out" 2>&1
+  echo "$?"
+}
+rc="$(publish topic 0)"
+if [[ "${rc}" -eq 0 ]] && grep -qx 'https://ntfy.test/topic' "${WORK}/curl.log" \
+  && grep -q '^Title: Dependabot: 1 PRs not merged automatically$' "${WORK}/curl.log" \
+  && grep -qx 'one/repo#1: not-attempted' "${WORK}/curl.log.body"; then
+  _pass "a PR past the deadline is pushed to ntfy with its reason"
+else
+  _fail "no ntfy push for a PR past the deadline (rc ${rc}); see ${WORK}/publish.out"
+  cat "${WORK}/curl.log" "${WORK}/publish.out" >&2
+fi
+rc="$(publish "" 0)"
+if [[ "${rc}" -ne 0 ]] && [[ ! -s "${WORK}/curl.log" ]] \
+  && grep -q '::error::NTFY_TOPIC is empty; 1 PRs not merged automatically' "${WORK}/publish.out"; then
+  _pass "an empty NTFY_TOPIC fails the run instead of dropping the alert"
+else
+  _fail "an empty NTFY_TOPIC did not fail the run (rc ${rc})"
+fi
+rc="$(publish topic 22)"
+if [[ "${rc}" -ne 0 ]] && grep -q '::error::ntfy delivery failed' "${WORK}/publish.out"; then
+  _pass "a failed ntfy delivery fails the run"
+else
+  _fail "a failed ntfy delivery did not fail the run (rc ${rc})"
+fi
+: >"${WORK}/curl.log"
+PATH="${BIN}:${PATH}" DIGEST_OWNERS="one" DIGEST_TOKEN_ONE="t" NTFY_TOPIC=topic \
+  CURL_LOG="${WORK}/curl.log" bash "${DIR}/run-digest.sh" --dry-run >/dev/null 2>&1
+if [[ ! -s "${WORK}/curl.log" ]]; then
+  _pass "a dry run sends no push"
+else
+  _fail "a dry run sent an ntfy push"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-run-digest: all assertions passed"
 else
