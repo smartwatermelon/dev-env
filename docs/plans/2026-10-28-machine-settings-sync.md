@@ -1,5 +1,10 @@
 # Plan: keep per-machine Claude settings in sync across machines
 
+> Superseded for security policy by
+> [the authorization reconstruction](2026-10-30-authorization-rebuild.md).
+> Preference overlays may still be synchronized. Agent containment must not
+> depend on an optional user-owned file or on entering through one wrapper.
+
 **Status:** proposal, deferred; not scheduled
 **Date:** 2026-10-28
 **Author:** arich (drafted by Claude Code)

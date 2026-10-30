@@ -1,5 +1,12 @@
 # Plan: one permission policy for sandbox, rules, classifier and hooks
 
+> Superseded for authorization architecture by
+> [the reconstruction mandate](2026-10-30-authorization-rebuild.md).
+> Historical measurements below remain evidence, not requirements. In
+> particular, “the agent fails and asks the operator” is now an explicitly
+> required response to an authorization denial. An unexpected refusal may
+> motivate a reviewed policy correction; it never grants permission to bypass.
+
 **Status:** proposal; Andrew's decisions recorded 2026-10-27
 **Date:** 2026-10-27
 **Author:** arich (drafted by Claude Code)
