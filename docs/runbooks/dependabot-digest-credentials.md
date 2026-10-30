@@ -28,13 +28,16 @@ proof that this path works: a published digest means every check was read.
   `nightowlstudiollc` and `twistedmelonman`, **All repositories** each.
 - **Repository permissions**, all read-only: Checks, Contents, Metadata,
   Pull requests, Commit statuses, Administration. Nothing else. Webhook
-  inactive. Administration is there for two sections. CodeQL:
+  inactive. Administration is there for three sections. CodeQL:
   `GET repos/{owner}/{repo}/code-scanning/default-setup` needs
   Administration: read (GitHub's "Permissions required for GitHub Apps"
   table; dev-env#166, approved 2026-10-21). Dependabot alerts:
   `GET repos/{owner}/{repo}/vulnerability-alerts` needs the same grant
   (`X-Accepted-GitHub-Permissions: administration=read`, seen on
-  2026-10-21). Removing it breaks both. The workflow asks for it
+  2026-10-21). Dependabot security updates:
+  `GET repos/{owner}/{repo}/automated-security-fixes` needs it too (same
+  header, seen 2026-10-30; dev-env#228). Removing it breaks all three. The
+  workflow asks for it
   when it mints each token. GitHub rejects a token request for a
   permission the installation has not granted, so accept the grant on all
   three installations before the workflow runs.

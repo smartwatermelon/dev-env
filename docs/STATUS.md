@@ -3,7 +3,7 @@
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
 2026-10-12, 2026-10-13 to 10-16, 2026-10-19, 2026-10-19 to 10-21,
-2026-10-22, 2026-10-27 and 2026-10-29 updates below.**
+2026-10-22, 2026-10-27, 2026-10-29 and 2026-10-30 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -696,6 +696,27 @@ or be explicitly parked with a resume note, by then — see the tracker.
   headless deploy uses cron (#803), the arbiter clears a block only with
   quoted proof (#805), and Andrew can override one blocked review by code
   (#806). The plan's follow-up list records each one.
+
+**2026-10-30 update (Pacific): Dependabot applies at once (`dev-env#229`):**
+
+- **Decision (Andrew, 2026-10-25; details 2026-10-29):** no human approves
+  Dependabot PRs. Version updates keep a short cooldown (1 to 3 days, set
+  when the templates change); security updates are immediate. Every PR
+  merges through the all-checks gate with a named sanity check
+  (`github-workflows#206`, `#208`), released as a new `v3` tag, canary
+  first. A red `main` is fixed first, before other work.
+- **Security updates are on in all 39 readable org repos** (survey
+  2026-10-30). `claude-wrapper` was not read: its App token needs
+  1Password, which the sandbox blocked.
+- **Gate v3.1 merges as the `dependabot-merge-swm` App** (`github-workflows#209`),
+  live on projectinsomnia only. The fleet rollout waits for one Dependabot
+  PR there to merge through the App and start a Build run on `main`.
+- **The digest reports the automatic path's failures** (`dev-env#228`): a
+  "Not merged automatically" section leads it (open 6 hours or more, or
+  labeled `dependabot-blocked`, with the reason and who acts), an ntfy push
+  goes to the site monitor's topic, and a new section reads each repo's
+  security-updates setting. Only `enabled: false` counts as off: the off
+  answer was not captured, so any other response is unreadable.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns

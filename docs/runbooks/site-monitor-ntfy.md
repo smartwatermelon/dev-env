@@ -186,7 +186,9 @@ Environment variables:
 
 ## Rotating the topic
 
-Repeat steps 1 and 2, then unsubscribe from the old topic in the app.
+Repeat steps 1 and 2, then unsubscribe from the old topic in the app. The
+Dependabot digest pushes to the same secret (dev-env#228), so one rotation
+covers both.
 
 ## Notes
 

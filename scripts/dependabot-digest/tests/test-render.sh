@@ -214,6 +214,47 @@ else
   _pass "a configured repo is counted, not listed"
 fi
 
+# dev-env#228: the automatic path's failures lead the digest.
+_has '## Not merged automatically' "PRs past the deadline get the not-merged section"
+_has '| [o/inherited#8](https://github.com/o/inherited/pull/8) | main-red | Fix the default branch first' \
+  "a PR red only on checks the base branch fails is sent to the default branch"
+_has '| [o/baseunknown#11](https://github.com/o/baseunknown/pull/11) | red-check | Fix the bump: a check fails on this PR. |' \
+  "with the base branch unreadable, the red PR is not blamed on main"
+if sed -n '/^## Not merged automatically/,/^## /p' "${body}" | grep -qF '[o/held#'; then
+  _fail "a held PR is listed as not merged"
+else
+  _pass "a held PR is not a failure of the automatic path"
+fi
+nm_first="$(sed -n '/^## Not merged automatically/,/^## /p' "${body}" | grep -m1 '^| \[')"
+if [[ "${nm_first}" == *"| main-red |"* ]]; then
+  _pass "main-red rows come first: one fix there unblocks the repository"
+else
+  _fail "the first not-merged row is not main-red: ${nm_first}"
+fi
+first_section="$(grep -m1 '^## ' "${body}")"
+if [[ "${first_section}" == "## Not merged automatically" ]]; then
+  _pass "the not-merged section is the first section"
+else
+  _fail "the not-merged section is not first: ${first_section}"
+fi
+# Fresh PRs inside the deadline: no section, no false alarm.
+t="$(date -u -v-1H '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null)" || t="$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')"
+jq -c --arg t "${t}" 'select(.repo == "o/ready") | .createdAt = $t | .updatedAt = $t' "${FIX}/synthetic.ndjson" \
+  | bash "${DIR}/classify.sh" | bash "${DIR}/render.sh" >"${WORK}/fresh.md" 2>/dev/null
+if grep -qF '## Not merged automatically' "${WORK}/fresh.md"; then
+  _fail "an hour-old PR raised the not-merged section"
+else
+  _pass "a PR inside the deadline is not listed as not merged"
+fi
+# A failed table must say so, not print an empty table.
+bash "${DIR}/classify.sh" <"${FIX}/synthetic.ndjson" | jq -c '.repo = 5' \
+  | bash "${DIR}/render.sh" >"${WORK}/broken.md" 2>/dev/null
+if grep -qF 'PRs were not merged automatically, but listing them failed.' "${WORK}/broken.md"; then
+  _pass "a not-merged table that cannot render says so"
+else
+  _fail "a broken not-merged table did not report its failure"
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-render: all assertions passed"
 else
