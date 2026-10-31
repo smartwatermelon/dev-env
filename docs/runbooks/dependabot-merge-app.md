@@ -151,8 +151,11 @@ Only the **Actions** store is needed. The gate run log for a Dependabot PR on
 `pull_request_target` says `Secret source: Actions` (dev-env#246, 2026-10-31),
 so the Dependabot store is not read. Copies set there earlier can be deleted.
 
-The caller lists below were measured on 2026-10-29: every repository with
-`.github/workflows/dependabot-auto-merge.yml`. When a repository gains a
+The caller lists below were measured on 2026-10-31: every repository with
+`.github/workflows/dependabot-auto-merge.yml`, plus infinite-yaks, whose
+caller is in nightowlstudiollc/infinite-yaks#7. aomo was missing from the
+2026-10-29 list. claude-wrapper and reliquarist still pin the v2 gate, which
+reads no secrets; they need the secrets once they move to v3.1 or later. When a repository gains a
 caller, set its repository secrets (smartwatermelon) or add it to the
 organization secret's repository list (nightowlstudiollc).
 
@@ -162,8 +165,8 @@ Replace `<PEM>` with the attachment's file name, as `op item get MERGE_APP`
 shows it.
 
 ```bash
-swm="projectinsomnia dev-env github-workflows huddle-transcribe claude-config dotfiles smartwatermelon-marketplace vpn-lan-bridge personify scripts claude-code-workflows-agents mac-server-setup mac-dev-server-setup slack-mcp gmail-newsletter-filter repo-template pr-review crazy-larry homebrew-tap archive-resolver lock-sync .github spokane-snow"
-nos="financial-agent,tensegrity,reliquarist,kebab-tax,kebab-tax-netlify,night-owl-studio,cleanroom,jordan-paddock-pitch,amelia-boone,tnjcleaning,.github"
+swm="projectinsomnia dev-env github-workflows huddle-transcribe claude-config dotfiles smartwatermelon-marketplace vpn-lan-bridge personify scripts claude-code-workflows-agents mac-server-setup mac-dev-server-setup slack-mcp gmail-newsletter-filter repo-template pr-review crazy-larry homebrew-tap archive-resolver lock-sync .github spokane-snow aomo"
+nos="financial-agent,tensegrity,reliquarist,kebab-tax,kebab-tax-netlify,night-owl-studio,cleanroom,jordan-paddock-pitch,amelia-boone,tnjcleaning,.github,infinite-yaks"
 client_id="$(op read "op://Automation/MERGE_APP/client_id")"
 for r in $swm; do
   gh secret set MERGE_APP_CLIENT_ID -R "smartwatermelon/$r" --app actions --body "$client_id"
