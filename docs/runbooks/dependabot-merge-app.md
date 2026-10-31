@@ -7,7 +7,7 @@ short-lived installation token on each run with
 `actions/create-github-app-token`.
 
 **These steps are yours, not an agent's.** Creating an App, generating its
-key and setting organization secrets are human operations.
+key and setting secrets are human operations.
 
 ## Why an App and not `GITHUB_TOKEN`
 
@@ -28,8 +28,8 @@ The two existing Apps are read-only, and stay that way:
 
 Andrew's rule (claude-config#687): read-only and write Apps are separate, so a
 leaked read-only key cannot write. This App can write to every repo it is
-installed on, so its key lives only in 1Password and in organization secrets,
-never on a dev machine.
+installed on, so its key lives only in 1Password and in Actions secrets, never
+on a dev machine.
 
 ## Security model
 
@@ -68,11 +68,12 @@ and the design keeps the key away from code that could leak it.
    the current repository (`repositories:`) and to the listed permissions
    (`permission-*:` inputs). A token that leaks from one run writes only to
    that repository, and expires within an hour.
-5. **The secret reaches only caller repositories.** Visibility is
-   **selected**: the repositories that have a gate caller. This keeps the key
-   out of the environment of any repository without a caller.
+5. **The secret reaches only caller repositories.** On smartwatermelon each
+   caller has its own repository secret. On nightowlstudiollc the organization
+   secret's visibility is **selected**: the repositories that have a gate
+   caller. This keeps the key out of any repository without a caller.
 6. **The key exists in two places only:** the 1Password `MERGE_APP` item, and
-   the organization secrets. It never goes on a dev machine; `op read` pipes
+   the Actions secrets. It never goes on a dev machine; `op read` pipes
    it straight to `gh secret set`.
 
 What a leaked key could still do: write code, PRs, labels and (with
@@ -135,62 +136,75 @@ list is the blast radius of a stolen key (see "Security model"), so keep it
 equal to the caller list. `twistedmelonman` has no repository with a gate
 caller (checked 2026-10-29), so it does not need the App yet.
 
-## 4. Set the organization secrets
+## 4. Set the secrets
 
-Each secret is set twice per organization: as an **Actions** secret and as a
-**Dependabot** secret. GitHub's documentation does not say which store a
-`pull_request_target` run started by Dependabot reads, so both are set. The
-Actions store is the expected one: the Dependabot troubleshooting page lists
-the events that get only Dependabot secrets and says `pull_request_target`
-"does not have these limitations". The first canary run shows which one it
-used. After that, an agent will propose
-deleting the unused copy.
+**`smartwatermelon` is a user account, not an organization.** A user account
+has no organization secrets, so `gh secret set --org smartwatermelon` cannot
+work there. The first version of this step used it, and on 2026-10-31 every
+smartwatermelon caller except the canary ran with an empty
+`MERGE_APP_CLIENT_ID` (dev-env#246's gate run: `client-id ... must be set to
+a non-empty string`). smartwatermelon therefore takes **repository**
+secrets, one set per caller. nightowlstudiollc is an organization and keeps
+one organization secret with **selected** visibility.
 
-Organization secrets with **selected** visibility reach only the caller
-repositories. All 23 smartwatermelon callers are public, and
-nightowlstudiollc is on the Team plan, which lets organization secrets reach
-private repositories.
+Only the **Actions** store is needed. The gate run log for a Dependabot PR on
+`pull_request_target` says `Secret source: Actions` (dev-env#246, 2026-10-31),
+so the Dependabot store is not read. Copies set there earlier can be deleted.
 
 The caller lists below were measured on 2026-10-29: every repository with
 `.github/workflows/dependabot-auto-merge.yml`. When a repository gains a
-caller, add it to the secret's repository list.
+caller, set its repository secrets (smartwatermelon) or add it to the
+organization secret's repository list (nightowlstudiollc).
 
-Run these in a terminal (not in Claude Code: they need `admin:org`). Replace
-`<PEM>` with the attachment's file name, as `op item get MERGE_APP` shows it.
+Run these in a terminal (not in Claude Code). The smartwatermelon loop needs
+admin on each repository; the nightowlstudiollc command needs `admin:org`.
+Replace `<PEM>` with the attachment's file name, as `op item get MERGE_APP`
+shows it.
 
 ```bash
-swm="projectinsomnia,dev-env,github-workflows,huddle-transcribe,claude-config,dotfiles,smartwatermelon-marketplace,vpn-lan-bridge,personify,scripts,claude-code-workflows-agents,mac-server-setup,mac-dev-server-setup,slack-mcp,gmail-newsletter-filter,repo-template,pr-review,crazy-larry,homebrew-tap,archive-resolver,lock-sync,.github,spokane-snow"
+swm="projectinsomnia dev-env github-workflows huddle-transcribe claude-config dotfiles smartwatermelon-marketplace vpn-lan-bridge personify scripts claude-code-workflows-agents mac-server-setup mac-dev-server-setup slack-mcp gmail-newsletter-filter repo-template pr-review crazy-larry homebrew-tap archive-resolver lock-sync .github spokane-snow"
 nos="financial-agent,tensegrity,reliquarist,kebab-tax,kebab-tax-netlify,night-owl-studio,cleanroom,jordan-paddock-pitch,amelia-boone,tnjcleaning,.github"
-for pair in "smartwatermelon:$swm" "nightowlstudiollc:$nos"; do
-  org="${pair%%:*}" repos="${pair#*:}"
-  for app in actions dependabot; do
-    gh secret set MERGE_APP_CLIENT_ID --org "$org" --app "$app" --repos "$repos" \
-      --body "$(op read "op://Automation/MERGE_APP/client_id")"
-    op read "op://Automation/MERGE_APP/<PEM>" \
-      | gh secret set MERGE_APP_PRIVATE_KEY --org "$org" --app "$app" --repos "$repos"
+client_id="$(op read "op://Automation/MERGE_APP/client_id")"
+for r in $swm; do
+  gh secret set MERGE_APP_CLIENT_ID -R "smartwatermelon/$r" --app actions --body "$client_id"
+  op read "op://Automation/MERGE_APP/<PEM>" \
+    | gh secret set MERGE_APP_PRIVATE_KEY -R "smartwatermelon/$r" --app actions
+done
+gh secret set MERGE_APP_CLIENT_ID --org nightowlstudiollc --app actions --repos "$nos" \
+  --body "$client_id"
+op read "op://Automation/MERGE_APP/<PEM>" \
+  | gh secret set MERGE_APP_PRIVATE_KEY --org nightowlstudiollc --app actions --repos "$nos"
+```
+
+The pipe from `op read` on the attachment keeps the PEM line breaks. The
+client ID goes through `--body`, from a `$(...)` that strips the trailing
+newline `op read` prints; the client ID is not a secret, so it may appear in
+the process list.
+
+## 5. Verify
+
+Check that the names exist and reach every caller (`gh secret list` never
+shows values):
+
+```bash
+for r in $swm; do
+  n=$(gh secret list -R "smartwatermelon/$r" --app actions | grep -c '^MERGE_APP_')
+  [ "$n" -eq 2 ] || echo "MISSING on smartwatermelon/$r ($n of 2)"
+done
+for s in MERGE_APP_CLIENT_ID MERGE_APP_PRIVATE_KEY; do
+  have=$(gh api "orgs/nightowlstudiollc/actions/secrets/$s/repositories" \
+    --jq '.repositories[].name' | sort)
+  for r in ${nos//,/ }; do
+    grep -qxF "$r" <<<"$have" || echo "$s does not reach nightowlstudiollc/$r"
   done
 done
 ```
 
-The pipe from `op read` on the attachment keeps the PEM line breaks. The
-client ID goes through `--body "$(...)"`, which strips the trailing newline
-that `op read` prints; the client ID is not a secret, so it may appear in the
-process list.
-
-## 5. Verify
-
-Check that the names exist (`gh secret list` never shows values):
-
-```bash
-for org in smartwatermelon nightowlstudiollc; do
-  gh secret list --org "$org" --app actions | grep MERGE_APP
-  gh secret list --org "$org" --app dependabot | grep MERGE_APP
-done
-```
-
-Each organization must list both names under both stores. Then tell the agent.
-It runs the v3.1 canary, and the evidence is a `push` run on `main` for the
-merge commit. A green gate run alone is not that evidence.
+No output means every caller has both secrets. tnjcleaning ran with an empty
+`MERGE_APP_CLIENT_ID` on 2026-10-31, so check it first. Also check that the
+App is installed on every caller in both accounts (step 3). Then tell the
+agent. The evidence is a `push` run on `main` for a gate merge commit. A green
+gate run alone is not that evidence.
 
 ## What the agent does after
 
