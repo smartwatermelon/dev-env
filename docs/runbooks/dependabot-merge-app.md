@@ -137,60 +137,76 @@ caller (checked 2026-10-29), so it does not need the App yet.
 
 ## 4. Set the organization secrets
 
-Each secret is set twice per organization: as an **Actions** secret and as a
-**Dependabot** secret. GitHub's documentation does not say which store a
-`pull_request_target` run started by Dependabot reads, so both are set. The
-Actions store is the expected one: the Dependabot troubleshooting page lists
-the events that get only Dependabot secrets and says `pull_request_target`
-"does not have these limitations". The first canary run shows which one it
-used. After that, an agent will propose
-deleting the unused copy.
+**Why this step changed (2026-11-02).** The first run of this step reached
+only the canary: on both organizations the secrets' **selected** repository
+list held `projectinsomnia` alone. Every other v3.1 caller ran the gate with
+an empty `MERGE_APP_CLIENT_ID` (`client-id ... must be set to a non-empty
+string`) and labeled its PR `dependabot-blocked:merge-failed` (dev-env#229,
+2026-11-02 fleet-state comment). The commands below set the full caller list.
+`gh secret set --repos` replaces the list, so the list must be complete.
+
+Only the **Actions** store is needed. The gate run log for a Dependabot PR on
+`pull_request_target` says `Secret source: Actions` (dev-env#246's run,
+2026-10-31), so the Dependabot store is not read. Copies set there earlier
+can be deleted.
 
 Organization secrets with **selected** visibility reach only the caller
-repositories. All 23 smartwatermelon callers are public, and
-nightowlstudiollc is on the Team plan, which lets organization secrets reach
-private repositories.
+repositories. nightowlstudiollc is on the Team plan, which lets organization
+secrets reach private repositories. smartwatermelon now has a private caller
+too (`aomo`); if the smartwatermelon plan does not let organization secrets
+reach private repositories, step 5 reports it.
 
-The caller lists below were measured on 2026-10-29: every repository with
-`.github/workflows/dependabot-auto-merge.yml`. When a repository gains a
-caller, add it to the secret's repository list.
+The caller lists below were measured on 2026-10-31: every repository with
+`.github/workflows/dependabot-auto-merge.yml`, plus infinite-yaks, whose
+caller is in nightowlstudiollc/infinite-yaks#7. aomo was missing from the
+2026-10-29 list. claude-wrapper and reliquarist still pin the v2 gate, which
+reads no secrets; they are listed so the secret is in place when they move.
+When a repository gains a caller, add it to the secret's repository list.
 
 Run these in a terminal (not in Claude Code: they need `admin:org`). Replace
 `<PEM>` with the attachment's file name, as `op item get MERGE_APP` shows it.
 
 ```bash
-swm="projectinsomnia,dev-env,github-workflows,huddle-transcribe,claude-config,dotfiles,smartwatermelon-marketplace,vpn-lan-bridge,personify,scripts,claude-code-workflows-agents,mac-server-setup,mac-dev-server-setup,slack-mcp,gmail-newsletter-filter,repo-template,pr-review,crazy-larry,homebrew-tap,archive-resolver,lock-sync,.github,spokane-snow"
-nos="financial-agent,tensegrity,reliquarist,kebab-tax,kebab-tax-netlify,night-owl-studio,cleanroom,jordan-paddock-pitch,amelia-boone,tnjcleaning,.github"
+swm="projectinsomnia,dev-env,github-workflows,huddle-transcribe,claude-config,dotfiles,smartwatermelon-marketplace,vpn-lan-bridge,personify,scripts,claude-code-workflows-agents,mac-server-setup,mac-dev-server-setup,slack-mcp,gmail-newsletter-filter,repo-template,pr-review,crazy-larry,homebrew-tap,archive-resolver,lock-sync,.github,spokane-snow,aomo,claude-wrapper"
+nos="financial-agent,tensegrity,reliquarist,kebab-tax,kebab-tax-netlify,night-owl-studio,cleanroom,jordan-paddock-pitch,amelia-boone,tnjcleaning,.github,infinite-yaks"
+client_id="$(op read "op://Automation/MERGE_APP/client_id")"
 for pair in "smartwatermelon:$swm" "nightowlstudiollc:$nos"; do
   org="${pair%%:*}" repos="${pair#*:}"
-  for app in actions dependabot; do
-    gh secret set MERGE_APP_CLIENT_ID --org "$org" --app "$app" --repos "$repos" \
-      --body "$(op read "op://Automation/MERGE_APP/client_id")"
-    op read "op://Automation/MERGE_APP/<PEM>" \
-      | gh secret set MERGE_APP_PRIVATE_KEY --org "$org" --app "$app" --repos "$repos"
-  done
+  gh secret set MERGE_APP_CLIENT_ID --org "$org" --app actions --repos "$repos" \
+    --body "$client_id"
+  op read "op://Automation/MERGE_APP/<PEM>" \
+    | gh secret set MERGE_APP_PRIVATE_KEY --org "$org" --app actions --repos "$repos"
 done
 ```
 
 The pipe from `op read` on the attachment keeps the PEM line breaks. The
-client ID goes through `--body "$(...)"`, which strips the trailing newline
-that `op read` prints; the client ID is not a secret, so it may appear in the
-process list.
+client ID goes through `--body`, from a `$(...)` that strips the trailing
+newline `op read` prints; the client ID is not a secret, so it may appear in
+the process list.
 
 ## 5. Verify
 
-Check that the names exist (`gh secret list` never shows values):
+Check that both secrets reach every caller (`gh secret list` never shows
+values). Run it in the same terminal, so `$swm` and `$nos` are set:
 
 ```bash
-for org in smartwatermelon nightowlstudiollc; do
-  gh secret list --org "$org" --app actions | grep MERGE_APP
-  gh secret list --org "$org" --app dependabot | grep MERGE_APP
+for pair in "smartwatermelon:$swm" "nightowlstudiollc:$nos"; do
+  org="${pair%%:*}" repos="${pair#*:}"
+  for s in MERGE_APP_CLIENT_ID MERGE_APP_PRIVATE_KEY; do
+    have=$(gh api "orgs/$org/actions/secrets/$s/repositories" \
+      --jq '.repositories[].name' | sort)
+    for r in ${repos//,/ }; do
+      grep -qxF "$r" <<<"$have" || echo "$s does not reach $org/$r"
+    done
+  done
 done
+echo "verify done"
 ```
 
-Each organization must list both names under both stores. Then tell the agent.
-It runs the v3.1 canary, and the evidence is a `push` run on `main` for the
-merge commit. A green gate run alone is not that evidence.
+Expected output: only `verify done`. Also check that the App is installed on
+every caller in both organizations (step 3). Then tell the agent. The
+evidence is a `push` run on `main` for a gate merge commit. A green gate run
+alone is not that evidence.
 
 ## What the agent does after
 
