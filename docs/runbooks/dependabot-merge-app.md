@@ -68,9 +68,10 @@ and the design keeps the key away from code that could leak it.
    the current repository (`repositories:`) and to the listed permissions
    (`permission-*:` inputs). A token that leaks from one run writes only to
    that repository, and expires within an hour.
-5. **The secret reaches only caller repositories.** Visibility is
-   **selected**: the repositories that have a gate caller. This keeps the key
-   out of the environment of any repository without a caller.
+5. **The secret reaches every repository in the organization.** Visibility
+   is **all** (changed 2026-11-03; see step 4). A workflow still gets the
+   secret only if it names it (item 2), so a repository without a caller
+   never reads it.
 6. **The key exists in two places only:** the 1Password `MERGE_APP` item, and
    the organization secrets. It never goes on a dev machine; `op read` pipes
    it straight to `gh secret set`.
@@ -104,6 +105,7 @@ At <https://github.com/settings/apps/new>, signed in as `twistedmelonman`
 | Issues | Read and write | `gh label create` for the `dependabot-blocked:*` labels |
 | Workflows | Read and write | merge a PR that changes `.github/workflows/` (see below) |
 | Checks | Read-only | the gate reads check runs |
+| Actions | Read-only | `gh pr checks` reads each check's workflow run; private repos need this (v3.3.1) |
 | Commit statuses | Read-only | the gate reads commit statuses (Netlify) |
 | Metadata | Read-only | mandatory |
 
@@ -129,13 +131,28 @@ bump merges without it, an agent will propose removing it.
 
 ## 3. Install the App
 
-Install it on `smartwatermelon` and on `nightowlstudiollc`, with **Only
-select repositories** on each: the caller lists in step 4. The installation
-list is the blast radius of a stolen key (see "Security model"), so keep it
-equal to the caller list. `twistedmelonman` has no repository with a gate
-caller (checked 2026-10-29), so it does not need the App yet.
+Install it on `smartwatermelon` and on `nightowlstudiollc`, on every
+repository (changed 2026-11-03). A select list fell behind the callers: a
+repository missing from it ran the gate and could not mint a token. The
+installation list is the blast radius of a stolen key (see "Security
+model"); on these two organizations every repository is a caller or soon
+will be. `twistedmelonman` has no repository with a gate caller (checked
+2026-10-29), so it does not need the App yet.
+
+When the App gains a permission, each organization must accept the update
+in its GitHub Apps settings before tokens get the new permission. Actions:
+Read-only was added and accepted on both on 2026-11-03.
 
 ## 4. Set the organization secrets
+
+**Current setup (2026-11-03).** Both secrets have **all** repository
+visibility on both organizations, set in the web UI (Organization →
+Settings → Secrets and variables → Actions). The CLI commands below need
+`admin:org`, which the agent's tokens lack. On smartwatermelon's plan, an
+organization secret reaches public repositories only; its one private
+repository with a caller, `aomo`, moved to nightowlstudiollc. The
+selected-list commands below are kept as the record of the first setup. To
+redo the setup, use the UI with **All repositories** instead.
 
 **Why this step changed (2026-11-02).** The first run of this step reached
 only the canary: on both organizations the secrets' **selected** repository
