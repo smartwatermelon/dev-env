@@ -233,8 +233,12 @@ alone is not that evidence.
 2. Every caller changes two things: its tag pin, and a `secrets:` block that
    passes the two secrets by name (see "Security model", item 2). So the
    rollout edits each caller; it is not a tag bump.
-3. The canary (projectinsomnia) runs first. Its evidence is a `push` run on
-   `main` for the merge commit.
+3. The canaries run first. Since 2026-11-03 they are
+   smartwatermelon/github-workflows (public) and
+   nightowlstudiollc/reliquarist (private); projectinsomnia was the
+   canary before that. The evidence on each is a `push` run on `main` for
+   the merge commit. The release order is in the github-workflows README,
+   "Rollout discipline".
 
 ## Rotation
 
