@@ -1,6 +1,6 @@
 # Plan: keep per-machine Claude settings in sync across machines
 
-**Status:** proposal, deferred; not scheduled
+**Status:** superseded 2026-11-05 by `2026-11-05-machine-settings-from-claude-config.md` (dev-env#249, option A)
 **Date:** 2026-10-28
 **Author:** arich (drafted by Claude Code)
 
