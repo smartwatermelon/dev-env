@@ -79,8 +79,16 @@ claude-wrapper needs no change: the output path is the one it already reads.
 1. **Inventory.** Read the overlay on ASIAGO, TILSIT and MIMOLETTE (read-only,
    over SSH) and diff them. Classify each key: shared, host-only, or private.
    Output: the three source files, reviewed before step 3.
-2. **Move the per-repo lines.** For each `autoMode` per-repo line, add its
-   content to that repo's `CLAUDE.md` where it is missing. One PR per repo.
+2. **Check, then move the per-repo lines.** First check whether the
+   auto-mode classifier reads a repo's `CLAUDE.md`. The 2026-10-28 plan says
+   Claude Code reads `autoMode` only from settings and `--settings`, so
+   moving a line to `CLAUDE.md` may drop it from the classifier's context.
+   Test it: in a scratch repo, put a permissive rule in `CLAUDE.md` only,
+   then see whether the classifier allows an action that rule covers.
+   - If it reads `CLAUDE.md`: for each per-repo line, add its content to
+     that repo's `CLAUDE.md` where it is missing. One PR per repo.
+   - If it does not: stop and bring the choice back to Andrew before step 3.
+     The per-repo context needs another home outside the public repo.
 3. **Build script and tests** (claude-config). Bats tests with a temp `HOME`:
    merge order, array append, placeholders, unknown placeholder fails, no
    host file means no write, bad JSON keeps the old file, mode 600, backup
@@ -99,6 +107,10 @@ claude-wrapper needs no change: the output path is the one it already reads.
 - **Array settings concatenate** with `~/.claude/settings.json`. The build
   must not copy entries that `settings.json` already has, or they appear
   twice. Step 1 checks for overlap.
+- **Per-repo context may stop reaching auto mode.** It is not known whether
+  the classifier reads `CLAUDE.md`. If it does not, moving the per-repo
+  lines could make auto mode block actions it allows today. Step 2 checks
+  this first.
 - **The merge App gap** (`docs/runbooks/dependabot-merge-app.md`, "Known
   gap") applies here too: an agent that gets the merge App key could approve
   and merge its own settings PR. Accepted 2026-11-05. This plan does not
