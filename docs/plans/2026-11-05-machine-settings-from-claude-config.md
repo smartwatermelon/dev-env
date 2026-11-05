@@ -41,10 +41,17 @@ machine-settings/
   hosts/MIMOLETTE.json
 ```
 
-Nothing private goes in:
+What goes where:
 
-- The `autoMode` per-repo lines move to each repo's own `CLAUDE.md`. They name
-  a private repo today.
+- The `autoMode` per-repo lines stay in `autoMode`, word for word. They name
+  a private repo and its production Worker; Andrew cleared those names for
+  publication (2026-11-05). Rules that name one machine's paths go in that
+  host's file.
+- `sandbox`, `permissions` and the `PermissionDenied` hook go in
+  `hosts/ASIAGO.json`, the only machine that runs the sandbox today (decided
+  2026-11-05). The first rollout changes nothing on TILSIT or MIMOLETTE.
+  Turning the sandbox on there is a later PR that moves those blocks into
+  `base.json`.
 - Paths that differ per machine are placeholders filled in at build time:
   `${TMPDIR}` (the `/var/folders/...` temp dir) and `${GDRIVE_HANDOFF}` (the
   Google Drive `Claude Handoff` folder, found by glob under
@@ -78,23 +85,18 @@ claude-wrapper needs no change: the output path is the one it already reads.
 
 1. **Inventory.** Read the overlay on ASIAGO, TILSIT and MIMOLETTE (read-only,
    over SSH) and diff them. Classify each key: shared, host-only, or private.
-   Output: the three source files, reviewed before step 3.
-2. **Check, then move the per-repo lines.** First check whether the
-   auto-mode classifier reads a repo's `CLAUDE.md`. The 2026-10-28 plan says
-   Claude Code reads `autoMode` only from settings and `--settings`, so
-   moving a line to `CLAUDE.md` may drop it from the classifier's context.
-   Test it: in a scratch repo, put a permissive rule in `CLAUDE.md` only,
-   then see whether the classifier allows an action that rule covers.
-   - If it reads `CLAUDE.md`: for each per-repo line, add its content to
-     that repo's `CLAUDE.md` where it is missing. One PR per repo.
-   - If it does not: stop and bring the choice back to Andrew before step 3.
-     The per-repo context needs another home outside the public repo.
+   Output: the three source files, reviewed before step 3. Done 2026-11-05;
+   results on dev-env#249.
+2. **Dropped.** It moved the per-repo lines to `CLAUDE.md`. The docs say the
+   classifier reads `CLAUDE.md` only to steer, and do not say it can clear a
+   soft block, so the move could have lost allow rules. Once the names were
+   cleared for publication, the lines could stay in `autoMode` instead.
 3. **Build script and tests** (claude-config). Bats tests with a temp `HOME`:
    merge order, array append, placeholders, unknown placeholder fails, no
    host file means no write, bad JSON keeps the old file, mode 600, backup
    once, `--dev` skips.
 4. **Canary on ASIAGO.** Merge with only `hosts/ASIAGO.json` present. Check:
-   the built file matches the old one, apart from the moved per-repo lines;
+   the built file matches the old one (same keys and entries, order aside);
    a new session starts with the same sandbox (`/sandbox` view) and the
    status line has no deploy warning.
 5. **Rollout.** Add the TILSIT and MIMOLETTE host files in one PR. Check each
@@ -107,10 +109,6 @@ claude-wrapper needs no change: the output path is the one it already reads.
 - **Array settings concatenate** with `~/.claude/settings.json`. The build
   must not copy entries that `settings.json` already has, or they appear
   twice. Step 1 checks for overlap.
-- **Per-repo context may stop reaching auto mode.** It is not known whether
-  the classifier reads `CLAUDE.md`. If it does not, moving the per-repo
-  lines could make auto mode block actions it allows today. Step 2 checks
-  this first.
 - **The merge App gap** (`docs/runbooks/dependabot-merge-app.md`, "Known
   gap") applies here too: an agent that gets the merge App key could approve
   and merge its own settings PR. Accepted 2026-11-05. This plan does not
