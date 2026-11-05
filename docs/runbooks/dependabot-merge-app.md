@@ -71,7 +71,8 @@ and the design keeps the key away from code that could leak it.
 5. **The secret reaches every repository in the organization.** Visibility
    is **all** (changed 2026-11-03; see step 4). A workflow still gets the
    secret only if it names it (item 2), so a repository without a caller
-   never reads it.
+   reads it only if someone pushes a workflow that names it (see "Who can
+   reach the key" below).
 6. **The key exists in two places only:** the 1Password `MERGE_APP` item, and
    the organization secrets. It never goes on a dev machine; `op read` pipes
    it straight to `gh secret set`.
@@ -81,12 +82,24 @@ Workflows) workflow files in every repository the App is installed on, until
 the key is revoked on the App's page. Revoking the key stops it at once: the
 next token request fails, and tokens already minted expire within an hour.
 
-Who can reach the key: anyone who can push a workflow to the default branch
-of a caller repository, because that workflow can name the organization
-secret. Anyone who can move a gate tag in `smartwatermelon/github-workflows`
-can reach it too. Both already have write access to the fleet. A pull request
-alone cannot: `pull_request` runs from forks get no secrets, and
-`pull_request_target` runs the base branch's workflow, not the PR's.
+Who can reach the key: anyone who can push a branch to a repository in the
+organization. A workflow on any branch, not only the default branch, can
+name the organization secret and read it. A probe on 2026-11-05 confirmed
+this: a `push` workflow on a throwaway branch of github-workflows read
+`MERGE_APP_CLIENT_ID` as set. Anyone who can move a gate tag in
+`smartwatermelon/github-workflows` can reach it too. All of these already
+have write access. A pull request from a fork cannot: `pull_request` runs
+from forks get no secrets, and `pull_request_target` runs the base branch's
+workflow, not the PR's.
+
+Known gap, accepted by Andrew on 2026-11-05: from v3.3.3 the App approves
+PRs, and a `main` ruleset counts that approval. The smartwatermelon-agent
+App can push branches, so an agent could push a workflow that reads the key,
+then approve and merge its own PR as this App. That skips Andrew's approval
+in the repositories whose merge-lock policy is `review`. The gap existed
+under `lock` too: the App's merge never needed a lock file. No fix is chosen.
+Limiting the secret to selected repositories narrows the gap but does not
+close it in the repositories that call the gate.
 
 ## 1. Create the App
 
