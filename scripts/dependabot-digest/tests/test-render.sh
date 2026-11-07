@@ -132,6 +132,20 @@ else
   _fail "an empty queue did not render correctly"
 fi
 
+# #229 decision D: the SessionStart hook reads this line.
+# Empty: none red. Missing: unknown. So it must be present.
+if grep -qxF '<!-- dependabot-digest:main-red: -->' "${empty}"; then
+  _pass "an empty queue carries an empty main-red marker"
+else
+  _fail "an empty queue lacks the empty main-red marker"
+fi
+red_line="$(grep -m1 '^<!-- dependabot-digest:main-red:' "${body}")"
+if [[ "${red_line}" == '<!-- dependabot-digest:main-red: o/inherited -->' ]]; then
+  _pass "the main-red marker names each red repo once, and only those"
+else
+  _fail "the main-red marker is wrong: ${red_line}"
+fi
+
 # dev-env#211: no survey, no protection section; a malformed one must not
 # read clean.
 _hasnt '## Branch protection' "no survey, no protection section"

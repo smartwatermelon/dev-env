@@ -27,6 +27,12 @@ input="$(cat)"
 # a title that changes (it carries the PR count) would create a second issue
 # every time the count moved.
 echo '<!-- dependabot-digest:v1 -->'
+# Red default branches, for the SessionStart hook (#229 D).
+# Empty: none red. Absent when jq fails: reader says unknown.
+if red_repos="$(jq -rs '[.[] | select(.notMerged == true and .notMergedReason == "main-red") | .repo]
+    | unique | join(" ")' <<<"${input}" 2>/dev/null)"; then
+  echo "<!-- dependabot-digest:main-red:${red_repos:+ ${red_repos}} -->"
+fi
 echo
 
 if [[ -z "${input//[[:space:]]/}" ]]; then
