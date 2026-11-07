@@ -1,0 +1,10 @@
+{
+  "state": "x",
+  "total_count": 1,
+  "statuses": [
+    {
+      "context": "netlify/site/deploy-preview",
+      "state": "success"
+    }
+  ]
+}

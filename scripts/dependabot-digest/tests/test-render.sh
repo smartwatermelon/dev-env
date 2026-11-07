@@ -139,6 +139,48 @@ if grep -qxF '<!-- dependabot-digest:main-red: -->' "${empty}"; then
 else
   _fail "an empty queue lacks the empty main-red marker"
 fi
+# #229 D: a red head joins the marker and leads the body, even with no PRs.
+cat >"${WORK}/ci.ndjson" <<'EOF'
+{"owner":"r","repo":"r/a","state":"ok","branchCi":{"state":"red","detail":"x","failing":["build","deploy"]}}
+{"owner":"r","repo":"r/b","state":"ok","branchCi":{"state":"green","detail":null,"failing":[]}}
+{"owner":"r","repo":"r/c","state":"ok","branchCi":{"state":"none","detail":"no checks ran","failing":[]}}
+{"owner":"r","repo":"r/d","state":"ok","branchCi":{"state":"unreadable","detail":"statuses unreadable","failing":[]}}
+{"owner":"r","repo":"r/e","state":"archived","branchCi":null}
+EOF
+: | bash "${DIR}/render.sh" --standards "${WORK}/ci.ndjson" >"${WORK}/ci.md" 2>/dev/null
+if grep -qxF '<!-- dependabot-digest:main-red: r/a -->' "${WORK}/ci.md"; then
+  _pass "a red default-branch head is in the marker with no Dependabot PR open"
+else
+  _fail "marker wrong for a red head: $(grep 'main-red' "${WORK}/ci.md")"
+fi
+if [[ "$(grep -m1 '^## ' "${WORK}/ci.md")" == "## Red default branches" ]] \
+  && grep -qF '| [r/a](https://github.com/r/a) | build, deploy |' "${WORK}/ci.md"; then
+  _pass "red heads lead the body and name their failing checks"
+else
+  _fail "the red-default-branch section is missing or not first"
+fi
+if grep -qF 'No checks ran on the head, so its state is unknown:** r/c.' "${WORK}/ci.md" \
+  && grep -qF 'Could not read:** r/d (statuses unreadable).' "${WORK}/ci.md"; then
+  _pass "heads with no checks and unreadable heads are listed, not counted green"
+else
+  _fail "none/unreadable heads are not listed"
+fi
+# Union: a PR-inferred red repo and a head-red repo, each once.
+bash "${DIR}/classify.sh" <"${FIX}/synthetic.ndjson" 2>/dev/null \
+  | bash "${DIR}/render.sh" --standards "${WORK}/ci.ndjson" >"${WORK}/union.md" 2>/dev/null
+if grep -qxF '<!-- dependabot-digest:main-red: o/inherited r/a -->' "${WORK}/union.md"; then
+  _pass "the marker unions PR-inferred and head-red repos"
+else
+  _fail "marker union wrong: $(grep 'main-red' "${WORK}/union.md")"
+fi
+echo '{not json' >"${WORK}/badci.ndjson"
+: | bash "${DIR}/render.sh" --standards "${WORK}/badci.ndjson" >"${WORK}/badci.md" 2>/dev/null
+if grep -q 'dependabot-digest:main-red' "${WORK}/badci.md"; then
+  _fail "an unreadable survey still wrote a main-red marker, so a reader would say clear"
+else
+  _pass "an unreadable survey leaves the marker out, so a reader says unknown"
+fi
+
 red_line="$(grep -m1 '^<!-- dependabot-digest:main-red:' "${body}")"
 if [[ "${red_line}" == '<!-- dependabot-digest:main-red: o/inherited -->' ]]; then
   _pass "the main-red marker names each red repo once, and only those"

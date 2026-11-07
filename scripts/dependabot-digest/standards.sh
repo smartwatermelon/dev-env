@@ -36,6 +36,7 @@ emit() {
     --arg rulesAt "${RULES_AT}" --arg rulesErr "${RULES_ERR}" \
     --argjson prot "${PROT_JSON:-null}" --argjson cq "${CQ_JSON:-null}" \
     --argjson al "${ALERTS_JSON:-null}" --argjson sf "${SF_JSON:-null}" \
+    --argjson ci "${CI_JSON:-null}" \
     '{owner: $owner, repo: (if $repo == "" then null else $repo end),
       state: $state, detail: $detail,
       source: (if $source == "" then null else $source end),
@@ -44,10 +45,10 @@ emit() {
       rulesAt: (if $rulesAt == "" then null else $rulesAt end),
       rulesErr: (if $rulesErr == "" then null else $rulesErr end),
       annotations: $ann, protection: $prot, codeql: $cq, alerts: $al,
-      securityUpdates: $sf}' 2>/dev/null)"
+      securityUpdates: $sf, branchCi: $ci}' 2>/dev/null)"
   # If jq fails, the repo must still appear. Every setting is unknown.
   if [[ -z "${line}" ]]; then
-    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null,"alerts":null,"securityUpdates":null}\n' \
+    printf '{"owner":"%s","repo":"%s","state":"unreadable","detail":"could not encode the result","source":null,"runUrl":null,"runAt":null,"rulesAt":null,"rulesErr":null,"annotations":[],"protection":null,"codeql":null,"alerts":null,"securityUpdates":null,"branchCi":null}\n' \
       "${owner}" "$1"
     return 0
   fi
@@ -56,7 +57,8 @@ emit() {
 
 # Callers run api in a subshell, so the failure reason goes to a file.
 ERRF="$(mktemp)"
-trap 'rm -f "${ERRF}"' EXIT
+RUNS_BODY="$(mktemp)"
+trap 'rm -f "${ERRF}" "${RUNS_BODY}"' EXIT
 api() {
   : >"${ERRF}"
   gh api "$@" 2>"${ERRF}"
@@ -114,9 +116,12 @@ resolve_rules_at
 # Prints the commit's standards-check run, or nothing. Returns 1 if unreadable.
 run_on_commit() {
   local nwo="$1" sha="$2" body
+  : >"${RUNS_BODY}"
   if ! body="$(api "repos/${nwo}/commits/${sha}/check-runs?per_page=100")"; then
     return 1
   fi
+  # Kept for probe_branch_ci, which judges every run on the same head.
+  printf '%s' "${body}" >"${RUNS_BODY}"
   if ! jq -e "${runs_sane}" >/dev/null 2>&1 <<<"${body}"; then
     set_err "check-run list for ${sha:0:7} is incomplete or nulled"
     return 1
@@ -435,16 +440,84 @@ probe_secfix() {
   esac
 }
 
+# dev-env#229 decision D: is the default branch head red?
+CI_JSON=""
+set_ci() {
+  # set_ci <state> <detail> [failing json array]
+  CI_JSON="$(jq -cn --arg s "$1" --arg d "$2" --argjson f "${3:-[]}" \
+    '{state: $s, detail: (if $d == "" then null else $d end), failing: $f}' 2>/dev/null)"
+  if [[ -z "${CI_JSON}" ]]; then
+    CI_JSON='{"state":"unreadable","detail":"could not encode the branch CI result","failing":[]}'
+  fi
+}
+
+# Latest run per name decides. Cancelled is not red:
+# a newer run usually superseded it.
+read -r -d '' ci_runs_verdict <<'JQ'
+[.check_runs | group_by(.name)[] | max_by(.id)]
+| {total: length,
+   red: [.[] | select(.status == "completed"
+     and (.conclusion | IN("failure", "timed_out", "action_required", "startup_failure"))) | .name],
+   pending: [.[] | select(.status != "completed") | .name]}
+JQ
+
+# Combined status: Netlify and other status contexts. Already latest per context.
+read -r -d '' ci_status_verdict <<'JQ'
+if (.statuses | type) != "array" then error("bad shape") else
+{total: (.statuses | length),
+ red: [.statuses[] | select(.state == "failure" or .state == "error") | .context],
+ pending: [.statuses[] | select(.state == "pending") | .context]}
+end
+JQ
+
+# Sets CI_JSON from RUNS_BODY and the status read.
+# No runs and no statuses is "none", never green.
+probe_branch_ci() {
+  local nwo="$1" head="$2" runs_ok="$3" runs="" stat="" why="" body names
+  if [[ "${runs_ok}" == "1" ]] && jq -e "${runs_sane}" >/dev/null 2>&1 <"${RUNS_BODY}"; then
+    runs="$(jq -c "${ci_runs_verdict}" <"${RUNS_BODY}" 2>/dev/null)"
+  fi
+  [[ -z "${runs}" ]] && why="check runs unreadable"
+  if body="$(api "repos/${nwo}/commits/${head}/status")"; then
+    stat="$(jq -c "${ci_status_verdict}" <<<"${body}" 2>/dev/null)"
+  fi
+  [[ -z "${stat}" ]] && why="${why:+${why}; }statuses unreadable"
+  local both failing pending total
+  both="$(jq -cs '{red: ([.[].red[]] | unique), pending: ([.[].pending[]] | unique),
+    total: ([.[].total] | add)}' <<<"${runs}${stat}" 2>/dev/null)"
+  failing="$(jq -c '.red' <<<"${both}" 2>/dev/null)"
+  pending="$(jq -r '.pending | length' <<<"${both}" 2>/dev/null)"
+  total="$(jq -r '.total // 0' <<<"${both}" 2>/dev/null)"
+  # Red from either source is red even if the other was unreadable.
+  if [[ -n "${failing}" && "${failing}" != "[]" ]]; then
+    names="$(jq -r 'join(", ")' <<<"${failing}" 2>/dev/null)" || names="(names unreadable)"
+    set_ci red "head ${head:0:7}: ${names}" "${failing}"
+  elif [[ -n "${why}" ]]; then
+    set_ci unreadable "head ${head:0:7}: ${why}"
+  elif [[ "${pending}" != "0" ]]; then
+    set_ci pending "head ${head:0:7}: ${pending} still running"
+  elif [[ "${total}" == "0" ]]; then
+    set_ci none "no checks ran on head ${head:0:7}"
+  else
+    set_ci green ""
+  fi
+}
+
 survey_repo() {
-  local nwo="$1" branch="$2" head pulls pr pr_head run source ann count url
+  local nwo="$1" branch="$2" head pulls pr pr_head run source ann count url runs_ok=1
   if ! head="$(api "repos/${nwo}/commits/${branch}" --jq '.sha')" \
     || [[ ! "${head}" =~ ^[0-9a-f]{40}$ ]]; then
+    set_ci unreadable "cannot read the head of ${branch}"
     emit_err "${nwo}" unreadable "cannot read the head of ${branch}" "no sha returned"
     return 0
   fi
 
-  if ! run="$(run_on_commit "${nwo}" "${head}")"; then
-    emit_err "${nwo}" unreadable "cannot read check runs on ${branch} head ${head:0:7}" "no detail"
+  local runs_err=""
+  run="$(run_on_commit "${nwo}" "${head}")" || { runs_ok=0; runs_err="$(last_err "no detail")"; }
+  # Next, before another run_on_commit or api call: RUNS_BODY and ERRF are this head's.
+  probe_branch_ci "${nwo}" "${head}" "${runs_ok}"
+  if [[ "${runs_ok}" == "0" ]]; then
+    emit "${nwo}" unreadable "cannot read check runs on ${branch} head ${head:0:7}: ${runs_err}"
     return 0
   fi
   source="${branch} head ${head:0:7}"
@@ -537,6 +610,7 @@ while IFS=$'\t' read -r nwo archived fork private branch; do
   CQ_JSON=""
   ALERTS_JSON=""
   SF_JSON=""
+  CI_JSON=""
   if [[ "${archived}" == "true" ]]; then
     emit "${nwo}" archived "archived; not surveyed"
   elif [[ -z "${branch}" ]]; then

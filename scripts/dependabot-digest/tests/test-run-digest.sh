@@ -229,6 +229,35 @@ else
   _fail "a dry run sent an ntfy push"
 fi
 
+# #229 D: no PR open, but the default branch is red.
+# The alert still goes out at priority 4.
+cat >"${BIN}/gh" <<'STUB'
+#!/usr/bin/env bash
+sha=dddddddddddddddddddddddddddddddddddddddd
+case "$1" in
+  api)
+    if [[ "$*" == "api user"* ]]; then echo 'twistedmelonman'
+    elif [[ "$*" == *installation/repositories* ]]; then
+      echo '[{"total_count":1,"repositories":[{"full_name":"one/site","default_branch":"main","archived":false,"fork":false,"private":false}]}]'
+    elif [[ "$*" == *"repos/one/site/commits/main"* ]]; then echo "${sha}"
+    elif [[ "$*" == *"commits/${sha}/check-runs"* ]]; then
+      echo '{"total_count":1,"check_runs":[{"id":1,"name":"build","status":"completed","conclusion":"failure","app":{"slug":"github-actions"}}]}'
+    elif [[ "$*" == *"commits/${sha}/status"* ]]; then echo '{"state":"success","statuses":[]}'
+    else echo '{"name":"probe"}'; fi ;;
+  *) echo '[]' ;;
+esac
+STUB
+chmod +x "${BIN}/gh"
+rc="$(publish topic 0)"
+if [[ "${rc}" -eq 0 ]] && grep -q '^Title: Digest: 1 default branches red$' "${WORK}/curl.log" \
+  && grep -qx 'Priority: 4' "${WORK}/curl.log" \
+  && grep -qx 'one/site: default branch red (build)' "${WORK}/curl.log.body"; then
+  _pass "a red default branch is pushed to ntfy with no Dependabot PR open"
+else
+  _fail "no ntfy push for a red default branch (rc ${rc}); see ${WORK}/publish.out"
+  cat "${WORK}/curl.log" "${WORK}/publish.out" >&2
+fi
+
 if [[ "${fail}" -eq 0 ]]; then
   echo "test-run-digest: all assertions passed"
 else
