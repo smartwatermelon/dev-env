@@ -98,6 +98,35 @@ _state o/direct no-pr "a direct-push head with no run is reported"
 _state o/old archived "an archived repo is named as skipped"
 _state o/forbidden unreadable "a refused read is unreadable"
 
+# dev-env#229 decision D: CI state of the default-branch head, owner r.
+rout="${WORK}/r.ndjson"
+survey r >"${rout}" 2>"${WORK}/r.err" || _fail "standards.sh exited non-zero for owner r"
+_ci() { # _ci <repo> <want state> <label>
+  local got
+  got="$(jq -r --arg r "$1" 'select(.repo == $r) | .branchCi.state' "${rout}")"
+  if [[ "${got}" == "$2" ]]; then _pass "$3"; else _fail "$3 (branchCi: '${got}', want '$2')"; fi
+}
+_ci r/red-run red "a failed check run on the head is red"
+_ci r/red-status red "a failed commit status (Netlify) is red"
+_ci r/green green "passing runs and statuses are green; skipped is not red"
+_ci r/pending pending "a run still in progress is pending, not green"
+_ci r/none none "no runs and no statuses is none, never green"
+_ci r/rerun green "a failed run re-run green is judged by the latest run"
+_ci r/status403 unreadable "a refused status read with green runs is unreadable, not green"
+_ci r/cancelled green "a cancelled run alone is not red"
+red_names="$(jq -c 'select(.repo == "r/red-run") | .branchCi.failing' "${rout}")"
+if [[ "${red_names}" == '["build"]' ]]; then
+  _pass "a red head names its failing checks, and only those"
+else
+  _fail "failing names are wrong: ${red_names}"
+fi
+o_ci="$(jq -r 'select(.repo == "o/old") | .branchCi | tostring' "${out}")"
+if [[ "${o_ci}" == "null" ]]; then
+  _pass "an archived repo has no branch CI result"
+else
+  _fail "an archived repo has a branch CI result: ${o_ci}"
+fi
+
 # Re-runs leave several runs on one commit. Only the latest counts.
 warned_ann="$(jq -c 'select(.repo == "o/warned") | [.annotations[].message]' "${out}")"
 if [[ "${warned_ann}" == *"below the floor"* && "${warned_ann}" == *"no shell files"* ]]; then

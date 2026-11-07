@@ -705,6 +705,11 @@ or be explicitly parked with a resume note, by then — see the tracker.
   merges through the all-checks gate with a named sanity check
   (`github-workflows#206`, `#208`), released as a new `v3` tag, canary
   first. A red `main` is fixed first, before other work.
+- **Red `main` is surfaced (2026-11-06):** the daily digest reads CI on
+  every default-branch head, lists red ones first and pushes ntfy at
+  priority 4. Every agent session start names them
+  (`claude-config#836`, from the digest's `main-red` line). The list is
+  up to a day old.
 - **Security updates are on in all 39 readable org repos** (survey
   2026-10-30). `claude-wrapper` was not read: its App token needs
   1Password, which the sandbox blocked.

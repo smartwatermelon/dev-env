@@ -1,0 +1,31 @@
+{
+  "total_count": 2,
+  "check_runs": [
+    {
+      "id": 1,
+      "name": "build",
+      "status": "in_progress",
+      "conclusion": null,
+      "app": {
+        "slug": "github-actions"
+      },
+      "html_url": "https://github.com/x/runs/1",
+      "output": {
+        "annotations_count": 0
+      }
+    },
+    {
+      "id": 2,
+      "name": "lint",
+      "status": "completed",
+      "conclusion": "success",
+      "app": {
+        "slug": "github-actions"
+      },
+      "html_url": "https://github.com/x/runs/2",
+      "output": {
+        "annotations_count": 0
+      }
+    }
+  ]
+}

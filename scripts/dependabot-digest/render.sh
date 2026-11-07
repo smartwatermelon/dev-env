@@ -27,13 +27,59 @@ input="$(cat)"
 # a title that changes (it carries the PR count) would create a second issue
 # every time the count moved.
 echo '<!-- dependabot-digest:v1 -->'
-# Red default branches, for the SessionStart hook (#229 D).
-# Empty: none red. Absent when jq fails: reader says unknown.
-if red_repos="$(jq -rs '[.[] | select(.notMerged == true and .notMergedReason == "main-red") | .repo]
-    | unique | join(" ")' <<<"${input}" 2>/dev/null)"; then
+
+# Default-branch CI per repo from standards.sh (dev-env#229 D). ci_ok=0: unreadable.
+ci_recs=""
+ci_ok=1
+if [[ -n "${standards_file}" ]]; then
+  ci_recs="$(jq -c 'select(.repo != null and (.branchCi | type) == "object")
+    | {repo, state: .branchCi.state, detail: .branchCi.detail, failing: (.branchCi.failing // [])}' \
+    "${standards_file}" 2>/dev/null)" || ci_ok=0
+fi
+
+# Red default branches for the SessionStart hook (#229 D).
+# Empty: none red. Absent on jq failure.
+if [[ "${ci_ok}" == "1" ]] \
+  && red_repos="$(jq -rs '[.[] | (select(.notMerged == true and .notMergedReason == "main-red") | .repo),
+      (select(.state == "red") | .repo)] | unique | join(" ")' <<<"${input}${input:+$'\n'}${ci_recs}" 2>/dev/null)"; then
   echo "<!-- dependabot-digest:main-red:${red_repos:+ ${red_repos}} -->"
 fi
 echo
+
+# #229 D: CI on each default-branch head. Red leads.
+# A head nothing checked is listed, not counted green.
+render_branch_ci() {
+  local red none unk
+  [[ "${ci_ok}" == "1" && -n "${ci_recs}" ]] || return 0
+  red="$(jq -r 'select(.state == "red") | "| [\(.repo)](https://github.com/\(.repo)) | \(.failing | join(", ")) |"' <<<"${ci_recs}")"
+  none="$(jq -rs '[.[] | select(.state == "none") | .repo] | join(", ")' <<<"${ci_recs}")"
+  unk="$(jq -rs '[.[] | select(.state == "unreadable") | "\(.repo) (\(.detail // "no detail"))"] | join("; ")' <<<"${ci_recs}")"
+  if [[ -n "${red}" ]]; then
+    echo "## Red default branches"
+    echo
+    echo "Fix these first. A red default branch blocks every Dependabot PR in that repository, security fixes included, and agent sessions are told to fix it before other work."
+    echo
+    echo '| Repository | Failing checks on the head |'
+    echo '| --- | --- |'
+    echo "${red}"
+    echo
+  elif [[ -n "${none}${unk}" ]]; then
+    echo "## Default branch CI"
+    echo
+    echo "No default branch is red among those that could be read."
+    echo
+  else
+    return 0
+  fi
+  [[ -n "${none}" ]] && { echo "**No checks ran on the head, so its state is unknown:** ${none}."; echo; }
+  [[ -n "${unk}" ]] && { echo "**Could not read:** ${unk}."; echo; }
+  return 0
+}
+
+# Red heads lead the body; otherwise the gaps go with the other standards.
+ci_has_red=0
+[[ "${ci_ok}" == "1" ]] && grep -q '"state":"red"' <<<"${ci_recs}" && ci_has_red=1
+[[ "${ci_has_red}" == "1" ]] && render_branch_ci
 
 if [[ -z "${input//[[:space:]]/}" ]]; then
   echo "No open Dependabot pull requests across the fleet."
@@ -602,6 +648,11 @@ render_setting() {
 }
 
 if [[ -n "${standards_file}" ]]; then
+  [[ "${ci_has_red}" == "1" ]] || render_branch_ci
+  if [[ "${ci_ok}" == "0" ]]; then
+    echo "**Default branch CI could not be read from the survey.** See the run log."
+    echo
+  fi
   render_standards "${standards_file}"
   render_protection "${standards_file}"
   render_codeql "${standards_file}"
