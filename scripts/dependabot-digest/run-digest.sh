@@ -131,8 +131,14 @@ if [[ ! "${nm_count}" =~ ^[0-9]+$ ]]; then
 fi
 
 # dev-env#229 D: a red default-branch head alerts even with no PR blocked.
-head_red="$(jq -r 'select((.branchCi | type) == "object" and .branchCi.state == "red")
-  | "\(.repo): default branch red (\(.branchCi.failing | join(", ")))"' "${standards}" 2>/dev/null | sort -u)"
+if head_red="$(jq -r 'select((.branchCi | type) == "object" and .branchCi.state == "red")
+  | "\(.repo): default branch red (\(.branchCi.failing | join(", ")))"' "${standards}" 2>/dev/null)"; then
+  head_red="$(sort -u <<<"${head_red}")"
+else
+  # The survey is optional elsewhere, so warn rather than fail the run.
+  echo "::warning::could not read red default branches from the survey; no red-branch alert was sent"
+  head_red=""
+fi
 head_red_count=0
 [[ -n "${head_red}" ]] && head_red_count="$(grep -c . <<<"${head_red}")"
 
