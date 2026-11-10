@@ -116,7 +116,7 @@ selfcheck() {
 
 delete_runner() {
   [[ -n "$1" ]] || return 0
-  if [[ -z "${NOS_TOKEN}" ]]; then
+  if [[ -z "${NOS_TOKEN:-}" ]]; then
     log "runner $1: delete skipped, no installation token; it stays registered"
     return 1
   fi
