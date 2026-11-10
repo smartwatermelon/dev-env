@@ -102,9 +102,19 @@ at runtime.
 ### 3. Watchdog (Cloudflare Worker)
 
 - Cron trigger every 10 minutes. Cost is prioritized over fast switching.
-- Healthy means both:
-  - at least one `mimolette` runner is online (idle or busy), and
-  - no job has waited for a `mimolette` runner for more than 20 minutes.
+- Busy is not down. GitHub queues `mimolette` jobs until a slot is free (up
+  to 24 hours, unbilled), so a long queue alone never triggers fallback.
+  Unhealthy means any one of:
+  - no `mimolette` runner is online;
+  - a job has waited for a `mimolette` runner for more than 20 minutes
+    while a `mimolette` runner is online and idle (a runner that takes no
+    work);
+  - jobs are queued, every runner is busy, and the set of busy runner names
+    has not changed for 3 checks (about 30 minutes; config value). Each job
+    gets a new runner name, so an unchanged set means the slots are hung.
+- During a burst, CI waits on MIMOLETTE instead of moving to paid minutes.
+  The trade is time: 20 PRs x 3 jobs x about 5 minutes on 2 slots is about
+  2.5 hours of queue. Slots stay at 2 for now.
 - Unhealthy for 2 checks in a row (about 20 minutes): set
   `NOS_RUNNER=ubuntu-latest`, cancel the stuck jobs and re-run them, and send
   one ntfy alert, only if the Worker changed the variable.

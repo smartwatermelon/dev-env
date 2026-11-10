@@ -18,7 +18,7 @@
 - Job VMs: no shared folders, no host mounts, no Keychain access; private LAN ranges blocked.
 - Supervisor self-check: apiserver answers, image exists, free disk at least 20 GB, a slot started within its last 3 tries.
 - Supervisor writes only `NOS_RUNNER=ubuntu-latest`. Only the Worker writes `NOS_RUNNER=mimolette`.
-- Worker cron every 10 minutes; unhealthy = no `mimolette` runner online, or a `mimolette` job queued more than 20 minutes; switch after 2 checks in a row either way.
+- Worker cron every 10 minutes. Busy is not down. Unhealthy = no `mimolette` runner online; or a `mimolette` job queued more than 20 minutes while a `mimolette` runner is online and idle; or jobs queued, all runners busy, and the busy runner names unchanged for `HUNG_TICKS` = 3 checks. Switch after 2 checks in a row either way.
 - One ntfy alert per state change, sent only by the writer that changed the variable. Topic: existing `NTFY_TOPIC` (`https://ntfy.sh`, as in `scripts/site-monitor/run-monitor.sh`).
 - launchd scripts run under `/bin/bash` 3.2: no associative arrays, no `mapfile`, no `printf %(...)T` (see `scripts/site-monitor/dispatch-monitor.sh`).
 - Installed files live on MIMOLETTE's internal disk (`~/.local/libexec/nos-runner`, deploy clone `~/.local/share/dev-env`), never on `/Volumes` (TCC removable-volume hang).
@@ -29,7 +29,7 @@
 
 ## Review Focus
 
-1. **Queue backlog while healthy.** A Dependabot burst can queue a `mimolette` job for more than 20 minutes with both slots busy. Expected: this counts as unhealthy, CI falls back, and exactly one alert is sent. Test: Task 6 `queued_stale_with_runners_online_is_unhealthy`.
+1. **Queue backlog while healthy.** A Dependabot burst queues `mimolette` jobs for hours with both slots busy. Expected: healthy, as long as the busy runner names keep changing. No fallback, no alert. Tests: Task 6 `long_queue_all_busy_progressing_is_healthy` and `long_queue_all_busy_unchanged_3_ticks_is_unhealthy`.
 2. **`NOS_RUNNER` unset or empty.** Expected: the Worker treats it as `ubuntu-latest`, workflows run on GitHub, and the first healthy switch sends one "online" alert. Test: Task 6 `unset_var_treated_as_ubuntu`.
 3. **Supervisor self-check fails while runners are still online.** Expected: the supervisor takes its runners offline, so the Worker does not switch back and the alerts do not flap. Test: Task 4 `selfcheck_failure_stops_slots_and_deregisters`.
 4. **The variable changes behind the Worker's back** (supervisor or Andrew sets it). Expected: the Worker resets its counts and sends no alert for a change it did not make. Test: Task 6 `external_var_change_resets_counts_no_alert`.
@@ -183,9 +183,16 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
 
 - Produces: `decide(prev, observed)`, a pure function.
   - `prev`: `{ lastVar: string|null, misses: number, goods: number }`. When KV is empty, use `{lastVar:null, misses:0, goods:0}`.
-  - `observed`: `{ varValue: string|null, runnerOnline: boolean, oldestQueuedMinutes: number|null }`.
+  - `prev` also carries `busyNames: string[]` (sorted) and `sameBusyTicks: number`. Both default to `[]` and 0.
+  - `observed`: `{ varValue: string|null, runners: [{name: string, busy: boolean}], oldestQueuedMinutes: number|null }`. `runners` lists only online `mimolette` runners.
+  - `sameBusyTicks` increments when jobs are queued, every runner is busy, and the sorted busy names equal `prev.busyNames`. Otherwise it resets to 0.
   - Returns `{ next: {lastVar, misses, goods}, setVar: 'mimolette'|'ubuntu-latest'|null, notify: 'down'|'recovered'|'online'|null, rerunStuck: boolean }`.
-  - Healthy means `runnerOnline && (oldestQueuedMinutes === null || oldestQueuedMinutes <= 20)`.
+  - Unhealthy means one of three cases:
+    - `runners.length === 0`;
+    - `oldestQueuedMinutes > 20` while some runner has `!busy`;
+    - `sameBusyTicks >= HUNG_TICKS`, where `HUNG_TICKS` is exported and equals 3.
+
+    Anything else is healthy.
   - An unset or empty `varValue` counts as `ubuntu-latest`.
   - If `varValue !== prev.lastVar` and `prev.lastVar !== null`, reset `misses` and `goods` to 0 before counting.
   - Unhealthy with `misses >= 2` while the effective var is `mimolette` gives `setVar 'ubuntu-latest'`, `notify 'down'`, `rerunStuck true`.
@@ -195,11 +202,13 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
   - `healthy_stays_mimolette_no_alert`
   - `one_miss_no_switch`
   - `two_misses_switch_down_once` (a third miss gives no second alert)
-  - `queued_stale_with_runners_online_is_unhealthy` (Review Focus 1)
+  - `long_queue_all_busy_progressing_is_healthy` (Review Focus 1: queued 180 minutes, both runners busy, new names every check, so there is no switch and no alert)
+  - `long_queue_all_busy_unchanged_3_ticks_is_unhealthy` (Review Focus 1)
+  - `queued_over_20_with_idle_runner_is_unhealthy`
   - `unset_var_treated_as_ubuntu` (Review Focus 2: two healthy checks give `mimolette` and `online`)
   - `external_var_change_resets_counts_no_alert` (Review Focus 4)
   - `two_goods_recover_once`
-  - `queued_exactly_20_is_healthy`
+  - `queued_exactly_20_with_idle_runner_is_healthy`
 - [ ] **Step 2: Run them.** Command: `npm --prefix workers/nos-runner-watchdog test`. Expected: FAIL.
 - [ ] **Step 3: Implement `decide`.**
 - [ ] **Step 4: Run them again.** Expected: PASS.
@@ -219,7 +228,7 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
 - Produces:
   - `export default { scheduled(event, env, ctx) }`.
   - Bindings: KV `STATE` (key `state`, plus key `pendingReruns`, a JSON array of `{repo, runId}`), and secrets `APP_ID`, `INSTALLATION_ID`, `APP_KEY_PKCS8`, `NTFY_TOPIC`.
-  - `github.js` exports `appToken(env, fetchFn)` (RS256 through `crypto.subtle`, PKCS8), `getRunnerOnline(token, fetchFn)` (any runner with label `mimolette` and status `online`), `oldestQueuedMinutes(token, now, fetchFn)` (installation repos, then `actions/runs?status=queued`, then jobs whose `labels` include `mimolette`), `setVar(token, value, fetchFn)`, `cancelRun(token, repo, id, fetchFn)` and `rerunFailed(token, repo, id, fetchFn)`.
+  - `github.js` exports `appToken(env, fetchFn)` (RS256 through `crypto.subtle`, PKCS8), `getRunners(token, fetchFn)` (returns `[{name, busy}]` for runners with label `mimolette` and status `online`), `oldestQueuedMinutes(token, now, fetchFn)` (installation repos, then `actions/runs?status=queued`, then jobs whose `labels` include `mimolette`), `setVar(token, value, fetchFn)`, `cancelRun(token, repo, id, fetchFn)` and `rerunFailed(token, repo, id, fetchFn)`.
   - Stuck runs are cancelled in the tick that switches down. They are re-run in a later tick, once their status is `completed`.
 
 - [ ] **Step 1: Write the failing tests.** Use a fake `fetch` keyed by URL, a fake KV and a fixed clock.
