@@ -42,6 +42,8 @@ if [[ "\$*" == *"-sign "* ]]; then
     if [[ "\${prev}" == -sign ]]; then keyfile="\${a}"; fi
     prev="\${a}"
   done
+  if [[ -f "\${keyfile}" ]]; then echo regular >"${WORK}/openssl.keykind"; else echo "\${keyfile%%[0-9]*}" >"${WORK}/openssl.keykind"; fi
+  [[ -p "\${keyfile}" ]] && echo pipe >>"${WORK}/openssl.keykind"
   cat "\${keyfile}" >"${WORK}/openssl.keyread"
   printf 'SIGNATURE'
 fi
@@ -83,9 +85,16 @@ keyread="$(cat "${WORK}/openssl.keyread")"
 check "jwt_has_three_parts_and_rs256_header" test "${jwt_shape}" -eq 0
 check "jwt_claims_iss_iat_exp" test "${claims_ok}" -eq 0
 check "key_read_through_pipe" test "${keyread}" = "${KEYTEXT}"
-key_in_argv=0
-grep -q "${KEYTEXT}" "${WORK}"/*.argv || key_in_argv=1
-check "key_never_in_argv" test "${key_in_argv}" -eq 1
+keyb64_text="$(printf '%s' "${KEYTEXT}" | base64)"
+plain_in_argv=1
+grep -q -e "${KEYTEXT}" "${WORK}"/*.argv || plain_in_argv=0
+b64_in_argv=1
+grep -q -e "${keyb64_text}" "${WORK}"/*.argv || b64_in_argv=0
+check "key_never_in_argv" test "${plain_in_argv}${b64_in_argv}" = 00
+check "key_arg_is_pipe_not_file" grep -qx pipe "${WORK}/openssl.keykind"
+is_regular=0
+grep -q regular "${WORK}/openssl.keykind" && is_regular=1
+check "key_arg_not_regular_file" test "${is_regular}" -eq 0
 
 tok="$(app_token 12345 678)"
 check "token_value_parsed" test "${tok}" = ghs_installtok
@@ -103,5 +112,13 @@ leak=0
 grep -q -e "${BEARER}" -e "${jwt}" "${WORK}/curl.argv" && leak=1
 check "auth_header_not_in_argv" test "${leak}" -eq 0
 check "auth_header_on_stdin" grep -q "^Authorization: Bearer ${BEARER}\$" "${WORK}/curl.stdin"
+
+reqs_before="$(wc -l <"${WORK}/curl.argv")"
+rc=0
+err="$(NOS_TOKEN='' gh_api GET /x 2>&1 >/dev/null)" || rc=$?
+reqs_after="$(wc -l <"${WORK}/curl.argv")"
+check "gh_api_empty_token_fails_fast" test "${rc}" -eq 1
+check "gh_api_empty_token_message" test -n "${err}"
+check "gh_api_empty_token_sends_nothing" test "${reqs_before}" -eq "${reqs_after}"
 
 exit "${fail}"

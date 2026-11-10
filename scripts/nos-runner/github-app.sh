@@ -52,7 +52,16 @@ _api_call() {
 
 # gh_api METHOD PATH [JSON_BODY]: call the API with $NOS_TOKEN.
 gh_api() {
+  if [[ -z "${NOS_TOKEN:-}" ]]; then
+    echo "gh_api: NOS_TOKEN is not set" >&2
+    return 1
+  fi
   _api_call "$1" "$2" "${NOS_TOKEN:-}" "${3:-}"
+}
+
+# launchd PATH is minimal, so prefer the Homebrew jq when it exists.
+_default_jq() {
+  if [[ -x /opt/homebrew/bin/jq ]]; then echo /opt/homebrew/bin/jq; else echo jq; fi
 }
 
 # app_token APP_ID INSTALLATION_ID: print an installation access token.
@@ -63,6 +72,6 @@ app_token() {
     echo "app_token: request failed: ${resp:0:200}" >&2
     return 1
   }
-  tok="$(printf '%s' "${resp}" | "${JQ_BIN:-jq}" -er '.token')" || return 1
+  tok="$(printf '%s' "${resp}" | "${JQ_BIN:-$(_default_jq)}" -er '.token')" || return 1
   printf '%s\n' "${tok}"
 }
