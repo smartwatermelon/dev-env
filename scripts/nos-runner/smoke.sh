@@ -21,11 +21,12 @@ probe() {
   "${CONTAINER_BIN}" run --rm --entrypoint /bin/bash "${TAG}" -c "${cmd}" >/dev/null 2>&1 || return 1
   echo "ok: ${name}"
 }
-# blocked NAME URL: pass only when curl exits 28 (connect timeout, what pf "block drop" causes). Any other result fails.
+# blocked NAME URL: pass only when curl exits 28 with no TCP connect (what pf "block drop" causes). Else fail.
 blocked() {
-  local name="$1" url="$2" rc=0 verdict
-  "${CONTAINER_BIN}" run --rm --entrypoint /bin/bash "${TAG}" -c "curl -s --connect-timeout 5 -m 8 -o /dev/null ${url}" >/dev/null 2>&1 || rc=$?
-  verdict="$(classify_block "${rc}")"
+  local name="$1" url="$2" rc=0 verdict tc
+  local cmd="curl -s -m 8 -o /dev/null -w '%{time_connect}' ${url}"
+  tc="$("${CONTAINER_BIN}" run --rm --entrypoint /bin/bash "${TAG}" -c "${cmd}" 2>/dev/null)" || rc=$?
+  verdict="$(classify_block "${rc}" "${tc}")"
   case "${verdict}" in
   blocked) echo "ok: ${name}" ;;
   open) failed "${name}: reachable (curl rc 0)" ;;
