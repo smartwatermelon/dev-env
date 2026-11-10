@@ -29,7 +29,7 @@ blocked() {
   verdict="$(classify_block "${rc}" "${tc}")"
   case "${verdict}" in
   blocked) echo "ok: ${name}" ;;
-  open) failed "${name}: reachable (curl rc 0)" ;;
+  open) failed "${name}: reachable (connect completed)" ;;
   *) failed "${name}: curl rc ${rc}, want 28 (timeout); refused or a broken VM does not prove pf blocked it" ;;
   esac
 }
