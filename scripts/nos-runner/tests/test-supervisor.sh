@@ -263,6 +263,7 @@ check_not "jit_not_in_argv: token not in argv" grep -q ghs_stubtok "${S}"/*.argv
 echo "-- selfcheck_failure_stops_slots_and_deregisters"
 reset
 sup once
+echo 102 >"${S}/busy"
 STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
 check_eq "selfcheck_failure_stops_slots_and_deregisters: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
 check "selfcheck_failure_stops_slots_and_deregisters: PATCH body" grep -qxF \
@@ -270,17 +271,18 @@ check "selfcheck_failure_stops_slots_and_deregisters: PATCH body" grep -qxF \
   "${S}/requests.log"
 check_eq "selfcheck_failure_stops_slots_and_deregisters: one alert" 1 count . "${S}/ntfy.log"
 check "selfcheck_failure_stops_slots_and_deregisters: alert URL" grep -q '^https://ntfy.sh/stubtopic ' "${S}/ntfy.log"
-check "selfcheck_failure_stops_slots_and_deregisters: slot 1 stopped" grep -qE '^stop mimolette-1-[0-9]+$' "${S}/container.argv"
-check "selfcheck_failure_stops_slots_and_deregisters: slot 2 stopped" grep -qE '^stop mimolette-2-[0-9]+$' "${S}/container.argv"
+check "selfcheck_failure_stops_slots_and_deregisters: busy checked" grep -qE '^GET .*/orgs/nightowlstudiollc/actions/runners/101 ' "${S}/requests.log"
+check "selfcheck_failure_stops_slots_and_deregisters: idle slot 1 stopped" grep -qE '^stop mimolette-1-[0-9]+$' "${S}/container.argv"
+check_not "selfcheck_failure_stops_slots_and_deregisters: busy slot 2 left" grep -qE '^stop mimolette-2-' "${S}/container.argv"
 check "selfcheck_failure_stops_slots_and_deregisters: runner 101 deleted" grep -qE '^DELETE .*/orgs/nightowlstudiollc/actions/runners/101 ' "${S}/requests.log"
-check "selfcheck_failure_stops_slots_and_deregisters: runner 102 deleted" grep -qE '^DELETE .*/orgs/nightowlstudiollc/actions/runners/102 ' "${S}/requests.log"
+check_not "selfcheck_failure_stops_slots_and_deregisters: runner 102 kept" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
 check_eq "selfcheck_failure_stops_slots_and_deregisters: no new slot" 2 runs
 STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
 check_eq "selfcheck_failure_stops_slots_and_deregisters: still one alert" 1 count . "${S}/ntfy.log"
 check_eq "selfcheck_failure_stops_slots_and_deregisters: one variable write" \
   1 count '^(PATCH|POST) .*/actions/variables' "${S}/requests.log"
 STUB_DF_AVAIL_KB=$((20 * GB)) sup once
-check_eq "selfcheck_failure_stops_slots_and_deregisters: 20 GB starts slots again" 4 runs
+check_eq "selfcheck_failure_stops_slots_and_deregisters: 20 GB restarts the stopped slot only" 3 runs
 
 echo "-- no_alert_when_var_already_ubuntu"
 reset ubuntu-latest
@@ -307,35 +309,90 @@ check_eq "no_ntfy_topic_warns: variable still written" ubuntu-latest cat "${S}/v
 check_eq "no_ntfy_topic_warns: no ntfy call" 0 count . "${S}/ntfy.log"
 check "no_ntfy_topic_warns: stderr warning" grep -q 'NTFY_TOPIC' "${S}/sup.err"
 
+# bg_run [ENV=VAL...]: start `supervisor.sh run` in the background; sets pid.
+bg_run() {
+  env "$@" /bin/bash "${SCRIPT}" run 2>>"${S}/sup.err" &
+  pid=$!
+}
+# wait_runs N: poll up to 10 s until N container runs are logged.
+wait_runs() {
+  local i=0 n=0
+  while [[ "${n}" -lt "$1" && "${i}" -lt 100 ]]; do
+    sleep 0.1
+    ((i += 1))
+    n="$(runs)"
+  done
+}
+# wait_ls: poll up to 10 s until the supervisor has called container ls.
+wait_ls() {
+  local i=0
+  while ! grep -q '^ls' "${S}/container.argv" 2>/dev/null && [[ "${i}" -lt 100 ]]; do
+    sleep 0.1
+    ((i += 1))
+  done
+}
+# end_pid [SIG]: send SIG (default TERM), wait up to 15 s, kill -9 after; sets exited (0 = in time) and rc.
+end_pid() {
+  local i=0
+  if [[ -n "${1:-}" ]]; then kill "-$1" "${pid}" 2>/dev/null; fi
+  while kill -0 "${pid}" 2>/dev/null && [[ "${i}" -lt 150 ]]; do
+    sleep 0.1
+    ((i += 1))
+  done
+  exited=0
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill -9 "${pid}" 2>/dev/null
+    exited=1
+  fi
+  rc=0
+  wait "${pid}" 2>/dev/null || rc=$?
+}
+
 echo "-- sigterm_sets_ubuntu_then_exits"
 reset
-/bin/bash "${SCRIPT}" run 2>>"${S}/sup.err" &
-pid=$!
-i=0
-n_runs=0
-while [[ "${n_runs}" -lt 2 && "${i}" -lt 100 ]]; do
-  sleep 0.1
-  ((i += 1))
-  n_runs="$(runs)"
-done
+bg_run
+wait_runs 2
 check_eq "sigterm_sets_ubuntu_then_exits: run started slots" 2 runs
-kill -TERM "${pid}" 2>/dev/null
-i=0
-while kill -0 "${pid}" 2>/dev/null && [[ "${i}" -lt 100 ]]; do
-  sleep 0.1
-  ((i += 1))
-done
-exited=0
-if kill -0 "${pid}" 2>/dev/null; then
-  kill -9 "${pid}" 2>/dev/null
-  exited=1
-fi
-rc=0
-wait "${pid}" 2>/dev/null || rc=$?
-check "sigterm_sets_ubuntu_then_exits: exited within 10 s" test "${exited}" -eq 0
+end_pid TERM
+check "sigterm_sets_ubuntu_then_exits: exited within 15 s" test "${exited}" -eq 0
 check "sigterm_sets_ubuntu_then_exits: exit 0" test "${rc}" -eq 0
 check_eq "sigterm_sets_ubuntu_then_exits: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
 check_eq "sigterm_sets_ubuntu_then_exits: one alert" 1 count . "${S}/ntfy.log"
+check_eq "sigterm_sets_ubuntu_then_exits: idle slots stopped" 2 count '^stop mimolette-' "${S}/container.argv"
+
+echo "-- sigterm_stops_idle_keeps_busy"
+reset
+echo 102 >"${S}/busy"
+bg_run
+wait_runs 2
+end_pid TERM
+check "sigterm_stops_idle_keeps_busy: exited" test "${exited}${rc}" = 00
+check "sigterm_stops_idle_keeps_busy: idle slot 1 stopped" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check_not "sigterm_stops_idle_keeps_busy: busy slot 2 left" grep -qE '^stop mimolette-2-' "${S}/container.argv"
+check "sigterm_stops_idle_keeps_busy: runner 101 deleted" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_not "sigterm_stops_idle_keeps_busy: runner 102 kept" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+check "sigterm_stops_idle_keeps_busy: slot 2 state kept" grep -qE '^name=mimolette-2-' "${S}/state/slot-2"
+
+echo "-- sigterm_mid_pass_starts_no_vm"
+reset
+bg_run STUB_LS_SLEEP=2
+wait_ls
+end_pid TERM
+check "sigterm_mid_pass_starts_no_vm: exited within 15 s, exit 0" test "${exited}${rc}" = 00
+check_eq "sigterm_mid_pass_starts_no_vm: no VM started" 0 runs
+check_eq "sigterm_mid_pass_starts_no_vm: no JIT minted" 0 count 'generate-jitconfig' "${S}/requests.log"
+check_eq "sigterm_mid_pass_starts_no_vm: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+
+echo "-- container_ls_hang_is_apiserver_failure"
+reset
+pid=""
+NOS_CONTAINER_TIMEOUT=1 STUB_LS_HANG=1 /bin/bash "${SCRIPT}" once 2>>"${S}/sup.err" &
+pid=$!
+end_pid
+check "container_ls_hang_is_apiserver_failure: pass ended within the bound" test "${exited}" -eq 0
+check_eq "container_ls_hang_is_apiserver_failure: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+check_eq "container_ls_hang_is_apiserver_failure: no VM started" 0 runs
+check "container_ls_hang_is_apiserver_failure: logged as apiserver" grep -q 'apiserver does not answer' "${S}/sup.err"
 
 echo "-- three_failed_slot_starts_is_selfcheck_failure"
 reset
@@ -351,6 +408,17 @@ check_eq "three_failed_slot_starts_is_selfcheck_failure: failed runners deleted"
 left=0
 while read -r f; do [[ -e "${f}" ]] && left=1; done <"${S}/envfile.paths"
 check "three_failed_slot_starts_is_selfcheck_failure: env files removed on failure" test "${left}" -eq 0
+
+echo "-- failed_failover_write_keeps_fail_counts"
+reset
+STUB_RUN_FAIL=1 sup once || true
+STUB_RUN_FAIL=1 sup once || true
+STUB_RUN_FAIL=1 STUB_PATCH_FAIL=1 sup once || true
+check_eq "failed_failover_write_keeps_fail_counts: write failed" mimolette cat "${S}/var.value"
+check "failed_failover_write_keeps_fail_counts: count kept" grep -qx 'fails=3' "${S}/state/slot-1"
+sup once || true
+check_eq "failed_failover_write_keeps_fail_counts: next pass retries the failover" ubuntu-latest cat "${S}/var.value"
+check_eq "failed_failover_write_keeps_fail_counts: no start on that pass" 6 runs
 
 echo "-- stale_or_missing_pf_ok_file_starts_no_slot"
 reset
@@ -372,6 +440,95 @@ reset
 STUB_IMAGE_MISSING=1 sup once || true
 check_eq "missing_image_is_selfcheck_failure" ubuntu-latest cat "${S}/var.value"
 check_eq "missing_image_starts_no_slot" 0 runs
+
+echo "-- fast_exit_counts_as_failed_start"
+reset
+for _ in 1 2 3; do STUB_RUN_EXITS=1 sup once || true; done
+check_eq "fast_exit_counts_as_failed_start: three passes do not switch" mimolette cat "${S}/var.value"
+STUB_RUN_EXITS=1 sup once || true
+check_eq "fast_exit_counts_as_failed_start: three fast deaths switch" ubuntu-latest cat "${S}/var.value"
+check_eq "fast_exit_counts_as_failed_start: no start on the failing pass" 6 runs
+check_eq "fast_exit_counts_as_failed_start: one alert" 1 count . "${S}/ntfy.log"
+reset
+for _ in 1 2 3 4; do NOS_MIN_UPTIME=0 STUB_RUN_EXITS=1 sup once || true; done
+check_eq "fast_exit_counts_as_failed_start: exits after NOS_MIN_UPTIME do not count" mimolette cat "${S}/var.value"
+
+echo "-- pf_stale_stops_all_without_token"
+reset
+sup once
+echo 102 >"${S}/busy"
+touch -t 202001010000 "${S}/pf.ok"
+STUB_TOKEN_FAIL=1 sup once || true
+check "pf_stale_stops_all_without_token: slot 1 stopped" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check "pf_stale_stops_all_without_token: busy slot 2 stopped too" grep -qE '^stop mimolette-2-' "${S}/container.argv"
+check_eq "pf_stale_stops_all_without_token: no variable write without a token" mimolette cat "${S}/var.value"
+check_eq "pf_stale_stops_all_without_token: token failure alerted" 1 count 'token' "${S}/ntfy.log"
+sup once || true
+check_eq "pf_stale_stops_all_without_token: retry sets ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+check "pf_stale_stops_all_without_token: retry deletes runner 101" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check "pf_stale_stops_all_without_token: retry deletes runner 102" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+check_eq "pf_stale_stops_all_without_token: no VM started" 2 runs
+
+echo "-- token_failure_alerts_once"
+reset
+STUB_TOKEN_FAIL=1 sup once || true
+STUB_TOKEN_FAIL=1 sup once || true
+check_eq "token_failure_alerts_once: one alert" 1 count . "${S}/ntfy.log"
+check_eq "token_failure_alerts_once: no VM started" 0 runs
+sup once
+check_eq "token_failure_alerts_once: recovers" 2 runs
+
+echo "-- stop_failure_keeps_slot_state"
+reset
+sup once
+touch -t 202001010000 "${S}/pf.ok"
+STUB_STOP_FAIL=1 sup once || true
+check "stop_failure_keeps_slot_state: slot 1 name kept" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+check "stop_failure_keeps_slot_state: slot 2 name kept" grep -qE '^name=mimolette-2-' "${S}/state/slot-2"
+check_not "stop_failure_keeps_slot_state: runner not deleted while VM lives" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+touch "${S}/pf.ok"
+sup once
+check_eq "stop_failure_keeps_slot_state: listed VMs get no second VM" 2 runs
+
+echo "-- unnamed_mimolette_vm_is_stopped"
+reset
+sup once
+echo mimolette-9-1 >>"${S}/running"
+sup once
+check "unnamed_mimolette_vm_is_stopped: orphan stopped" grep -qx 'stop mimolette-9-1' "${S}/container.argv"
+check_not "unnamed_mimolette_vm_is_stopped: buildkit untouched" grep -q 'buildkit' "${S}/container.argv"
+check_eq "unnamed_mimolette_vm_is_stopped: no extra VM" 2 runs
+
+echo "-- never_more_than_nos_slots_vms"
+reset
+sup once
+slot1="$(grep -o 'mimolette-1-[0-9]*' "${S}/running")"
+grep -vxF -e "${slot1}" "${S}/running" >"${S}/running.tmp"
+cat "${S}/running.tmp" >"${S}/running"
+echo mimolette-9-1 >>"${S}/running"
+STUB_STOP_FAIL=1 sup once || true
+check_eq "never_more_than_nos_slots_vms: orphan holds the slot, no start" 2 runs
+
+echo "-- failed_delete_blocks_restart"
+reset
+sup once
+slot1="$(grep -o 'mimolette-1-[0-9]*' "${S}/running")"
+grep -vxF -e "${slot1}" "${S}/running" >"${S}/running.tmp"
+cat "${S}/running.tmp" >"${S}/running"
+STUB_DELETE_FAIL=1 sup once || true
+check_eq "failed_delete_blocks_restart: no new VM while runner 101 is registered" 2 runs
+check "failed_delete_blocks_restart: id kept for retry" grep -qx 'id=101' "${S}/state/slot-1"
+sup once
+check_eq "failed_delete_blocks_restart: retry deletes 101" 3 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_eq "failed_delete_blocks_restart: then slot 1 restarts" 3 runs
+
+echo "-- failed_start_keeps_undeleted_runner"
+reset
+STUB_RUN_FAIL=1 STUB_DELETE_FAIL=1 sup once || true
+check "failed_start_keeps_undeleted_runner: id kept for retry" grep -qx 'id=101' "${S}/state/slot-1"
+sup once
+check_eq "failed_start_keeps_undeleted_runner: retry deletes 101" 2 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check "failed_start_keeps_undeleted_runner: slot 1 then starts" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
 
 echo "-- never_writes_mimolette"
 writes="$(grep -E '^(PATCH|POST) [^ ]*/actions/variables' "${WORK}/all-requests.log")"

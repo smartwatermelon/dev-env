@@ -25,9 +25,17 @@ JQ_BIN="${JQ_BIN:-$(_default_jq)}"
 VAR_BODY='{"name":"NOS_RUNNER","value":"ubuntu-latest","visibility":"private"}'
 VAR_PATH="/orgs/${NOS_ORG}/actions/variables/NOS_RUNNER"
 NOS_API_STATUS_FILE="${NOS_STATE_DIR}/api.status"
+CTR_OUT="${NOS_STATE_DIR}/container.out"
 NOS_TOKEN=""
 TOKEN_AT=0
+HAVE_TOKEN=0
+SL_NAME=""
+SL_ID=""
+SL_FAILS=0
+SL_STARTED=0
 RUNNING=""
+LS_OK=0
+KIND=""
 REASON=""
 STOP=0
 SLEEP_PID=""
@@ -38,38 +46,93 @@ log() {
   ts="$(date '+%Y-%m-%dT%H:%M:%S%z')" || ts=unknown-time
   printf '%s supervisor: %s\n' "${ts}" "$*" >&2
 }
+now() { date +%s; }
 # api_code: set API_CODE to the last HTTP status (000 when unknown).
 api_code() { API_CODE="$(cat "${NOS_API_STATUS_FILE}" 2>/dev/null)" || API_CODE=000; }
 
-# Installation tokens last 60 min; mint a new one after 50.
+notify() {
+  if [[ -z "${NTFY_TOPIC:-}" ]]; then
+    log "warning: NTFY_TOPIC is unset; alert not sent: $1"
+    return 0
+  fi
+  "${CURL_BIN}" -fsS --max-time 20 -d "$1" "${NTFY_BASE}/${NTFY_TOPIC}" >/dev/null 2>&1 || log "ntfy delivery failed"
+}
+
+# bounded SECS CMD...: run CMD in the background (stdout to CTR_OUT); kill it after SECS; return its status or 124.
+
+# macOS bash 3.2 has no timeout(1). The 0.1 s poll lets a TERM trap run while CMD is still going.
+bounded() {
+  local secs="$1" pid ticks=0 rc=0
+  shift
+  "$@" >"${CTR_OUT}" 2>/dev/null &
+  pid=$!
+  while kill -0 "${pid}" 2>/dev/null; do
+    if [[ "${ticks}" -ge $((secs * 10)) ]]; then
+      kill -9 "${pid}" 2>/dev/null
+      wait "${pid}" 2>/dev/null
+      log "timed out after ${secs} s: ${1##*/} ${2:-}"
+      return 124
+    fi
+    sleep 0.1
+    ticks=$((ticks + 1))
+  done
+  wait "${pid}" 2>/dev/null || rc=$?
+  return "${rc}"
+}
+ctr() { bounded "${NOS_CONTAINER_TIMEOUT}" "${CONTAINER_BIN}" "$@"; }
+
+# Installation tokens last 60 min; mint a new one after 50. A failed mint alerts once, until a mint works again.
 ensure_token() {
-  local now
-  now="$(date +%s)"
-  if [[ -n "${NOS_TOKEN}" && $((now - TOKEN_AT)) -lt 3000 ]]; then return 0; fi
+  local t mark="${NOS_STATE_DIR}/token-alerted"
+  t="$(now)"
+  if [[ -n "${NOS_TOKEN}" && $((t - TOKEN_AT)) -lt 3000 ]]; then return 0; fi
   if ! NOS_TOKEN="$(app_token "${NOS_APP_ID}" "${NOS_INSTALLATION_ID}")"; then
     NOS_TOKEN=""
     log "cannot mint an installation token"
+    if [[ ! -f "${mark}" ]]; then
+      : >"${mark}"
+      notify "NOS runner: supervisor cannot mint a GitHub App token; it cannot start runners or set NOS_RUNNER"
+    fi
     return 1
   fi
-  TOKEN_AT="${now}"
+  TOKEN_AT="${t}"
+  if [[ -f "${mark}" ]]; then "${RM_BIN}" -f "${mark}"; fi
 }
 
-# Slot state: one file per slot with name=, id= and fails= lines.
-slot_file() { printf '%s/slot-%s' "${NOS_STATE_DIR}" "$1"; }
-slot_get() {
-  local f
-  f="$(slot_file "$1")"
+# Slot state, one file per slot: name= VM (empty: none), id= runner to deregister, fails=, started= epoch.
+
+# slot_put N NAME ID FAILS STARTED
+slot_put() { printf 'name=%s\nid=%s\nfails=%s\nstarted=%s\n' "$2" "$3" "$4" "$5" >"${NOS_STATE_DIR}/slot-$1"; }
+# slot_load N: read the slot file into SL_NAME, SL_ID, SL_FAILS, SL_STARTED (no subshell).
+slot_load() {
+  local k v f="${NOS_STATE_DIR}/slot-$1"
+  SL_NAME=""
+  SL_ID=""
+  SL_FAILS=0
+  SL_STARTED=0
   [[ -f "${f}" ]] || return 0
-  sed -n "s/^$2=//p" "${f}" | head -n 1
+  while IFS='=' read -r k v; do
+    case "${k}" in
+      name) SL_NAME="${v}" ;;
+      id) SL_ID="${v}" ;;
+      fails) SL_FAILS="${v:-0}" ;;
+      started) SL_STARTED="${v:-0}" ;;
+      *) ;;
+    esac
+  done <"${f}"
 }
-slot_put() { printf 'name=%s\nid=%s\nfails=%s\n' "$2" "$3" "$4" >"$(slot_file "$1")"; }
 
-# Deploy check (Task 9): `container ls` prints a header, then one running container per line with its ID (= --name) first.
-is_running() {
-  printf '%s\n' "${RUNNING}" | awk -v n="$1" 'NR > 1 && $1 == n { f = 1 } END { exit !f }'
+# Verified on container 1.7.1: `container ls` prints a header, then one VM per row with its name (--name) in column 1.
+listed() { printf '%s\n' "${RUNNING}" | awk -v n="$1" 'NR > 1 && $1 == n { f = 1 } END { exit !f }'; }
+listed_ours() { printf '%s\n' "${RUNNING}" | awk 'NR > 1 && $1 ~ /^mimolette-/ { print $1 }'; }
+refresh_ls() {
+  if ctr ls; then
+    RUNNING="$(cat "${CTR_OUT}")"
+    LS_OK=1
+  else
+    LS_OK=0
+  fi
 }
-# Deploy check (Task 9): `container image inspect REF` exits 0 only when the image exists.
-image_exists() { [[ -n "${NOS_IMAGE}" ]] && "${CONTAINER_BIN}" image inspect "${NOS_IMAGE}" >/dev/null 2>&1; }
 free_gb() { "${DF_BIN}" -Pk "${NOS_DISK_PATH}" 2>/dev/null | awk 'NR == 2 { print int($4 / 1048576) }'; }
 pf_ok_fresh() {
   local hit
@@ -78,61 +141,156 @@ pf_ok_fresh() {
   [[ -n "${hit}" ]]
 }
 
+# local_check: no token needed. On failure set KIND (pf | apiserver | other) and REASON. pf wins: it is the LAN guard.
+local_check() {
+  local gb
+  refresh_ls
+  KIND=""
+  if ! pf_ok_fresh; then
+    KIND=pf
+    REASON="pf ok file ${NOS_PF_OK_FILE} is missing or older than 10 min"
+  elif [[ "${LS_OK}" -ne 1 ]]; then
+    KIND=apiserver
+    REASON="container apiserver does not answer (container ls failed or timed out)"
+  elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then
+    KIND=other
+    REASON="image ${NOS_IMAGE:-<unset>} is missing"
+  else
+    gb="$(free_gb)"
+    if [[ ! "${gb}" =~ ^[0-9]+$ ]] || [[ "${gb}" -lt "${NOS_MIN_FREE_GB}" ]]; then
+      KIND=other
+      REASON="free disk ${gb:-unknown} GB is below ${NOS_MIN_FREE_GB} GB"
+    fi
+  fi
+  [[ -z "${KIND}" ]]
+}
+
 slots_ok() {
-  local n f
+  local n
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
-    f="$(slot_get "${n}" fails)"
-    if [[ "${f:-0}" -ge 3 ]]; then return 1; fi
+    slot_load "${n}"
+    if [[ "${SL_FAILS}" -ge 3 ]]; then return 1; fi
   done
   return 0
 }
-
-# selfcheck: return 1 and set REASON on the first failed check.
-selfcheck() {
-  local gb
-  if ! RUNNING="$("${CONTAINER_BIN}" ls 2>/dev/null)"; then
-    REASON="container apiserver does not answer"
-    return 1
-  fi
-  if ! image_exists; then
-    REASON="image ${NOS_IMAGE:-<unset>} is missing"
-    return 1
-  fi
-  gb="$(free_gb)"
-  if [[ ! "${gb}" =~ ^[0-9]+$ ]] || [[ "${gb}" -lt "${NOS_MIN_FREE_GB}" ]]; then
-    REASON="free disk ${gb:-unknown} GB is below ${NOS_MIN_FREE_GB} GB"
-    return 1
-  fi
-  if ! pf_ok_fresh; then
-    REASON="pf ok file ${NOS_PF_OK_FILE} is missing or older than 10 min"
-    return 1
-  fi
-  if ! slots_ok; then
-    REASON="a slot failed 3 starts in a row"
-    return 1
-  fi
-  return 0
+reset_fails() {
+  local n
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
+    slot_load "${n}"
+    slot_put "${n}" "${SL_NAME}" "${SL_ID}" 0 "${SL_STARTED}"
+  done
 }
 
+# reconcile (needs a good ls): a VM gone within NOS_MIN_UPTIME is a failed start; one up that long clears the count.
+
+# An unnamed mimolette-* VM is stopped, so no more than NOS_SLOTS run.
+reconcile() {
+  local n name id fails started t known=" " c ours
+  t="$(now)"
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
+    slot_load "${n}"
+    name="${SL_NAME}"
+    [[ -n "${name}" ]] || continue
+    id="${SL_ID}"
+    fails="${SL_FAILS}"
+    started="${SL_STARTED}"
+    if listed "${name}"; then
+      known="${known}${name} "
+      if [[ "${fails}" -gt 0 && $((t - started)) -ge "${NOS_MIN_UPTIME}" ]]; then
+        slot_put "${n}" "${name}" "${id}" 0 "${started}"
+      fi
+      continue
+    fi
+    if [[ $((t - started)) -lt "${NOS_MIN_UPTIME}" ]]; then
+      fails=$((fails + 1))
+      log "slot ${n}: ${name} exited after $((t - started)) s; counts as failed start ${fails}"
+    else
+      log "slot ${n}: ${name} exited"
+    fi
+    slot_put "${n}" "" "${id}" "${fails}" "${started}"
+  done
+  ours="$(listed_ours)" || ours=""
+  for c in ${ours}; do
+    [[ "${known}" == *" ${c} "* ]] && continue
+    log "stopping ${c}: running, but no slot names it"
+    ctr stop "${c}" || log "container stop ${c} failed"
+  done
+}
+
+# stop_slot N: clear name= only once the VM is gone (stop succeeded, or ls no longer lists it). id= stays to deregister.
+stop_slot() {
+  local n="$1" name
+  slot_load "${n}"
+  name="${SL_NAME}"
+  [[ -n "${name}" ]] || return 0
+  if ! ctr stop "${name}"; then
+    refresh_ls
+    if [[ "${LS_OK}" -ne 1 ]] || listed "${name}"; then
+      log "slot ${n}: container stop ${name} failed; will retry"
+      return 1
+    fi
+  fi
+  log "slot ${n}: stopped ${name}"
+  slot_load "${n}"
+  slot_put "${n}" "" "${SL_ID}" "${SL_FAILS}" "${SL_STARTED}"
+}
+
+# runner_idle ID: true only when GitHub says busy=false, or the runner is gone (404). Unknown counts as busy.
+runner_idle() {
+  local resp busy
+  [[ -n "$1" && "${HAVE_TOKEN}" -eq 1 ]] || return 1
+  if ! resp="$(gh_api GET "/orgs/${NOS_ORG}/actions/runners/$1" 2>/dev/null)"; then
+    api_code
+    [[ "${API_CODE}" == 404 ]]
+    return
+  fi
+  busy="$(printf '%s' "${resp}" | "${JQ_BIN}" -r '.busy' 2>/dev/null)" || return 1
+  [[ "${busy}" == false ]]
+}
+
+stop_all_slots() {
+  local n
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do stop_slot "${n}" || true; done
+}
+# Busy VMs finish their job; the runner is ephemeral, so it exits after it.
+stop_idle_slots() {
+  local n name
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
+    slot_load "${n}"
+    name="${SL_NAME}"
+    [[ -n "${name}" ]] || continue
+    if runner_idle "${SL_ID}"; then
+      stop_slot "${n}" || true
+    else
+      log "slot ${n}: ${name} is busy or unknown; left running"
+    fi
+  done
+}
+
+# delete_runner ID: 0 when deleted or already gone (404).
 delete_runner() {
   [[ -n "$1" ]] || return 0
   if [[ -z "${NOS_TOKEN:-}" ]]; then
-    log "runner $1: delete skipped, no installation token; it stays registered"
+    log "runner $1: delete skipped, no installation token; will retry"
     return 1
   fi
-  if ! gh_api DELETE "/orgs/${NOS_ORG}/actions/runners/$1" >/dev/null 2>&1; then
-    # 404: the ephemeral runner is already gone, which is normal after a job.
-    api_code
-    [[ "${API_CODE}" == 404 ]] || log "runner $1: delete failed (HTTP ${API_CODE})"
-  fi
+  gh_api DELETE "/orgs/${NOS_ORG}/actions/runners/$1" >/dev/null 2>&1 && return 0
+  api_code
+  [[ "${API_CODE}" == 404 ]] && return 0
+  log "runner $1: delete failed (HTTP ${API_CODE}); will retry"
+  return 1
 }
-
-notify() {
-  if [[ -z "${NTFY_TOPIC:-}" ]]; then
-    log "warning: NTFY_TOPIC is unset; alert not sent: $1"
-    return 0
-  fi
-  "${CURL_BIN}" -fsS --max-time 20 -d "$1" "${NTFY_BASE}/${NTFY_TOPIC}" >/dev/null 2>&1 || log "ntfy delivery failed"
+# Deregister runners whose VM is gone (name= empty, id= set).
+deregister_pending() {
+  local n id
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
+    slot_load "${n}"
+    id="${SL_ID}"
+    [[ -n "${id}" && -z "${SL_NAME}" ]] || continue
+    if delete_runner "${id}"; then
+      slot_put "${n}" "" "" "${SL_FAILS}" "${SL_STARTED}"
+    fi
+  done
 }
 
 # set_ubuntu REASON: write NOS_RUNNER=ubuntu-latest unless GET shows it already. Alert only after a good write.
@@ -159,103 +317,144 @@ set_ubuntu() {
   notify "NOS runner: NOS_RUNNER set to ubuntu-latest (was ${cur:-unset}). Reason: $1"
 }
 
-# Stop every slot and deregister its runner. Fail counts reset, so a later pass retries once the cause clears.
-stop_slots() {
-  local n name id
-  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
-    name="$(slot_get "${n}" name)"
-    id="$(slot_get "${n}" id)"
-    if [[ -n "${name}" ]]; then
-      "${CONTAINER_BIN}" stop "${name}" >/dev/null 2>&1 || log "slot ${n}: container stop ${name} failed"
-      delete_runner "${id}"
-    fi
-    slot_put "${n}" "" "" 0
-  done
+# remote_failover REASON: needs a token; later passes retry while the failure lasts. Returns 1 if NOS_RUNNER was not set.
+remote_failover() {
+  local rc=0
+  [[ "${HAVE_TOKEN}" -eq 1 ]] || return 1
+  set_ubuntu "$1" || rc=1
+  deregister_pending
+  return "${rc}"
 }
 
-failover() {
-  log "self-check failed: $1"
-  set_ubuntu "$1"
-  stop_slots
+# drop_minted N ID FAILS: deregister a runner minted for a VM that did not start. A failed delete keeps id= for retry.
+drop_minted() {
+  local id="$2"
+  if delete_runner "${id}"; then id=""; fi
+  slot_put "$1" "" "${id}" "$3" 0
 }
 
 # start_slot N: mint a JIT config and run one VM. The JIT goes in a 0600 env file, never argv; the file goes right after.
 start_slot() {
-  local n="$1" fails name body resp id jit envf rc=0
-  fails="$(slot_get "${n}" fails)"
-  fails="${fails:-0}"
-  name="mimolette-${n}-$(date +%s)"
+  local n="$1" fails name body resp id jit envf t rc=0
+  [[ "${STOP}" -eq 0 ]] || return 1
+  slot_load "${n}"
+  fails="${SL_FAILS}"
+  t="$(now)"
+  name="mimolette-${n}-${t}"
   body="$(printf '{"name":"%s","runner_group_id":1,"labels":["%s"],"work_folder":"_work"}' "${name}" "${NOS_LABEL}")"
   if ! resp="$(gh_api POST "/orgs/${NOS_ORG}/actions/runners/generate-jitconfig" "${body}" 2>/dev/null)"; then
     api_code
     log "slot ${n}: generate-jitconfig failed (HTTP ${API_CODE})"
-    slot_put "${n}" "" "" $((fails + 1))
+    slot_put "${n}" "" "" $((fails + 1)) 0
     return 1
   fi
   id="$(printf '%s' "${resp}" | "${JQ_BIN}" -er '.runner.id' 2>/dev/null)" || id=""
   jit="$(printf '%s' "${resp}" | "${JQ_BIN}" -er '.encoded_jit_config' 2>/dev/null)" || jit=""
   resp=""
+  if [[ "${STOP}" -ne 0 ]]; then
+    jit=""
+    drop_minted "${n}" "${id}" "${fails}"
+    return 1
+  fi
   if [[ -z "${id}" || -z "${jit}" ]]; then
     log "slot ${n}: generate-jitconfig reply lacks runner.id or encoded_jit_config"
-    delete_runner "${id}"
-    slot_put "${n}" "" "" $((fails + 1))
+    drop_minted "${n}" "${id}" $((fails + 1))
     return 1
   fi
   envf="${NOS_STATE_DIR}/jit-${n}.env"
   "${RM_BIN}" -f "${envf}"
   if (umask 077 && printf 'NOS_JIT=%s\n' "${jit}" >"${envf}"); then
-    "${CONTAINER_BIN}" run -d --rm --name "${name}" -c "${NOS_CPUS}" -m "${NOS_MEMORY}" \
-      --env-file "${envf}" "${NOS_IMAGE}" >/dev/null || rc=$?
+    ctr run -d --rm --name "${name}" -c "${NOS_CPUS}" -m "${NOS_MEMORY}" --env-file "${envf}" "${NOS_IMAGE}" || rc=$?
   else
     rc=1
   fi
   "${RM_BIN}" -f "${envf}"
   jit=""
   if [[ "${rc}" -ne 0 ]]; then
-    log "slot ${n}: container run failed (try $((fails + 1)))"
-    delete_runner "${id}"
-    slot_put "${n}" "" "" $((fails + 1))
+    # A timed-out run may still have booted the VM; the next reconcile stops it as unnamed.
+    log "slot ${n}: container run failed (rc ${rc}, try $((fails + 1)))"
+    drop_minted "${n}" "${id}" $((fails + 1))
     return 1
   fi
-  slot_put "${n}" "${name}" "${id}" 0
+  # fails= stays until the VM has run NOS_MIN_UPTIME (see reconcile).
+  slot_put "${n}" "${name}" "${id}" "${fails}" "${t}"
   log "slot ${n}: started ${name} (runner ${id})"
 }
 
 tend_slots() {
-  local n name id
+  local n ours
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
-    name="$(slot_get "${n}" name)"
-    id="$(slot_get "${n}" id)"
-    if [[ -n "${name}" ]] && is_running "${name}"; then continue; fi
-    if [[ -n "${name}" ]]; then
-      log "slot ${n}: ${name} exited"
-      delete_runner "${id}"
+    [[ "${STOP}" -eq 0 ]] || return 0
+    slot_load "${n}"
+    [[ -z "${SL_NAME}" ]] || continue
+    # A start would overwrite id=, so the old runner must be deregistered first.
+    if [[ -n "${SL_ID}" ]]; then
+      if ! delete_runner "${SL_ID}"; then
+        log "slot ${n}: runner ${SL_ID} is still registered; not restarting until it is deleted"
+        continue
+      fi
+      slot_put "${n}" "" "" "${SL_FAILS}" "${SL_STARTED}"
     fi
-    start_slot "${n}" || true
+    ours="$(listed_ours | grep -c . || true)"
+    if [[ "${ours}" -ge "${NOS_SLOTS}" ]]; then
+      log "slot ${n}: ${ours} mimolette VMs already listed; not starting another"
+      continue
+    fi
+    if start_slot "${n}"; then
+      slot_load "${n}"
+      RUNNING="${RUNNING}"$'\n'"${SL_NAME}"
+    fi
   done
 }
 
 cmd_once() {
+  local ok=1
   (umask 077 && mkdir -p "${NOS_STATE_DIR}") || {
     log "cannot create ${NOS_STATE_DIR}"
     return 1
   }
-  ensure_token || return 1
-  if ! selfcheck; then
-    failover "${REASON}"
+  local_check || ok=0
+  if [[ "${LS_OK}" -eq 1 ]]; then reconcile; fi
+  # The LAN guard may be off: stop every VM now, before anything that needs the network or a token.
+  if [[ "${ok}" -eq 0 && "${KIND}" == pf ]]; then stop_all_slots; fi
+  HAVE_TOKEN=0
+  if ensure_token; then HAVE_TOKEN=1; fi
+  if [[ "${ok}" -eq 0 ]]; then
+    log "self-check failed: ${REASON}"
+    if [[ "${KIND}" != pf ]]; then stop_idle_slots; fi
+    remote_failover "${REASON}" || true
     return 1
   fi
+  if ! slots_ok; then
+    log "self-check failed: a slot failed 3 starts in a row"
+    stop_idle_slots
+    # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
+    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
+    return 1
+  fi
+  [[ "${STOP}" -eq 0 ]] || return 1
+  if [[ "${HAVE_TOKEN}" -ne 1 ]]; then
+    log "no installation token; no new slots this pass"
+    return 1
+  fi
+  deregister_pending
   tend_slots
   if ! slots_ok; then
-    failover "a slot failed 3 starts in a row"
+    log "self-check failed: a slot failed 3 starts in a row"
+    stop_idle_slots
+    # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
+    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
     return 1
   fi
   return 0
 }
 
-# Running VMs are left alone on SIGTERM: their jobs finish, and the next start adopts them through the slot files.
+# On SIGTERM: switch the fleet, then stop and deregister idle VMs. Busy VMs finish; the next start adopts them.
 cmd_run() {
   trap 'STOP=1; [[ -z "${SLEEP_PID}" ]] || kill "${SLEEP_PID}" 2>/dev/null' TERM INT
+  (umask 077 && mkdir -p "${NOS_STATE_DIR}") || exit 1
+  # A SIGKILL mid-start can leave a JIT file behind.
+  "${RM_BIN}" -f "${NOS_STATE_DIR}"/jit-*.env
   while [[ "${STOP}" -eq 0 ]]; do
     cmd_once || true
     [[ "${STOP}" -eq 0 ]] || break
@@ -263,10 +462,14 @@ cmd_run() {
     SLEEP_PID=$!
     wait "${SLEEP_PID}" 2>/dev/null
     SLEEP_PID=""
-API_CODE=000
   done
   log "stopping: switching NOS_RUNNER to ubuntu-latest"
+  HAVE_TOKEN=0
+  if ensure_token; then HAVE_TOKEN=1; fi
   set_ubuntu "supervisor stopped" || log "could not set NOS_RUNNER on shutdown"
+  refresh_ls
+  stop_idle_slots
+  deregister_pending
   exit 0
 }
 
