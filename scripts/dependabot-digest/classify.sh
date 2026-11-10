@@ -12,9 +12,8 @@
 # whose builds genuinely fail. The hook is stricter, and it is what will run.
 #
 # Hook gates this reproduces (read from the hook, 2026-09-11):
-#   - any NEUTRAL check blocks, EXCEPT names starting with "Pages changed",
-#     "Header rules", "Redirect rules" (Netlify informational) or "Seer"
-#     (advisory by policy).                              [hook lines 643-682]
+#   - NEUTRAL on a REQUIRED check blocks, except the Netlify and Seer
+#     prefixes below. Other NEUTRAL is advisory (claude-config#726).
 #   - CHANGES_REQUESTED review decision blocks.          [hook lines 587-628]
 #   - a merge-lock is always required.                   [hook lines ~540]
 #
@@ -99,8 +98,9 @@ output="$(jq -c --argjson hold "${hold_labels}" --argjson neutral_ok "${neutral_
     or (.conclusion == null)
     or (.conclusion == "PENDING") or (.conclusion == "EXPECTED");
 
-  # Does this NEUTRAL check block the hook?
+  # Does this NEUTRAL check block the hook? Only a required one does.
   def neutral_blocks: (.conclusion == "NEUTRAL")
+    and (.required == true)
     and (.name as $n | any($neutral_ok[]; . as $p | $n | startswith($p)) | not);
 
   . as $pr

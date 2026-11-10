@@ -48,7 +48,7 @@ expect_bucket() {
 expect_bucket o/ready ready-to-merge \
   "all required green, nothing advisory red"
 expect_bucket o/hookblocked hook-blocked \
-  "a non-required NEUTRAL CodeQL does not block GitHub but does block the hook"
+  "a required NEUTRAL CodeQL does not block GitHub but does block the hook"
 expect_bucket o/neutralok ready-to-merge \
   "NEUTRAL on Netlify informational and Seer checks is excluded by the hook"
 expect_bucket o/needswork needs-work \
@@ -99,6 +99,20 @@ if [[ "${why_hookblocked}" == "grouped update" ]]; then
   _pass "whyManual reports a grouped update as grouped, not as a major"
 else
   _fail "whyManual should read 'grouped update', got '${why_hookblocked}'"
+fi
+
+# Dependabot PRs get a non-required NEUTRAL CodeQL; the hook allows it (#726).
+advisory_in="${WORK}/neutral-advisory.ndjson"
+jq -c 'select(.repo == "o/hookblocked")
+  | .repo = "o/neutraladvisory"
+  | .checks |= map(if .name == "CodeQL" then .required = false else . end)' \
+  "${FIX}/synthetic.ndjson" >"${advisory_in}"
+advisory_got="$(bash "${CLASSIFY}" <"${advisory_in}" | jq -r '"\(.bucket) \(.hookBlockers | length)"')" \
+  || advisory_got=""
+if [[ "${advisory_got}" == "ready-to-merge 0" ]]; then
+  _pass "o/neutraladvisory: a non-required NEUTRAL CodeQL does not block the hook"
+else
+  _fail "o/neutraladvisory: expected 'ready-to-merge 0', got '${advisory_got:-<missing>}'"
 fi
 
 # No PR may be silently lost. jq drops a record whose expression raises without
