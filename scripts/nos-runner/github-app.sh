@@ -43,8 +43,11 @@ _api_call() {
     -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28'
     -w '\n%{http_code}')
   if [[ -n "${body}" ]]; then args+=(--data "${body}"); fi
+  # Opt-in: NOS_API_STATUS_FILE gets the HTTP code, or 000 when curl itself fails (no stale code survives).
+  if [[ -n "${NOS_API_STATUS_FILE:-}" ]]; then printf '000\n' >"${NOS_API_STATUS_FILE}"; fi
   out="$(printf 'Authorization: Bearer %s\n' "${bearer}" | "${CURL_BIN:-curl}" "${args[@]}" "${GITHUB_API_URL}${path}")" || return 1
   code="${out##*$'\n'}"
+  if [[ -n "${NOS_API_STATUS_FILE:-}" ]]; then printf '%s\n' "${code}" >"${NOS_API_STATUS_FILE}"; fi
   if [[ "${out}" == *$'\n'* ]]; then out="${out%$'\n'*}"; else out=""; fi
   printf '%s\n' "${out}"
   [[ "${code}" =~ ^2[0-9][0-9]$ ]]

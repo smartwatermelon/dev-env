@@ -113,6 +113,15 @@ grep -q -e "${BEARER}" -e "${jwt}" "${WORK}/curl.argv" && leak=1
 check "auth_header_not_in_argv" test "${leak}" -eq 0
 check "auth_header_on_stdin" grep -q "^Authorization: Bearer ${BEARER}\$" "${WORK}/curl.stdin"
 
+export NOS_API_STATUS_FILE="${WORK}/status"
+STUB_BODY='{}' STUB_STATUS=404 gh_api PATCH /x '{}' >/dev/null || true
+check "status_file_gets_404" grep -qx 404 "${WORK}/status"
+STUB_BODY='{}' STUB_STATUS=204 gh_api PATCH /x '{}' >/dev/null || true
+check "status_file_gets_204" grep -qx 204 "${WORK}/status"
+CURL_BIN=false gh_api GET /x >/dev/null 2>&1 || true
+check "status_file_000_on_transport_error" grep -qx 000 "${WORK}/status"
+unset NOS_API_STATUS_FILE
+
 reqs_before="$(wc -l <"${WORK}/curl.argv")"
 rc=0
 err="$(NOS_TOKEN='' gh_api GET /x 2>&1 >/dev/null)" || rc=$?
