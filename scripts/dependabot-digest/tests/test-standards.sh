@@ -108,7 +108,7 @@ _ci() { # _ci <repo> <want state> <label>
 }
 _ci r/red-run red "a failed check run on the head is red"
 _ci r/red-status red "a failed commit status (Netlify) is red"
-_ci r/green green "passing runs and statuses are green; skipped is not red"
+_ci r/green green "passing runs and statuses are green; skipped and a failed Dependabot update job are not red"
 _ci r/pending pending "a run still in progress is pending, not green"
 _ci r/none none "no runs and no statuses is none, never green"
 _ci r/rerun green "a failed run re-run green is judged by the latest run"
