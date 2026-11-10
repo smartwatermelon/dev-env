@@ -3,6 +3,7 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN NOS_TOKEN GITHUB_API_URL NOS_IMAGE NOS_API_STATUS_FILE
+unset NOS_ORG NOS_SLOTS NOS_CPUS NOS_MEMORY NOS_LABEL NOS_MIN_FREE_GB NTFY_BASE JQ_BIN NOS_MIN_UPTIME NOS_CONTAINER_TIMEOUT
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${HERE}/../supervisor.sh"
@@ -43,7 +44,7 @@ count() {
 
 GB=1048576
 
-# container stub: ls lists $S/running; run records the env file (mode, content, path); stop drops the name.
+# container stub (container 1.7.1 formats): ls lists a buildkit VM plus $S/running; run records the env file; stop drops the name.
 cat >"${BIN}/container" <<STUB
 #!/usr/bin/env bash
 S="${S}"
@@ -51,9 +52,14 @@ echo "\$*" >>"\${S}/container.argv"
 case "\$1" in
   ls)
     [[ -z "\${STUB_LS_FAIL:-}" ]] || exit 1
-    echo "ID IMAGE OS ARCH STATE ADDR"
+    [[ -z "\${STUB_LS_HANG:-}" ]] || exec sleep 30
+    [[ -z "\${STUB_LS_SLEEP:-}" ]] || sleep "\${STUB_LS_SLEEP}"
+    echo "ID IMAGE OS ARCH STATE IP CPUS MEMORY STARTED"
+    echo "buildkit moby/buildkit:latest linux arm64 running 192.168.64.3 2 2048MB 2026-11-10T10:00:00Z"
     if [[ -f "\${S}/running" ]]; then
-      while read -r n; do echo "\${n} nos-runner:2.338.2 linux arm64 running 192.168.64.2"; done <"\${S}/running"
+      while read -r n; do
+        [[ -n "\${n}" ]] && echo "\${n} nos-runner:2.338.2 linux arm64 running 192.168.64.2 4 4096MB 2026-11-10T10:00:00Z"
+      done <"\${S}/running"
     fi
     ;;
   image)
@@ -71,17 +77,18 @@ case "\$1" in
     done
     echo "\${envf}" >>"\${S}/envfile.paths"
     if [[ -f "\${envf}" ]]; then
-      stat -f %Lp "\${envf}" >>"\${S}/envfile.mode"
+      ls -l "\${envf}" | cut -c1-10 >>"\${S}/envfile.mode"
       cat "\${envf}" >>"\${S}/envfile.content"
     else
       echo missing >>"\${S}/envfile.mode"
     fi
     [[ -z "\${STUB_RUN_FAIL:-}" ]] || exit 1
-    echo "\${name}" >>"\${S}/running"
+    [[ -n "\${STUB_RUN_EXITS:-}" ]] || echo "\${name}" >>"\${S}/running"
     echo "\${name}"
     ;;
   stop)
     shift
+    [[ -z "\${STUB_STOP_FAIL:-}" ]] || exit 1
     for n in "\$@"; do
       grep -vxF -e "\${n}" "\${S}/running" >"\${S}/running.tmp" || true
       cat "\${S}/running.tmp" >"\${S}/running"
@@ -121,7 +128,14 @@ echo "\${method} \${url} \${data}" >>"${WORK}/all-requests.log"
 reply() { printf '%s\n%s' "\$1" "\$2"; }
 setvar() { printf '%s' "\${data}" | sed -n 's/.*"value":"\([^"]*\)".*/\1/p' >"\${S}/var.value"; }
 case "\${method} \${url}" in
-  "POST "*/app/installations/*/access_tokens) reply '{"token":"ghs_stubtok"}' 201 ;;
+  "POST "*/app/installations/*/access_tokens)
+    if [[ -n "\${STUB_TOKEN_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; else reply '{"token":"ghs_stubtok"}' 201; fi
+    ;;
+  "GET "*/actions/runners/*)
+    id="\${url##*/}"
+    if grep -qx "\${id}" "\${S}/busy" 2>/dev/null; then b=true; else b=false; fi
+    reply "{\"id\":\${id},\"busy\":\${b}}" 200
+    ;;
   "POST "*/actions/runners/generate-jitconfig)
     n=\$((\$(cat "\${S}/jit.n" 2>/dev/null || echo 0) + 1))
     echo "\${n}" >"\${S}/jit.n"
@@ -136,10 +150,13 @@ case "\${method} \${url}" in
     fi
     ;;
   "PATCH "*/actions/variables/NOS_RUNNER)
+    if [[ -n "\${STUB_PATCH_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; exit 0; fi
     if [[ -f "\${S}/var.value" ]]; then setvar; reply '' 204; else reply '{"message":"Not Found"}' 404; fi
     ;;
   "POST "*/actions/variables) setvar; reply '' 201 ;;
-  "DELETE "*/actions/runners/*) reply '' 204 ;;
+  "DELETE "*/actions/runners/*)
+    if [[ -n "\${STUB_DELETE_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; else reply '' 204; fi
+    ;;
   *) reply '{"message":"unexpected"}' 500 ;;
 esac
 STUB
@@ -234,7 +251,7 @@ check_not "container_run_has_no_mount_or_volume_flags" \
 echo "-- jit_not_in_argv"
 check "jit_not_in_argv: env file held NOS_JIT" grep -qx 'NOS_JIT=JITSECRET-101' "${S}/envfile.content"
 check_not "jit_not_in_argv: no argv carries the JIT" grep -q JITSECRET "${S}"/*.argv
-check_eq "jit_not_in_argv: env file was mode 600" 600 sort -u "${S}/envfile.mode"
+check_eq "jit_not_in_argv: env file was mode 600" -rw------- sort -u "${S}/envfile.mode"
 gone=0
 while read -r f; do
   [[ -e "${f}" ]] && gone=1
