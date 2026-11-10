@@ -219,3 +219,57 @@ A "no" on 1 or 2 stops the design and comes back to Andrew.
 
 Set `NOS_RUNNER=ubuntu-latest`, or delete it. Every job is back on
 GitHub-hosted runners at once.
+
+## Spike results
+
+### Q1: LAN blocking — PASS (2026-11-10)
+
+- `container` 1.7.1 has no egress filter; `network create --internal` is host-only (no internet). pf is the method.
+- Job VM: `192.168.64.2/24` on host `bridge100` (`192.168.64.1`), default route and DNS via `192.168.64.1`.
+- MIMOLETTE LAN `10.0.12.0/22` (router `10.0.15.1`); host DNS `192.168.0.1`, `149.112.112.112`. pf was already enabled.
+- Baseline (no rules): the VM reached the router (HTTP and ping) and `192.168.0.1` (ping).
+- Rules, loaded as anchor `com.apple/nos-runner-spike` (evaluated through `anchor "com.apple/*"` in `/etc/pf.conf`, no edit needed):
+
+  ```text
+  table <nos_private> const { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10 }
+  pass in quick on bridge100 proto { udp tcp } from 192.168.64.0/24 to 192.168.64.1 port 53
+  block drop in quick on bridge100 inet from 192.168.64.0/24 to <nos_private>
+  block drop in quick on bridge100 inet6 from any to { fc00::/7, fe80::/10 }
+  ```
+
+- With rules: `https://api.github.com` and `https://registry.npmjs.org` OK; DNS through the gateway resolves; router HTTP/ping, `192.168.0.1` ping and DNS (UDP and TCP), host `10.0.15.63:22` all blocked. Host SSH unaffected.
+- Probe lesson: `dig +short | grep -q .` matches dig's own error text; check for an address (`grep -qE '^[0-9]'`).
+- Anchor rules do not survive a reboot. The build needs a root LaunchDaemon (installed once by Andrew with sudo) that loads the anchor at boot, and the supervisor's self-check must confirm the anchor is loaded before starting any slot.
+- Teardown done: anchor flushed, pf enable token released, container removed.
+
+### Q2: runner in an arm64 Apple container VM — PASS (2026-11-10)
+
+- Image: Ubuntu 24.04 arm64, Actions runner v2.338.2 (linux-arm64 tarball, SHA-256 `670adb2f…de945` checked), packages git, curl, jq, unzip, ca-certificates, build-essential, sudo, libicu74, **python3**, **gnupg**. Runs as user `runner` with passwordless sudo.
+- JIT config minted with the `nos-runner` App (`POST /orgs/nightowlstudiollc/actions/runners/generate-jitconfig`, group 1, label `mimolette`). Runner group 1 "Default": `allows_public_repositories=false`.
+- Run with `container run -d --rm -c 4 -m 4g <image> --jitconfig <jit>`, pf LAN block loaded. The runner connected, took one job, exited; `--rm` removed the VM.
+- kebab-tax draft PR #1545 (closed unmerged), `test-mobile` on `runs-on: mimolette`:
+  1. Failed in `npm ci`: `better-sqlite3` has no linux-arm64 prebuild for Node 26, so node-gyp builds it and needs `python3`. Fixed in the image.
+  2. All test steps passed; `codecov-action` failed for missing `gpg`. Fixed in the image (`gnupg`).
+  3. Green. Steps took 101 s (job 116 s including runner cleanup), against a GitHub-hosted median of 200 s (p90 237 s, 162 runs since Oct 25).
+- Lesson: each tool GitHub's image ships that a job uses must be in our image; expect more of these as other workflows move (Task 11 follow-up).
+- Teardown done: PR closed and branch deleted, pf anchor flushed and token released, spike image removed. The `buildkit` builder VM (2 CPUs, 2 GB) is still running.
+
+### Q3: re-run reads the new variable value — PASS (2026-11-10)
+
+- Org variable `SPIKE_RUNNER` (visibility private) set by the `nos-runner` App: create HTTP 201, update HTTP 204, delete HTTP 204. The App's org Variables permission is enough.
+- reliquarist draft PR #128 (closed unmerged), job `runs-on: ${{ vars.SPIKE_RUNNER || 'ubuntu-latest' }}`, with `SPIKE_RUNNER=no-such-label`: the job stayed queued.
+- Set `SPIKE_RUNNER=ubuntu-latest`, cancelled the run (completed/cancelled within about 10 s), then `rerun-failed-jobs`: attempt 2 ran on a GitHub-hosted runner (`GitHub Actions 1000014253`, image `ubuntu-26.04`) and passed.
+- So the Worker's cancel, then re-run, moves stuck jobs to GitHub. The cancel completes fast enough that the re-run can be in the same tick after a short poll; the plan's "re-run on a later tick" also works.
+- The agent App cannot set variables on smartwatermelon/dev-env (HTTP 403), so the test used the real mechanism instead.
+
+### Q4: Workers free plan limits — PASS with constraints (2026-11-10)
+
+From developers.cloudflare.com (Workers limits and KV pricing pages, read 2026-11-10):
+
+- 50 external subrequests per invocation; 10 ms CPU per Cron Trigger run; 5 Cron Triggers per account; 100,000 requests a day.
+- KV: 100,000 reads a day, 1,000 writes a day, 1 write per second to the same key.
+- Fit: 144 runs a day. One `state` KV write per run (144 a day) plus the token cache fits 1,000.
+- Constraints for Task 7:
+  - Budget at most 40 subrequests per run (headroom under 50).
+  - Fetch jobs only for the oldest queued run in each repo.
+  - Cache the installation token in KV (`expirationTtl` 3000 s; tokens last 1 hour), so most runs skip the RS256 signing and stay under 10 ms CPU.

@@ -16,7 +16,8 @@
 - Workflow expression, verbatim: `runs-on: ${{ vars.NOS_RUNNER || 'ubuntu-latest' }}`.
 - 2 slots; each job VM 4 CPUs, 4 GB RAM; image Ubuntu 24.04 arm64.
 - Job VMs: no shared folders, no host mounts, no Keychain access; private LAN ranges blocked.
-- Supervisor self-check: apiserver answers, image exists, free disk at least 20 GB, a slot started within its last 3 tries.
+- Supervisor self-check: apiserver answers, image exists, free disk at least 20 GB, a slot started within its last 3 tries, and the pf status file `/var/run/nos-runner-pf.ok` is less than 10 minutes old.
+- Task 1 (spike) is DONE; all four questions passed. Results and the facts later tasks rely on are in the spec's "Spike results" section. App ID 5703224, installation ID 180668548. Key: Keychain service `nos-runner-app-key`, account `nightowlstudiollc`, stored **base64-encoded** (decode with `base64 -d`).
 - Supervisor writes only `NOS_RUNNER=ubuntu-latest`. Only the Worker writes `NOS_RUNNER=mimolette`.
 - Worker cron every 10 minutes. Busy is not down. Unhealthy = no `mimolette` runner online; or a `mimolette` job queued more than 20 minutes while a `mimolette` runner is online and idle; or jobs queued, all runners busy, and the busy runner names unchanged for `HUNG_TICKS` = 3 checks. Switch after 2 checks in a row either way.
 - One ntfy alert per state change, sent only by the writer that changed the variable. Topic: existing `NTFY_TOPIC` (`https://ntfy.sh`, as in `scripts/site-monitor/run-monitor.sh`).
@@ -58,7 +59,7 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
 **Interfaces:**
 
 - Produces, sourced by Task 4:
-  - `app_jwt APP_ID` prints an RS256 JWT, with `iat` = now − 60 and `exp` = now + 540. It reads the key with `${SECURITY_BIN:-security} find-generic-password -s nos-runner-app-key -a nightowlstudiollc -w`, which goes into `${OPENSSL_BIN:-openssl} dgst -sha256 -sign` through a pipe or process substitution, never a file.
+  - `app_jwt APP_ID` prints an RS256 JWT, with `iat` = now − 60 and `exp` = now + 540. It reads the key with `${SECURITY_BIN:-security} find-generic-password -s nos-runner-app-key -a nightowlstudiollc -w | ${BASE64_BIN:-base64} -d`, which goes into `${OPENSSL_BIN:-openssl} dgst -sha256 -sign` through a pipe or process substitution, never a file.
   - `app_token APP_ID INSTALLATION_ID` prints an installation token.
   - `gh_api METHOD PATH [JSON_BODY]` uses `$NOS_TOKEN`, sends the header on stdin as in `dispatch-monitor.sh`, prints the body, and returns 1 on non-2xx.
   - `GITHUB_API_URL` overrides `https://api.github.com`.
@@ -81,7 +82,14 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
 
 - Create: `scripts/nos-runner/image/Containerfile`
 - Create: `scripts/nos-runner/image/entrypoint.sh`
-- Create: the LAN-block artifact that Task 1 Q1 chose, either `scripts/nos-runner/net/` container network setup or `scripts/nos-runner/net/nos-runner.pf` plus the anchor load line
+- Create: `scripts/nos-runner/net/nos-runner.pf`, holding the four rules from the spec's Q1 results verbatim.
+- Create: `scripts/nos-runner/net/pf-guard.sh`, run as root every 300 s by a LaunchDaemon. It:
+  - loads the rules into anchor `com.apple/nos-runner` (`pfctl -a com.apple/nos-runner -f`);
+  - checks that `pfctl -s info` shows pf enabled, and if not runs `pfctl -E` once and keeps that token;
+  - re-reads the anchor (`pfctl -a com.apple/nos-runner -s rules` must list the 5 rules);
+  - writes `/var/run/nos-runner-pf.ok` (mode 0644) only when all checks pass.
+- Create: `scripts/nos-runner/net/com.nightowlstudio.nos-runner-pf.plist`, a LaunchDaemon with `StartInterval` 300 and `RunAtLoad`.
+- Create: `scripts/nos-runner/net/install-pf.sh`, which Andrew runs once with `sudo`. It installs the guard to `/usr/local/libexec/nos-runner/` (owner root, mode 0755) and bootstraps the daemon into `system`. `update.sh` never touches root files, so a rule change needs Andrew to run `install-pf.sh` again.
 - Create: `scripts/nos-runner/smoke.sh`, run on MIMOLETTE only and never in CI
 - Test: `scripts/nos-runner/tests/test-entrypoint.sh`
 
@@ -96,7 +104,7 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
   - `entrypoint_passes_jitconfig_and_removes_file`
   - `entrypoint_fails_when_jit_missing` (exit 2 with a message)
 - [ ] **Step 2: Run it.** Expected: FAIL.
-- [ ] **Step 3: Write `entrypoint.sh` and the Containerfile.** Packages: git, curl, jq, unzip, ca-certificates, build-essential, sudo. The runner tarball checksum must be checked against GitHub's published SHA-256.
+- [ ] **Step 3: Write `entrypoint.sh` and the Containerfile.** Packages: git, curl, jq, unzip, ca-certificates, build-essential, sudo, libicu74, python3 (node-gyp builds `better-sqlite3` on arm64), gnupg (`codecov-action`). Start from the spike Containerfile in the spec's Q2 results. Use runner v2.338.2, SHA-256 `670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945`. Add a test, `pf_guard_writes_ok_only_when_rules_listed`, with stub `pfctl`. The runner tarball checksum must be checked against GitHub's published SHA-256.
 - [ ] **Step 4: Write `smoke.sh`.** It builds the image, runs it with the LAN block on, and repeats the pass checks from Task 1 Q1. It prints `SMOKE PASS` or names the failed check.
 - [ ] **Step 5: Run the unit test, then the smoke test.** Unit test: expected PASS. Smoke test (with Andrew's OK): `ssh mimolette.local '/bin/bash ~/.local/share/dev-env/scripts/nos-runner/smoke.sh'` must print `SMOKE PASS`.
 - [ ] **Step 6: Commit.** Message: `feat(nos-runner): add runner image and LAN block`.
@@ -137,6 +145,7 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
   - `sigterm_sets_ubuntu_then_exits`
   - `never_writes_mimolette` (grep the logged bodies)
   - `three_failed_slot_starts_is_selfcheck_failure`
+  - `stale_or_missing_pf_ok_file_starts_no_slot`: the LAN block may be off, so no job may start. The test points `NOS_PF_OK_FILE` at a temp path.
 - [ ] **Step 2: Run them.** Expected: FAIL.
 - [ ] **Step 3: Implement `supervisor.sh`.** Slot state goes in one file per slot under `${NOS_STATE_DIR:-$HOME/.local/state/nos-runner}`, which suits bash 3.2. The JIT file is mode 0600 under that directory, and it is removed with `$RM_BIN` after the container starts. Before setting the variable, read it with `GET .../variables/NOS_RUNNER` to decide whether to alert. Use `trap` on TERM.
 - [ ] **Step 4: Run the tests again.** Expected: PASS. Shellcheck must be clean.
@@ -227,6 +236,10 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
 - Consumes: `decide` (Task 6).
 - Produces:
   - `export default { scheduled(event, env, ctx) }`.
+  - Free-plan budget from the spike's Q4 results:
+    - At most 40 subrequests per run.
+    - Fetch jobs only for the oldest queued run in each repo.
+    - Cache the installation token in KV key `token`, with `expirationTtl` 3000.
   - Bindings: KV `STATE` (key `state`, plus key `pendingReruns`, a JSON array of `{repo, runId}`), and secrets `APP_ID`, `INSTALLATION_ID`, `APP_KEY_PKCS8`, `NTFY_TOPIC`.
   - `github.js` exports `appToken(env, fetchFn)` (RS256 through `crypto.subtle`, PKCS8), `getRunners(token, fetchFn)` (returns `[{name, busy}]` for runners with label `mimolette` and status `online`), `oldestQueuedMinutes(token, now, fetchFn)` (installation repos, then `actions/runs?status=queued`, then jobs whose `labels` include `mimolette`), `setVar(token, value, fetchFn)`, `cancelRun(token, repo, id, fetchFn)` and `rerunFailed(token, repo, id, fetchFn)`.
   - Stuck runs are cancelled in the tick that switches down. They are re-run in a later tick, once their status is `completed`.
@@ -237,7 +250,8 @@ Run by the main session over SSH, not a subagent. Nothing built here is kept. Re
   - `next_tick_reruns_completed_pending`
   - `api_error_skips_tick` (Review Focus 5: a 502 on runners leaves KV unchanged and sends no ntfy)
   - `rate_limited_403_skips_tick`
-  - `subrequests_per_tick_at_most_limit`, which counts fetch calls against the Q4 limit from Task 1
+  - `subrequests_per_tick_at_most_40`. It uses a fixture with 10 repos that each have 5 queued runs, and counts every fetch, including KV.
+  - `cached_token_skips_signing`
 - [ ] **Step 2: Run them.** Expected: FAIL.
 - [ ] **Step 3: Implement `github.js` and `index.js`.**
 - [ ] **Step 4: Run them again.** Expected: PASS.
