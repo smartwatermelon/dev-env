@@ -453,8 +453,11 @@ set_ci() {
 
 # Latest run per name decides. Cancelled is not red:
 # a newer run usually superseded it.
+# A Dependabot update job is not branch CI, and a failed one
+# cannot be re-run.
 read -r -d '' ci_runs_verdict <<'JQ'
-[.check_runs | group_by(.name)[] | max_by(.id)]
+[.check_runs[] | select((.name == "Dependabot" and .app.slug == "github-actions") | not)]
+| [group_by(.name)[] | max_by(.id)]
 | {total: length,
    red: [.[] | select(.status == "completed"
      and (.conclusion | IN("failure", "timed_out", "action_required", "startup_failure"))) | .name],

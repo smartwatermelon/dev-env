@@ -1,5 +1,5 @@
 {
-  "total_count": 2,
+  "total_count": 3,
   "check_runs": [
     {
       "id": 1,
@@ -23,6 +23,19 @@
         "slug": "github-actions"
       },
       "html_url": "https://github.com/x/runs/2",
+      "output": {
+        "annotations_count": 0
+      }
+    },
+    {
+      "id": 99,
+      "name": "Dependabot",
+      "status": "completed",
+      "conclusion": "failure",
+      "app": {
+        "slug": "github-actions"
+      },
+      "html_url": "https://github.com/x/runs/99",
       "output": {
         "annotations_count": 0
       }
