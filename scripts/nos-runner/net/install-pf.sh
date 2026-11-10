@@ -23,6 +23,7 @@ fi
 "${INSTALL_BIN}" -d -o root -g wheel -m 0755 "${PLIST%/*}" || exit 1
 "${INSTALL_BIN}" -o root -g wheel -m 0755 "${HERE}/pf-guard.sh" "${LIBEXEC}/pf-guard.sh" || exit 1
 "${INSTALL_BIN}" -o root -g wheel -m 0644 "${HERE}/nos-runner.pf" "${LIBEXEC}/nos-runner.pf" || exit 1
+"${INSTALL_BIN}" -o root -g wheel -m 0644 "${HERE}/nos-runner-v6.pf" "${LIBEXEC}/nos-runner-v6.pf" || exit 1
 "${INSTALL_BIN}" -o root -g wheel -m 0644 "${HERE}/${LABEL}.plist" "${PLIST}" || exit 1
 
 # bootout fails when the daemon is not loaded yet; that is fine.

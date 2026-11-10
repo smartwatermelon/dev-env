@@ -68,6 +68,7 @@ run 0 || rc=$?
 check "exit 0 as uid 0" test "${rc}" -eq 0
 check "guard installed under INSTALL_ROOT" test -e "${guard}"
 check "rules installed" test -e "${WORK}/root/usr/local/libexec/nos-runner/nos-runner.pf"
+check "v6 rules installed" test -e "${WORK}/root/usr/local/libexec/nos-runner/nos-runner-v6.pf"
 check "plist installed" test -e "${plist}"
 check "guard installed root:wheel mode 0755" grep -q -- "-o root -g wheel -m 0755 .*pf-guard.sh" "${WORK}/log/install"
 check "bootstrap into system" grep -q -- "bootstrap system ${plist}" "${WORK}/log/launchctl"

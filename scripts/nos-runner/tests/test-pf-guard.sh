@@ -27,6 +27,7 @@ cat >"${WORK}/bin/pfctl" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"${PF_STATE}/calls"
 case "$*" in
+"-a com.apple/nos-runner-v6 -f "*) [[ -f "${PF_STATE}/v6-fail" ]] && exit 1; exit 0 ;;
 "-a com.apple/nos-runner -f "*) [[ -f "${PF_STATE}/load-fail" ]] && exit 1; exit 0 ;;
 "-s info")
   if [[ -f "${PF_STATE}/enabled" ]]; then echo "Status: Enabled for 1 days"; else echo "Status: Disabled"; fi ;;
@@ -40,11 +41,9 @@ chmod +x "${WORK}/bin/pfctl"
 
 good_rules() {
   cat >"${WORK}/state/rules" <<'R'
-pass in quick on bridge100 inet proto udp from 192.168.64.0/24 to 192.168.64.1 port = 53
-pass in quick on bridge100 inet proto tcp from 192.168.64.0/24 to 192.168.64.1 port = 53
-block drop in quick on bridge100 inet from 192.168.64.0/24 to <nos_private>
-block drop in quick on bridge100 inet6 from any to fc00::/7
-block drop in quick on bridge100 inet6 from any to fe80::/10
+pass in quick inet proto udp from 192.168.64.0/24 to 192.168.64.1 port = 53 keep state
+pass in quick inet proto tcp from 192.168.64.0/24 to 192.168.64.1 port = 53 flags S/SA keep state
+block drop in quick inet from 192.168.64.0/24 to <nos_private>
 R
 }
 reset() {
@@ -56,7 +55,7 @@ run() {
   PF_STATE="${WORK}/state" PFCTL_BIN="${WORK}/bin/pfctl" NOS_PF_RULES="${WORK}/nos-runner.pf" \
     NOS_PF_OK_FILE="${WORK}/ok" NOS_PF_TOKEN_FILE="${WORK}/token" bash "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
 }
-mode_of() { stat -f %Lp "$1" 2>/dev/null || stat -c %a "$1"; }
+mode_of() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
 enable_count() { grep -c '^-E$' "${WORK}/state/calls"; }
 
 echo "-- pf_guard_writes_ok_only_when_rules_listed"
@@ -64,7 +63,7 @@ reset
 good_rules
 rc=0
 run || rc=$?
-check "exit 0 with all 5 rules listed" test "${rc}" -eq 0
+check "exit 0 with all 3 rules listed" test "${rc}" -eq 0
 check "ok file written" test -f "${WORK}/ok"
 mode="$(mode_of "${WORK}/ok")"
 check "ok file mode 0644" test "${mode}" = 644
@@ -84,8 +83,8 @@ touch "${WORK}/state/enabled"
 sed -i.bak '$d' "${WORK}/state/rules"
 rc=0
 run || rc=$?
-check "exit 1 with 4 rules listed" test "${rc}" -eq 1
-check_not "no ok file with 4 rules" test -f "${WORK}/ok"
+check "exit 1 with 2 rules listed" test "${rc}" -eq 1
+check_not "no ok file with 2 rules" test -f "${WORK}/ok"
 
 reset
 touch "${WORK}/state/enabled"
@@ -99,6 +98,24 @@ good_rules
 touch "${WORK}/state/load-fail"
 run || true
 check_not "no ok file when the anchor load fails" test -f "${WORK}/ok"
+
+echo "-- pf_guard_v6_load_is_best_effort"
+reset
+good_rules
+run || true
+check "v6 rules loaded into their own anchor" grep -q '^-a com.apple/nos-runner-v6 -f ' "${WORK}/state/calls"
+touch "${WORK}/state/v6-fail"
+rc=0
+run || rc=$?
+check "exit 0 when only the v6 load fails" test "${rc}" -eq 0
+check "ok file written when only the v6 load fails" test -f "${WORK}/ok"
+check "stderr warns about v6" grep -q 'v6' "${WORK}/err"
+
+echo "-- shipped rules do not name an interface"
+check_not "nos-runner.pf has no 'on bridge100'" grep -q 'on bridge100' "${HERE}/../net/nos-runner.pf"
+file_rules="$(grep -cE '^(pass|block) ' "${HERE}/../net/nos-runner.pf")"
+check "nos-runner.pf has 1 pass line + 1 block line" test "${file_rules}" -eq 2
+check "v6 file binds bridge100" grep -q 'on bridge100 inet6' "${HERE}/../net/nos-runner-v6.pf"
 
 echo "-- pf_guard_removes_ok_file_when_rules_missing"
 reset

@@ -1,0 +1,3 @@
+# IPv6 has no known VM source prefix, so this stays bound to bridge100. A bare rule would block the host's own NDP and ULA traffic.
+# The guard loads it best effort: the bridge may not exist yet, and that must not stop the IPv4 rules or the ok file.
+block drop in quick on bridge100 inet6 from any to { fc00::/7, fe80::/10 }
