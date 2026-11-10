@@ -12,10 +12,12 @@ _b64url() {
   printf '%s' "${raw//=/}"
 }
 
-# _sign KEY_B64 DATA: raw RS256 signature on stdout.
-# Key and data go to openssl as /dev/fd paths. Errors give an empty signature.
+# _pem KEY_B64: decode the key. A pipe, not a here-string (bash 3.2 writes those to a temp file).
+_pem() { printf '%s' "$1" | "${BASE64_BIN:-base64}" -d; }
+
+# _sign KEY_B64 DATA: raw RS256 signature on stdout. Key and data go to openssl as /dev/fd paths.
 _sign() {
-  "${OPENSSL_BIN:-openssl}" dgst -sha256 -sign <("${BASE64_BIN:-base64}" -d <<<"$1" || true) <(printf '%s' "$2")
+  "${OPENSSL_BIN:-openssl}" dgst -sha256 -sign <(_pem "$1" || true) <(printf '%s' "$2")
 }
 
 # app_jwt APP_ID: print an RS256 JWT (iat = now - 60, exp = now + 540).
