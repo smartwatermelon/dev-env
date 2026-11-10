@@ -152,6 +152,8 @@ local_check() {
   elif [[ "${LS_OK}" -ne 1 ]]; then
     KIND=apiserver
     REASON="container apiserver does not answer (container ls failed or timed out)"
+  elif [[ "${STOP}" -ne 0 ]]; then
+    : # SIGTERM: skip the slower checks; cmd_once returns next.
   elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then
     KIND=other
     REASON="image ${NOS_IMAGE:-<unset>} is missing"
@@ -181,33 +183,23 @@ reset_fails() {
   done
 }
 
-# reconcile (needs a good ls): a VM gone within NOS_MIN_UPTIME is a failed start; one up that long clears the count.
+# reconcile (needs a good ls): a gone VM gets an exited-N marker; deregister_pending judges the start from the DELETE result.
 
 # An unnamed mimolette-* VM is stopped, so no more than NOS_SLOTS run.
 reconcile() {
-  local n name id fails started t known=" " c ours
+  local n name t known=" " c ours
   t="$(now)"
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
     slot_load "${n}"
     name="${SL_NAME}"
     [[ -n "${name}" ]] || continue
-    id="${SL_ID}"
-    fails="${SL_FAILS}"
-    started="${SL_STARTED}"
     if listed "${name}"; then
       known="${known}${name} "
-      if [[ "${fails}" -gt 0 && $((t - started)) -ge "${NOS_MIN_UPTIME}" ]]; then
-        slot_put "${n}" "${name}" "${id}" 0 "${started}"
-      fi
       continue
     fi
-    if [[ $((t - started)) -lt "${NOS_MIN_UPTIME}" ]]; then
-      fails=$((fails + 1))
-      log "slot ${n}: ${name} exited after $((t - started)) s; counts as failed start ${fails}"
-    else
-      log "slot ${n}: ${name} exited"
-    fi
-    slot_put "${n}" "" "${id}" "${fails}" "${started}"
+    log "slot ${n}: ${name} exited after $((t - SL_STARTED)) s"
+    : >"${NOS_STATE_DIR}/exited-${n}"
+    slot_put "${n}" "" "${SL_ID}" "${SL_FAILS}" "${SL_STARTED}"
   done
   ours="$(listed_ours)" || ours=""
   for c in ${ours}; do
@@ -267,29 +259,41 @@ stop_idle_slots() {
   done
 }
 
-# delete_runner ID: 0 when deleted or already gone (404).
+# delete_runner ID: 0 when deleted (API_CODE 2xx) or already gone (API_CODE 404).
 delete_runner() {
   [[ -n "$1" ]] || return 0
   if [[ -z "${NOS_TOKEN:-}" ]]; then
     log "runner $1: delete skipped, no installation token; will retry"
     return 1
   fi
-  gh_api DELETE "/orgs/${NOS_ORG}/actions/runners/$1" >/dev/null 2>&1 && return 0
+  gh_api DELETE "/orgs/${NOS_ORG}/actions/runners/$1" >/dev/null 2>&1
   api_code
-  [[ "${API_CODE}" == 404 ]] && return 0
+  [[ "${API_CODE}" =~ ^(2[0-9][0-9]|404)$ ]] && return 0
   log "runner $1: delete failed (HTTP ${API_CODE}); will retry"
   return 1
 }
-# Deregister runners whose VM is gone (name= empty, id= set).
+# deregister_pending: delete runners whose VM is gone (name= empty, id= set). A failed DELETE keeps id= for retry.
+
+# After a VM exit, DELETE 404 means the runner took a job and removed itself (fails=0); 2xx means it died before one.
 deregister_pending() {
-  local n id
+  local n id fails mark
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
     slot_load "${n}"
     id="${SL_ID}"
     [[ -n "${id}" && -z "${SL_NAME}" ]] || continue
-    if delete_runner "${id}"; then
-      slot_put "${n}" "" "" "${SL_FAILS}" "${SL_STARTED}"
+    delete_runner "${id}" || continue
+    fails="${SL_FAILS}"
+    mark="${NOS_STATE_DIR}/exited-${n}"
+    if [[ -f "${mark}" ]]; then
+      if [[ "${API_CODE}" == 404 ]]; then
+        fails=0
+      else
+        fails=$((fails + 1))
+        log "slot ${n}: runner ${id} was still registered after its VM exited; failed start ${fails}"
+      fi
+      "${RM_BIN}" -f "${mark}"
     fi
+    slot_put "${n}" "" "" "${fails}" "${SL_STARTED}"
   done
 }
 
@@ -376,7 +380,7 @@ start_slot() {
     drop_minted "${n}" "${id}" $((fails + 1))
     return 1
   fi
-  # fails= stays until the VM has run NOS_MIN_UPTIME (see reconcile).
+  # fails= stays until deregister_pending sees this runner take a job (see there).
   slot_put "${n}" "${name}" "${id}" "${fails}" "${t}"
   log "slot ${n}: started ${name} (runner ${id})"
 }
@@ -387,13 +391,10 @@ tend_slots() {
     [[ "${STOP}" -eq 0 ]] || return 0
     slot_load "${n}"
     [[ -z "${SL_NAME}" ]] || continue
-    # A start would overwrite id=, so the old runner must be deregistered first.
+    # A start would overwrite id=; deregister_pending must delete the old runner first.
     if [[ -n "${SL_ID}" ]]; then
-      if ! delete_runner "${SL_ID}"; then
-        log "slot ${n}: runner ${SL_ID} is still registered; not restarting until it is deleted"
-        continue
-      fi
-      slot_put "${n}" "" "" "${SL_FAILS}" "${SL_STARTED}"
+      log "slot ${n}: runner ${SL_ID} is still registered; not restarting until it is deleted"
+      continue
     fi
     ours="$(listed_ours | grep -c . || true)"
     if [[ "${ours}" -ge "${NOS_SLOTS}" ]]; then
@@ -417,19 +418,14 @@ cmd_once() {
   if [[ "${LS_OK}" -eq 1 ]]; then reconcile; fi
   # The LAN guard may be off: stop every VM now, before anything that needs the network or a token.
   if [[ "${ok}" -eq 0 && "${KIND}" == pf ]]; then stop_all_slots; fi
+  [[ "${STOP}" -eq 0 ]] || return 1
   HAVE_TOKEN=0
   if ensure_token; then HAVE_TOKEN=1; fi
+  [[ "${STOP}" -eq 0 ]] || return 1
   if [[ "${ok}" -eq 0 ]]; then
     log "self-check failed: ${REASON}"
     if [[ "${KIND}" != pf ]]; then stop_idle_slots; fi
     remote_failover "${REASON}" || true
-    return 1
-  fi
-  if ! slots_ok; then
-    log "self-check failed: a slot failed 3 starts in a row"
-    stop_idle_slots
-    # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
-    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
     return 1
   fi
   [[ "${STOP}" -eq 0 ]] || return 1
@@ -438,6 +434,14 @@ cmd_once() {
     return 1
   fi
   deregister_pending
+  [[ "${STOP}" -eq 0 ]] || return 1
+  if ! slots_ok; then
+    log "self-check failed: a slot failed 3 starts in a row"
+    stop_idle_slots
+    # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
+    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
+    return 1
+  fi
   tend_slots
   if ! slots_ok; then
     log "self-check failed: a slot failed 3 starts in a row"

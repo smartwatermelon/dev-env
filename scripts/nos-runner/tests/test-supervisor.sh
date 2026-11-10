@@ -3,7 +3,7 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN NOS_TOKEN GITHUB_API_URL NOS_IMAGE NOS_API_STATUS_FILE
-unset NOS_ORG NOS_SLOTS NOS_CPUS NOS_MEMORY NOS_LABEL NOS_MIN_FREE_GB NTFY_BASE JQ_BIN NOS_MIN_UPTIME NOS_CONTAINER_TIMEOUT
+unset NOS_ORG NOS_SLOTS NOS_CPUS NOS_MEMORY NOS_LABEL NOS_MIN_FREE_GB NTFY_BASE JQ_BIN NOS_CONTAINER_TIMEOUT
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${HERE}/../supervisor.sh"
@@ -155,7 +155,13 @@ case "\${method} \${url}" in
     ;;
   "POST "*/actions/variables) setvar; reply '' 201 ;;
   "DELETE "*/actions/runners/*)
-    if [[ -n "\${STUB_DELETE_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; else reply '' 204; fi
+    if [[ -n "\${STUB_DELETE_FAIL:-}" ]]; then
+      reply '{"message":"boom"}' 500
+    elif grep -qx "\${url##*/}" "\${S}/gone" 2>/dev/null; then
+      reply '{"message":"Not Found"}' 404
+    else
+      reply '' 204
+    fi
     ;;
   *) reply '{"message":"unexpected"}' 500 ;;
 esac
@@ -441,17 +447,35 @@ STUB_IMAGE_MISSING=1 sup once || true
 check_eq "missing_image_is_selfcheck_failure" ubuntu-latest cat "${S}/var.value"
 check_eq "missing_image_starts_no_slot" 0 runs
 
-echo "-- fast_exit_counts_as_failed_start"
+echo "-- three_exits_with_runner_registered_trip_selfcheck"
 reset
 for _ in 1 2 3; do STUB_RUN_EXITS=1 sup once || true; done
-check_eq "fast_exit_counts_as_failed_start: three passes do not switch" mimolette cat "${S}/var.value"
+check_eq "three_exits_with_runner_registered_trip_selfcheck: two failed starts do not switch" mimolette cat "${S}/var.value"
+check "three_exits_with_runner_registered_trip_selfcheck: DELETE 204 counted" grep -qx 'fails=2' "${S}/state/slot-1"
 STUB_RUN_EXITS=1 sup once || true
-check_eq "fast_exit_counts_as_failed_start: three fast deaths switch" ubuntu-latest cat "${S}/var.value"
-check_eq "fast_exit_counts_as_failed_start: no start on the failing pass" 6 runs
-check_eq "fast_exit_counts_as_failed_start: one alert" 1 count . "${S}/ntfy.log"
+check_eq "three_exits_with_runner_registered_trip_selfcheck: third switches" ubuntu-latest cat "${S}/var.value"
+check_eq "three_exits_with_runner_registered_trip_selfcheck: no start on that pass" 6 runs
+check_eq "three_exits_with_runner_registered_trip_selfcheck: one alert" 1 count . "${S}/ntfy.log"
+
+echo "-- short_job_runner_gone_is_good_start"
 reset
-for _ in 1 2 3 4; do NOS_MIN_UPTIME=0 STUB_RUN_EXITS=1 sup once || true; done
-check_eq "fast_exit_counts_as_failed_start: exits after NOS_MIN_UPTIME do not count" mimolette cat "${S}/var.value"
+for _ in 1 2 3 4 5; do
+  seq 101 120 >"${S}/gone"
+  STUB_RUN_EXITS=1 sup once || true
+done
+check_eq "short_job_runner_gone_is_good_start: fast exits after a job never switch" mimolette cat "${S}/var.value"
+check "short_job_runner_gone_is_good_start: fails stays 0" grep -qx 'fails=0' "${S}/state/slot-1"
+check_eq "short_job_runner_gone_is_good_start: slots restart every pass" 10 runs
+
+echo "-- unknown_delete_result_keeps_count"
+reset
+STUB_RUN_EXITS=1 sup once || true
+STUB_RUN_EXITS=1 STUB_DELETE_FAIL=1 sup once || true
+check "unknown_delete_result_keeps_count: fails unchanged" grep -qx 'fails=0' "${S}/state/slot-1"
+check "unknown_delete_result_keeps_count: id kept" grep -qx 'id=101' "${S}/state/slot-1"
+check "unknown_delete_result_keeps_count: marker kept" test -f "${S}/state/exited-1"
+sup once
+check "unknown_delete_result_keeps_count: next pass counts it" grep -qx 'fails=1' "${S}/state/slot-1"
 
 echo "-- pf_stale_stops_all_without_token"
 reset
@@ -519,7 +543,7 @@ STUB_DELETE_FAIL=1 sup once || true
 check_eq "failed_delete_blocks_restart: no new VM while runner 101 is registered" 2 runs
 check "failed_delete_blocks_restart: id kept for retry" grep -qx 'id=101' "${S}/state/slot-1"
 sup once
-check_eq "failed_delete_blocks_restart: retry deletes 101" 3 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_eq "failed_delete_blocks_restart: retry deletes 101" 2 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
 check_eq "failed_delete_blocks_restart: then slot 1 restarts" 3 runs
 
 echo "-- failed_start_keeps_undeleted_runner"
