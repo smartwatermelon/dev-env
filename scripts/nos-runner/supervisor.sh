@@ -116,6 +116,10 @@ selfcheck() {
 
 delete_runner() {
   [[ -n "$1" ]] || return 0
+  if [[ -z "${NOS_TOKEN}" ]]; then
+    log "runner $1: delete skipped, no installation token; it stays registered"
+    return 1
+  fi
   if ! gh_api DELETE "/orgs/${NOS_ORG}/actions/runners/$1" >/dev/null 2>&1; then
     # 404: the ephemeral runner is already gone, which is normal after a job.
     api_code

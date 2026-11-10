@@ -56,6 +56,7 @@ _api_call() {
 # gh_api METHOD PATH [JSON_BODY]: call the API with $NOS_TOKEN.
 gh_api() {
   if [[ -z "${NOS_TOKEN:-}" ]]; then
+    if [[ -n "${NOS_API_STATUS_FILE:-}" ]]; then printf '000\n' >"${NOS_API_STATUS_FILE}"; fi
     echo "gh_api: NOS_TOKEN is not set" >&2
     return 1
   fi

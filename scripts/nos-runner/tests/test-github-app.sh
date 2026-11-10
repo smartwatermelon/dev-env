@@ -120,6 +120,9 @@ STUB_BODY='{}' STUB_STATUS=204 gh_api PATCH /x '{}' >/dev/null || true
 check "status_file_gets_204" grep -qx 204 "${WORK}/status"
 CURL_BIN=false gh_api GET /x >/dev/null 2>&1 || true
 check "status_file_000_on_transport_error" grep -qx 000 "${WORK}/status"
+STUB_BODY='{}' STUB_STATUS=404 gh_api PATCH /x '{}' >/dev/null || true
+NOS_TOKEN='' gh_api GET /x >/dev/null 2>&1 || true
+check "status_file_000_on_empty_token" grep -qx 000 "${WORK}/status"
 unset NOS_API_STATUS_FILE
 
 reqs_before="$(wc -l <"${WORK}/curl.argv")"
