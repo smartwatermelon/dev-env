@@ -112,7 +112,7 @@ load() {
 }
 
 for label in "${SUP_LABEL}" "${UPD_LABEL}"; do
-  render "${HERE}/launchd/${label}.plist" "${rendered}/${label}.plist"
+  render "${HERE}/launchd/${label}.plist" "${rendered}/${label}.plist" || die "cannot render ${label}.plist"
   put_file "${rendered}/${label}.plist" "${AGENTS}/${label}.plist" 0600
   if [[ "${PUT}" == 1 ]]; then : >"${PENDING}/load-${label}"; fi
   if [[ -e "${PENDING}/load-${label}" ]]; then load "${label}"; fi
