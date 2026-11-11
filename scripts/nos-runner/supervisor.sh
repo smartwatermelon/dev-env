@@ -167,7 +167,7 @@ local_check() {
     KIND=apiserver
     REASON="container apiserver does not answer (container ls failed or timed out)"
   elif ! running; then
-    : # SIGTERM: skip the slower checks; cmd_once returns next.
+    : # SIGTERM or SIGHUP: skip the slower checks; cmd_once returns next.
   elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then
     KIND=other
     REASON="image ${NOS_IMAGE:-<unset>} is missing"

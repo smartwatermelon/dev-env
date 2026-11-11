@@ -31,7 +31,7 @@ have="$(cat "${MARK}" 2>/dev/null)" || have=""
 if [[ "${rev}" == "${have}" ]]; then exit 0; fi
 
 log "scripts/nos-runner changed (${have:-none} -> ${rev}); running install.sh"
-if "${BASH_BIN}" "${CLONE}/scripts/nos-runner/install.sh"; then
+if NOS_FROM_UPDATER=1 "${BASH_BIN}" "${CLONE}/scripts/nos-runner/install.sh"; then
   (umask 077 && mkdir -p "${STATE_DIR}" && printf '%s\n' "${rev}" >"${MARK}") || log "cannot write ${MARK}"
 else
   log "install.sh failed; will retry"
