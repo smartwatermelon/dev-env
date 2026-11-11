@@ -125,13 +125,18 @@ slot_load() {
 # Verified on container 1.7.1: `container ls` prints a header, then one VM per row with its name (--name) in column 1.
 listed() { printf '%s\n' "${RUNNING}" | awk -v n="$1" 'NR > 1 && $1 == n { f = 1 } END { exit !f }'; }
 listed_ours() { printf '%s\n' "${RUNNING}" | awk 'NR > 1 && $1 ~ /^mimolette-/ { print $1 }'; }
+# refresh_ls: LS_OK=1 only when ls exits 0 and its output starts with the ID header; anything else is an apiserver fault.
 refresh_ls() {
-  if ctr ls; then
-    RUNNING="$(cat "${CTR_OUT}")"
-    LS_OK=1
-  else
-    LS_OK=0
+  local first="" rest
+  LS_OK=0
+  ctr ls || return 0
+  read -r first rest <"${CTR_OUT}" || true
+  if [[ "${first}" != ID ]]; then
+    log "container ls printed no ID header; treating the apiserver as down"
+    return 0
   fi
+  RUNNING="$(cat "${CTR_OUT}")"
+  LS_OK=1
 }
 free_gb() { "${DF_BIN}" -Pk "${NOS_DISK_PATH}" 2>/dev/null | awk 'NR == 2 { print int($4 / 1048576) }'; }
 pf_ok_fresh() {
@@ -330,6 +335,15 @@ remote_failover() {
   return "${rc}"
 }
 
+# failover_idle REASON: set NOS_RUNNER first, then stop and deregister idle VMs. Returns 1 if NOS_RUNNER was not set.
+failover_idle() {
+  local rc=1
+  if [[ "${HAVE_TOKEN}" -eq 1 ]] && set_ubuntu "$1"; then rc=0; fi
+  stop_idle_slots
+  if [[ "${HAVE_TOKEN}" -eq 1 ]]; then deregister_pending; fi
+  return "${rc}"
+}
+
 # drop_minted N ID FAILS: deregister a runner minted for a VM that did not start. A failed delete keeps id= for retry.
 drop_minted() {
   local id="$2"
@@ -339,13 +353,14 @@ drop_minted() {
 
 # start_slot N: mint a JIT config and run one VM. The JIT goes in a 0600 env file, never argv; the file goes right after.
 start_slot() {
-  local n="$1" fails name body resp id jit envf t rc=0
+  local n="$1" fails name body resp id jit envf t rc=0 stopped=0
   [[ "${STOP}" -eq 0 ]] || return 1
   slot_load "${n}"
   fails="${SL_FAILS}"
   t="$(now)"
   name="mimolette-${n}-${t}"
   body="$(printf '{"name":"%s","runner_group_id":1,"labels":["%s"],"work_folder":"_work"}' "${name}" "${NOS_LABEL}")"
+  [[ "${STOP}" -eq 0 ]] || return 1
   if ! resp="$(gh_api POST "/orgs/${NOS_ORG}/actions/runners/generate-jitconfig" "${body}" 2>/dev/null)"; then
     api_code
     log "slot ${n}: generate-jitconfig failed (HTTP ${API_CODE})"
@@ -367,13 +382,19 @@ start_slot() {
   fi
   envf="${NOS_STATE_DIR}/jit-${n}.env"
   "${RM_BIN}" -f "${envf}"
-  if (umask 077 && printf 'NOS_JIT=%s\n' "${jit}" >"${envf}"); then
-    ctr run -d --rm --name "${name}" -c "${NOS_CPUS}" -m "${NOS_MEMORY}" --env-file "${envf}" "${NOS_IMAGE}" || rc=$?
-  else
+  if ! (umask 077 && printf 'NOS_JIT=%s\n' "${jit}" >"${envf}"); then
     rc=1
+  elif [[ "${STOP}" -ne 0 ]]; then
+    stopped=1
+  else
+    ctr run -d --rm --name "${name}" -c "${NOS_CPUS}" -m "${NOS_MEMORY}" --env-file "${envf}" "${NOS_IMAGE}" || rc=$?
   fi
   "${RM_BIN}" -f "${envf}"
   jit=""
+  if [[ "${stopped}" -eq 1 ]]; then
+    drop_minted "${n}" "${id}" "${fails}"
+    return 1
+  fi
   if [[ "${rc}" -ne 0 ]]; then
     # A timed-out run may still have booted the VM; the next reconcile stops it as unnamed.
     log "slot ${n}: container run failed (rc ${rc}, try $((fails + 1)))"
@@ -424,8 +445,11 @@ cmd_once() {
   [[ "${STOP}" -eq 0 ]] || return 1
   if [[ "${ok}" -eq 0 ]]; then
     log "self-check failed: ${REASON}"
-    if [[ "${KIND}" != pf ]]; then stop_idle_slots; fi
-    remote_failover "${REASON}" || true
+    if [[ "${KIND}" == pf ]]; then
+      remote_failover "${REASON}" || true
+    else
+      failover_idle "${REASON}" || true
+    fi
     return 1
   fi
   [[ "${STOP}" -eq 0 ]] || return 1
@@ -437,17 +461,15 @@ cmd_once() {
   [[ "${STOP}" -eq 0 ]] || return 1
   if ! slots_ok; then
     log "self-check failed: a slot failed 3 starts in a row"
-    stop_idle_slots
     # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
-    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
+    if failover_idle "a slot failed 3 starts in a row"; then reset_fails; fi
     return 1
   fi
   tend_slots
   if ! slots_ok; then
     log "self-check failed: a slot failed 3 starts in a row"
-    stop_idle_slots
     # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
-    if remote_failover "a slot failed 3 starts in a row"; then reset_fails; fi
+    if failover_idle "a slot failed 3 starts in a row"; then reset_fails; fi
     return 1
   fi
   return 0

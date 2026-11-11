@@ -49,11 +49,13 @@ cat >"${BIN}/container" <<STUB
 #!/usr/bin/env bash
 S="${S}"
 echo "\$*" >>"\${S}/container.argv"
+echo "container \$*" >>"\${S}/order.log"
 case "\$1" in
   ls)
     [[ -z "\${STUB_LS_FAIL:-}" ]] || exit 1
     [[ -z "\${STUB_LS_HANG:-}" ]] || exec sleep 30
     [[ -z "\${STUB_LS_SLEEP:-}" ]] || sleep "\${STUB_LS_SLEEP}"
+    [[ -z "\${STUB_LS_EMPTY:-}" ]] || exit 0
     echo "ID IMAGE OS ARCH STATE IP CPUS MEMORY STARTED"
     echo "buildkit moby/buildkit:latest linux arm64 running 192.168.64.3 2 2048MB 2026-11-10T10:00:00Z"
     if [[ -f "\${S}/running" ]]; then
@@ -124,6 +126,7 @@ case "\${url}" in
     ;;
 esac
 echo "\${method} \${url} \${data}" >>"\${S}/requests.log"
+echo "curl \${method} \${url}" >>"\${S}/order.log"
 echo "\${method} \${url} \${data}" >>"${WORK}/all-requests.log"
 reply() { printf '%s\n%s' "\$1" "\$2"; }
 setvar() { printf '%s' "\${data}" | sed -n 's/.*"value":"\([^"]*\)".*/\1/p' >"\${S}/var.value"; }
@@ -283,6 +286,9 @@ check_not "selfcheck_failure_stops_slots_and_deregisters: busy slot 2 left" grep
 check "selfcheck_failure_stops_slots_and_deregisters: runner 101 deleted" grep -qE '^DELETE .*/orgs/nightowlstudiollc/actions/runners/101 ' "${S}/requests.log"
 check_not "selfcheck_failure_stops_slots_and_deregisters: runner 102 kept" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
 check_eq "selfcheck_failure_stops_slots_and_deregisters: no new slot" 2 runs
+patch_at="$(grep -n '^curl PATCH .*/variables/NOS_RUNNER' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+stop_at="$(grep -n '^container stop mimolette-1-' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+check "selfcheck_failure_stops_slots_and_deregisters: variable set before idle stop" test "${patch_at:-999}" -lt "${stop_at:-0}"
 STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
 check_eq "selfcheck_failure_stops_slots_and_deregisters: still one alert" 1 count . "${S}/ntfy.log"
 check_eq "selfcheck_failure_stops_slots_and_deregisters: one variable write" \
@@ -446,6 +452,18 @@ reset
 STUB_IMAGE_MISSING=1 sup once || true
 check_eq "missing_image_is_selfcheck_failure" ubuntu-latest cat "${S}/var.value"
 check_eq "missing_image_starts_no_slot" 0 runs
+
+echo "-- ls_without_header_is_apiserver_failure"
+reset
+sup once
+printf '101\n102\n' >"${S}/busy"
+STUB_LS_EMPTY=1 sup once || true
+check_eq "ls_without_header_is_apiserver_failure: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+check "ls_without_header_is_apiserver_failure: logged" grep -q 'no ID header' "${S}/sup.err"
+check "ls_without_header_is_apiserver_failure: slot 1 state kept" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+check "ls_without_header_is_apiserver_failure: slot 2 state kept" grep -qE '^name=mimolette-2-' "${S}/state/slot-2"
+check_eq "ls_without_header_is_apiserver_failure: no VM started" 2 runs
+check_not "ls_without_header_is_apiserver_failure: no exit markers" test -e "${S}/state/exited-1"
 
 echo "-- three_exits_with_runner_registered_trip_selfcheck"
 reset
