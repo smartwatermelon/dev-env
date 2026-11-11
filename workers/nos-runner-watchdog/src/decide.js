@@ -10,6 +10,7 @@ const SELF_HOSTED = "mimolette";
  */
 
 /**
+ * Observed: runners lists online runners only.
  * @typedef {{varValue: string|null, runners: {name: string, busy: boolean}[],
  *   oldestQueuedMinutes: number|null}} Observed
  */
@@ -56,6 +57,8 @@ export function decide(prev, observed) {
   if (unhealthy) {
     misses += 1;
     goods = 0;
+  } else if (current === FALLBACK && allBusy) {
+    // Neutral: the supervisor keeps idle slots, so all-busy is not recovery.
   } else {
     goods += 1;
     misses = 0;

@@ -165,7 +165,6 @@ test("external_var_change_resets_counts_no_alert", () => {
   assert.equal(r.notify, null);
   assert.equal(r.rerunStuck, false);
   assert.equal(r.next.lastVar, "ubuntu-latest");
-  // counts restart from zero, then this unhealthy tick counts once
   assert.equal(r.next.misses, 1);
   assert.equal(r.next.goods, 0);
 });
@@ -181,4 +180,47 @@ test("two_goods_recover_once", () => {
   const r3 = decide(prevOf(r2), good("mimolette"));
   assert.equal(r3.setVar, null);
   assert.equal(r3.notify, null);
+});
+
+test("recovery_requires_an_idle_runner", () => {
+  const obs = {
+    varValue: "ubuntu-latest",
+    runners: [
+      { name: "a", busy: true },
+      { name: "b", busy: true },
+    ],
+    oldestQueuedMinutes: null,
+  };
+  let prev = { ...fresh, lastVar: "ubuntu-latest" };
+  for (let i = 0; i < 3; i += 1) {
+    const r = decide(prev, obs);
+    assert.equal(r.setVar, null);
+    assert.equal(r.notify, null);
+    prev = prevOf(r);
+  }
+});
+
+test("hung_runner_after_down_does_not_flap", () => {
+  const busy = (q) => ({
+    varValue: "mimolette",
+    runners: [
+      { name: "a", busy: true },
+      { name: "b", busy: true },
+    ],
+    oldestQueuedMinutes: q,
+  });
+  let prev = { ...fresh, lastVar: "mimolette" };
+  let down = null;
+  for (let i = 0; i < 6 && !down; i += 1) {
+    const r = decide(prev, busy(180));
+    if (r.setVar) down = r;
+    prev = prevOf(r);
+  }
+  assert.equal(down.notify, "down");
+  for (let i = 0; i < 5; i += 1) {
+    const r = decide(prev, { ...busy(null), varValue: "ubuntu-latest" });
+    assert.equal(r.setVar, null);
+    assert.equal(r.notify, null);
+    prev = prevOf(r);
+  }
 });
