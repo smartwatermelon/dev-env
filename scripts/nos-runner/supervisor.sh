@@ -38,8 +38,12 @@ LS_OK=0
 KIND=""
 REASON=""
 STOP=0
+RESTART=0
 SLEEP_PID=""
 API_CODE=000
+
+# running: true until SIGTERM/SIGINT (STOP) or SIGHUP (RESTART). Both end a pass the same way: nothing new is minted or started.
+running() { [[ "${STOP}" -eq 0 && "${RESTART}" -eq 0 ]]; }
 
 log() {
   local ts
@@ -55,7 +59,12 @@ notify() {
     log "warning: NTFY_TOPIC is unset; alert not sent: $1"
     return 0
   fi
-  "${CURL_BIN}" -fsS --max-time 20 -d "$1" "${NTFY_BASE}/${NTFY_TOPIC}" >/dev/null 2>&1 || log "ntfy delivery failed"
+  if [[ ! "${NTFY_TOPIC}" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+    log "warning: NTFY_TOPIC has characters outside A-Za-z0-9_.-; alert not sent: $1"
+    return 0
+  fi
+  # The URL goes to curl on stdin so the topic never shows in ps.
+  printf 'url = "%s/%s"\n' "${NTFY_BASE}" "${NTFY_TOPIC}" | "${CURL_BIN}" -fsS --max-time 20 -K - -d "$1" >/dev/null 2>&1 || log "ntfy delivery failed"
 }
 
 # bounded SECS CMD...: run CMD in the background (stdout to CTR_OUT); kill it after SECS; return its status or 124.
@@ -157,7 +166,7 @@ local_check() {
   elif [[ "${LS_OK}" -ne 1 ]]; then
     KIND=apiserver
     REASON="container apiserver does not answer (container ls failed or timed out)"
-  elif [[ "${STOP}" -ne 0 ]]; then
+  elif ! running; then
     : # SIGTERM: skip the slower checks; cmd_once returns next.
   elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then
     KIND=other
@@ -354,13 +363,13 @@ drop_minted() {
 # start_slot N: mint a JIT config and run one VM. The JIT goes in a 0600 env file, never argv; the file goes right after.
 start_slot() {
   local n="$1" fails name body resp id jit envf t rc=0 stopped=0
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   slot_load "${n}"
   fails="${SL_FAILS}"
   t="$(now)"
   name="mimolette-${n}-${t}"
   body="$(printf '{"name":"%s","runner_group_id":1,"labels":["%s"],"work_folder":"_work"}' "${name}" "${NOS_LABEL}")"
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   if ! resp="$(gh_api POST "/orgs/${NOS_ORG}/actions/runners/generate-jitconfig" "${body}" 2>/dev/null)"; then
     api_code
     log "slot ${n}: generate-jitconfig failed (HTTP ${API_CODE})"
@@ -370,7 +379,7 @@ start_slot() {
   id="$(printf '%s' "${resp}" | "${JQ_BIN}" -er '.runner.id' 2>/dev/null)" || id=""
   jit="$(printf '%s' "${resp}" | "${JQ_BIN}" -er '.encoded_jit_config' 2>/dev/null)" || jit=""
   resp=""
-  if [[ "${STOP}" -ne 0 ]]; then
+  if ! running; then
     jit=""
     drop_minted "${n}" "${id}" "${fails}"
     return 1
@@ -384,7 +393,7 @@ start_slot() {
   "${RM_BIN}" -f "${envf}"
   if ! (umask 077 && printf 'NOS_JIT=%s\n' "${jit}" >"${envf}"); then
     rc=1
-  elif [[ "${STOP}" -ne 0 ]]; then
+  elif ! running; then
     stopped=1
   else
     ctr run -d --rm --name "${name}" -c "${NOS_CPUS}" -m "${NOS_MEMORY}" --env-file "${envf}" "${NOS_IMAGE}" || rc=$?
@@ -409,7 +418,7 @@ start_slot() {
 tend_slots() {
   local n ours
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
-    [[ "${STOP}" -eq 0 ]] || return 0
+    running || return 0
     slot_load "${n}"
     [[ -z "${SL_NAME}" ]] || continue
     # A start would overwrite id=; deregister_pending must delete the old runner first.
@@ -439,10 +448,10 @@ cmd_once() {
   if [[ "${LS_OK}" -eq 1 ]]; then reconcile; fi
   # The LAN guard may be off: stop every VM now, before anything that needs the network or a token.
   if [[ "${ok}" -eq 0 && "${KIND}" == pf ]]; then stop_all_slots; fi
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   HAVE_TOKEN=0
   if ensure_token; then HAVE_TOKEN=1; fi
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   if [[ "${ok}" -eq 0 ]]; then
     log "self-check failed: ${REASON}"
     if [[ "${KIND}" == pf ]]; then
@@ -452,13 +461,13 @@ cmd_once() {
     fi
     return 1
   fi
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   if [[ "${HAVE_TOKEN}" -ne 1 ]]; then
     log "no installation token; no new slots this pass"
     return 1
   fi
   deregister_pending
-  [[ "${STOP}" -eq 0 ]] || return 1
+  running || return 1
   if ! slots_ok; then
     log "self-check failed: a slot failed 3 starts in a row"
     # Keep the counts until NOS_RUNNER is set, so the next pass retries the failover.
@@ -478,17 +487,23 @@ cmd_once() {
 # On SIGTERM: switch the fleet, then stop and deregister idle VMs. Busy VMs finish; the next start adopts them.
 cmd_run() {
   trap 'STOP=1; [[ -z "${SLEEP_PID}" ]] || kill "${SLEEP_PID}" 2>/dev/null' TERM INT
+  # SIGHUP (install.sh after a script change): leave without failover; slot state stays and KeepAlive respawns the new code.
+  trap 'RESTART=1; [[ -z "${SLEEP_PID}" ]] || kill "${SLEEP_PID}" 2>/dev/null' HUP
   (umask 077 && mkdir -p "${NOS_STATE_DIR}") || exit 1
   # A SIGKILL mid-start can leave a JIT file behind.
   "${RM_BIN}" -f "${NOS_STATE_DIR}"/jit-*.env
-  while [[ "${STOP}" -eq 0 ]]; do
+  while running; do
     cmd_once || true
-    [[ "${STOP}" -eq 0 ]] || break
+    running || break
     sleep "${NOS_INTERVAL}" &
     SLEEP_PID=$!
     wait "${SLEEP_PID}" 2>/dev/null
     SLEEP_PID=""
   done
+  if [[ "${STOP}" -eq 0 ]]; then
+    log "restarting on SIGHUP: no failover, slot state kept"
+    exit 0
+  fi
   log "stopping: switching NOS_RUNNER to ubuntu-latest"
   HAVE_TOKEN=0
   if ensure_token; then HAVE_TOKEN=1; fi

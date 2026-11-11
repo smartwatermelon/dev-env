@@ -113,6 +113,7 @@ while [[ \$# -gt 0 ]]; do
     -X) method="\$2"; shift 2 ;;
     -d | --data) data="\$2"; shift 2 ;;
     -H) [[ "\$2" == @- ]] && hdr_stdin=1; shift 2 ;;
+    -K) url="\$(sed -n 's/^url = "\(.*\)"\$/\1/p')"; shift 2 ;;
     -w | --max-time | --retry) shift 2 ;;
     -*) shift ;;
     *) url="\$1"; shift ;;
@@ -394,6 +395,37 @@ check "sigterm_mid_pass_starts_no_vm: exited within 15 s, exit 0" test "${exited
 check_eq "sigterm_mid_pass_starts_no_vm: no VM started" 0 runs
 check_eq "sigterm_mid_pass_starts_no_vm: no JIT minted" 0 count 'generate-jitconfig' "${S}/requests.log"
 check_eq "sigterm_mid_pass_starts_no_vm: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+
+echo "-- hup_exits_without_failover"
+reset
+bg_run
+wait_runs 2
+end_pid HUP
+check "hup_exits_without_failover: exited within 15 s" test "${exited}" -eq 0
+check "hup_exits_without_failover: exit 0" test "${rc}" -eq 0
+check_eq "hup_exits_without_failover: variable untouched" mimolette cat "${S}/var.value"
+check_eq "hup_exits_without_failover: no PATCH" 0 count '^curl PATCH' "${S}/order.log"
+check_eq "hup_exits_without_failover: no ntfy" 0 count . "${S}/ntfy.log"
+check_eq "hup_exits_without_failover: no stop" 0 count '^stop ' "${S}/container.argv"
+check_eq "hup_exits_without_failover: no DELETE" 0 count '^DELETE' "${S}/requests.log"
+check "hup_exits_without_failover: slot state kept" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+
+echo "-- hup_mid_pass_mints_and_starts_nothing"
+reset
+bg_run STUB_LS_SLEEP=2
+wait_ls
+end_pid HUP
+check "hup_mid_pass: exited within 15 s, exit 0" test "${exited}${rc}" = 00
+check_eq "hup_mid_pass: no VM started" 0 runs
+check_eq "hup_mid_pass: no JIT minted" 0 count 'generate-jitconfig' "${S}/requests.log"
+check_eq "hup_mid_pass: variable untouched" mimolette cat "${S}/var.value"
+
+echo "-- ntfy_topic_not_in_argv"
+reset
+STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
+check_eq "ntfy_topic_not_in_argv: alert sent" 1 count . "${S}/ntfy.log"
+check_not "ntfy_topic_not_in_argv: topic absent from curl argv" grep -q stubtopic "${S}/curl.argv"
+check "ntfy_topic_not_in_argv: curl reads its config from stdin" grep -q -- '-K -' "${S}/curl.argv"
 
 echo "-- container_ls_hang_is_apiserver_failure"
 reset
