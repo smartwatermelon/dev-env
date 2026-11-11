@@ -300,3 +300,13 @@ test("old_state_blob_missing_fields", () => {
   assert.equal(r.next.flaps, 0);
   assert.deepEqual(r.next.busyNames, []);
 });
+
+test("streak_must_be_contiguous_on_mimolette", () => {
+  let prev = { ...fresh, lastVar: "mimolette", flaps: 3 };
+  for (let i = 0; i < 5; i += 1) prev = prevOf(decide(prev, good()));
+  prev = prevOf(decide(prev, good("ubuntu-24.04")));
+  assert.equal(prev.healthyStreak, 0);
+  const r = decide(prev, good("mimolette"));
+  assert.equal(r.next.healthyStreak, 1);
+  assert.equal(r.next.flaps, 3);
+});

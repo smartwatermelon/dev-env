@@ -64,13 +64,15 @@ export function decide(prev, observed) {
         busyNames,
         sameBusyTicks: 0,
         flaps,
-        healthyStreak,
+        healthyStreak: 0,
       },
       setVar: null,
       notify: prev.lastVar !== current ? "held" : null,
       rerunStuck: false,
     };
   }
+
+  if (current !== SELF_HOSTED) healthyStreak = 0;
 
   const unhealthy =
     runners.length === 0 ||
