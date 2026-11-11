@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decide, HUNG_TICKS, QUEUE_LIMIT_MINUTES } from "../src/decide.js";
+import {
+  decide,
+  HUNG_TICKS,
+  QUEUE_LIMIT_MINUTES,
+  RECOVERY_BACKOFF_CAP,
+  STABLE_TICKS,
+} from "../src/decide.js";
 
 const fresh = {
   lastVar: null,
@@ -223,4 +229,74 @@ test("hung_runner_after_down_does_not_flap", () => {
     assert.equal(r.notify, null);
     prev = prevOf(r);
   }
+});
+
+test("repeated_outages_back_off_recovery", () => {
+  assert.equal(RECOVERY_BACKOFF_CAP, 3);
+  const stalled = (v) => ({ ...good(v), oldestQueuedMinutes: 30 });
+  let prev = { ...fresh, lastVar: "mimolette" };
+  const needed = [];
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    let r;
+    do {
+      r = decide(prev, stalled("mimolette"));
+      prev = prevOf(r);
+    } while (!r.setVar);
+    assert.equal(r.notify, "down");
+    let ticks = 0;
+    do {
+      ticks += 1;
+      r = decide(prev, good("ubuntu-latest"));
+      prev = prevOf(r);
+    } while (!r.setVar);
+    needed.push(ticks);
+  }
+  assert.deepEqual(needed, [2, 4, 8]);
+});
+
+test("stable_hour_resets_backoff", () => {
+  assert.equal(STABLE_TICKS, 6);
+  let prev = { ...fresh, lastVar: "mimolette", flaps: 3 };
+  for (let i = 1; i <= 6; i += 1) {
+    const r = decide(prev, good());
+    assert.equal(r.next.flaps, i < 6 ? 3 : 0);
+    prev = prevOf(r);
+  }
+});
+
+test("manual_hold_is_respected", () => {
+  let prev = { ...fresh, lastVar: "mimolette", misses: 1 };
+  for (let i = 0; i < 4; i += 1) {
+    const r = decide(prev, bad("ubuntu-24.04"));
+    assert.equal(r.setVar, null);
+    assert.equal(r.rerunStuck, false);
+    assert.equal(r.next.misses, 0);
+    assert.equal(r.next.goods, 0);
+    prev = prevOf(r);
+  }
+});
+
+test("typo_value_alerts_held_once", () => {
+  const r1 = decide({ ...fresh, lastVar: "mimolette" }, good("mimolet"));
+  assert.equal(r1.notify, "held");
+  const r2 = decide(prevOf(r1), good("mimolet"));
+  assert.equal(r2.notify, null);
+  assert.equal(r2.setVar, null);
+});
+
+test("hold_release_resets_counts", () => {
+  const prev = { ...fresh, lastVar: "ubuntu-24.04", misses: 0, goods: 0 };
+  const r = decide(prev, good("ubuntu-latest"));
+  assert.equal(r.notify, null);
+  assert.equal(r.setVar, null);
+  assert.equal(r.next.lastVar, "ubuntu-latest");
+  assert.equal(r.next.goods, 1);
+});
+
+test("old_state_blob_missing_fields", () => {
+  const r = decide({ lastVar: "mimolette" }, good());
+  assert.equal(r.next.misses, 0);
+  assert.equal(r.next.goods, 1);
+  assert.equal(r.next.flaps, 0);
+  assert.deepEqual(r.next.busyNames, []);
 });

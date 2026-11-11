@@ -1,12 +1,15 @@
 export const HUNG_TICKS = 3;
 export const QUEUE_LIMIT_MINUTES = 20;
+export const RECOVERY_BACKOFF_CAP = 3;
+export const STABLE_TICKS = 6;
 
 const FALLBACK = "ubuntu-latest";
 const SELF_HOSTED = "mimolette";
 
 /**
  * @typedef {{lastVar: string|null, misses: number, goods: number,
- *   busyNames?: string[], sameBusyTicks?: number}} State
+ *   busyNames?: string[], sameBusyTicks?: number, flaps?: number,
+ *   healthyStreak?: number}} State
  */
 
 /**
@@ -16,9 +19,10 @@ const SELF_HOSTED = "mimolette";
  */
 
 /** @typedef {{lastVar: string, misses: number, goods: number,
- *   busyNames: string[], sameBusyTicks: number}} Next */
+ *   busyNames: string[], sameBusyTicks: number, flaps: number,
+ *   healthyStreak: number}} Next */
 
-/** @typedef {{next: Next, setVar: string|null, notify: string|null,
+/** @typedef {{next: Next, setVar: string|null, notify: 'down'|'recovered'|'online'|'held'|null,
  *   rerunStuck: boolean}} Decision */
 
 /**
@@ -31,8 +35,11 @@ export function decide(prev, observed) {
   const unset = !observed.varValue;
   const current = unset ? FALLBACK : observed.varValue;
   const external = prev.lastVar !== null && current !== prev.lastVar;
-  let misses = external ? 0 : prev.misses;
-  let goods = external ? 0 : prev.goods;
+  let misses = external ? 0 : (prev.misses ?? 0);
+  let goods = external ? 0 : (prev.goods ?? 0);
+  let flaps = prev.flaps ?? 0;
+  let healthyStreak = prev.healthyStreak ?? 0;
+  const prevNames = prev.busyNames ?? [];
 
   const { runners, oldestQueuedMinutes } = observed;
   const queued = oldestQueuedMinutes !== null;
@@ -42,10 +49,28 @@ export function decide(prev, observed) {
     .sort();
   const allBusy = runners.length > 0 && busyNames.length === runners.length;
   const sameNames =
-    busyNames.length === (prev.busyNames ?? []).length &&
-    busyNames.every((n, i) => n === prev.busyNames[i]);
+    busyNames.length === prevNames.length &&
+    busyNames.every((n, i) => n === prevNames[i]);
   const sameBusyTicks =
     queued && allBusy && sameNames ? (prev.sameBusyTicks ?? 0) + 1 : 0;
+
+  if (current !== SELF_HOSTED && current !== FALLBACK) {
+    // Manual hold: leave the variable alone, alert once per new value.
+    return {
+      next: {
+        lastVar: current,
+        misses: 0,
+        goods: 0,
+        busyNames,
+        sameBusyTicks: 0,
+        flaps,
+        healthyStreak,
+      },
+      setVar: null,
+      notify: prev.lastVar !== current ? "held" : null,
+      rerunStuck: false,
+    };
+  }
 
   const unhealthy =
     runners.length === 0 ||
@@ -57,13 +82,18 @@ export function decide(prev, observed) {
   if (unhealthy) {
     misses += 1;
     goods = 0;
+    healthyStreak = 0;
   } else if (current === FALLBACK && allBusy) {
     // Neutral: the supervisor keeps idle slots, so all-busy is not recovery.
   } else {
     goods += 1;
     misses = 0;
+    if (current === SELF_HOSTED) healthyStreak += 1;
+    if (healthyStreak >= STABLE_TICKS) flaps = 0;
   }
 
+  const needGoods =
+    flaps >= 1 ? 2 * 2 ** Math.min(flaps - 1, RECOVERY_BACKOFF_CAP) : 2;
   let setVar = null;
   let notify = null;
   let rerunStuck = false;
@@ -71,7 +101,8 @@ export function decide(prev, observed) {
     setVar = FALLBACK;
     notify = "down";
     rerunStuck = true;
-  } else if (!unhealthy && goods >= 2 && current === FALLBACK) {
+    flaps += 1;
+  } else if (!unhealthy && goods >= needGoods && current === FALLBACK) {
     setVar = SELF_HOSTED;
     notify = unset ? "online" : "recovered";
   }
@@ -87,6 +118,8 @@ export function decide(prev, observed) {
       goods,
       busyNames,
       sameBusyTicks,
+      flaps,
+      healthyStreak,
     },
     setVar,
     notify,
