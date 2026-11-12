@@ -237,8 +237,13 @@ reconcile() {
     [[ -n "${name}" ]] || continue
     if listed "${name}"; then
       known="${known}${name} "
+      if [[ -f "${NOS_STATE_DIR}/dropped-${n}" ]] && stop_slot "${n}"; then
+        "${RM_BIN}" -f "${NOS_STATE_DIR}/dropped-${n}"
+        refresh_ls
+      fi
       continue
     fi
+    "${RM_BIN}" -f "${NOS_STATE_DIR}/dropped-${n}"
     log "slot ${n}: ${name} exited after $((t - SL_STARTED)) s"
     : >"${NOS_STATE_DIR}/exited-${n}"
     slot_put "${n}" "" "${SL_ID}" "${SL_FAILS}" "${SL_STARTED}"
@@ -294,7 +299,11 @@ stop_idle_slots() {
     name="${SL_NAME}"
     [[ -n "${name}" ]] || continue
     if runner_idle "${SL_ID}"; then
-      stop_slot "${n}" || true
+      # Cannot stop (apiserver down): delete the idle runner so the Worker sees it offline. A later good pass stops the VM.
+      if ! stop_slot "${n}" && [[ "${HAVE_TOKEN}" -eq 1 ]] && delete_runner "${SL_ID}"; then
+        : >"${NOS_STATE_DIR}/dropped-${n}"
+        log "slot ${n}: ${name} could not be stopped; runner ${SL_ID} deleted, VM to stop on a later pass"
+      fi
     else
       log "slot ${n}: ${name} is busy or unknown; left running"
     fi

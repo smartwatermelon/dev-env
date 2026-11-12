@@ -564,6 +564,28 @@ check "ls_without_header_is_apiserver_failure: slot 2 state kept" grep -qE '^nam
 check_eq "ls_without_header_is_apiserver_failure: no VM started" 2 runs
 check_not "ls_without_header_is_apiserver_failure: no exit markers" test -e "${S}/state/exited-1"
 
+echo "-- apiserver_down_deregisters_idle_runners"
+reset
+sup once
+echo 102 >"${S}/busy"
+STUB_LS_FAIL=1 STUB_STOP_FAIL=1 sup once || true
+check_eq "apiserver_down_deregisters_idle_runners: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+check "apiserver_down_deregisters_idle_runners: idle runner 101 deleted" grep -qE '^DELETE .*/orgs/nightowlstudiollc/actions/runners/101 ' "${S}/requests.log"
+check_not "apiserver_down_deregisters_idle_runners: busy runner 102 kept" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+check "apiserver_down_deregisters_idle_runners: slot 1 VM name kept" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+check "apiserver_down_deregisters_idle_runners: slot 2 VM name kept" grep -qE '^name=mimolette-2-' "${S}/state/slot-2"
+check_eq "apiserver_down_deregisters_idle_runners: one alert" 1 count . "${S}/ntfy.log"
+STUB_LS_FAIL=1 STUB_STOP_FAIL=1 sup once || true
+check_eq "apiserver_down_deregisters_idle_runners: second down pass sends no alert" 1 count . "${S}/ntfy.log"
+check_eq "apiserver_down_deregisters_idle_runners: no VM started while down" 2 runs
+stops="$(count '^stop mimolette-1-' "${S}/container.argv")"
+sup once || true
+check_eq "apiserver_down_deregisters_idle_runners: healthy pass stops the dropped VM" $((stops + 1)) count '^stop mimolette-1-' "${S}/container.argv"
+check_not "apiserver_down_deregisters_idle_runners: busy VM left running" grep -qE '^stop mimolette-2-' "${S}/container.argv"
+check_eq "apiserver_down_deregisters_idle_runners: slot 1 gets a fresh runner" 3 runs
+check "apiserver_down_deregisters_idle_runners: slot 1 has the new runner" grep -qx 'id=103' "${S}/state/slot-1"
+check_not "apiserver_down_deregisters_idle_runners: marker cleared" test -e "${S}/state/dropped-1"
+
 echo "-- three_exits_with_runner_registered_trip_selfcheck"
 reset
 for _ in 1 2 3; do STUB_RUN_EXITS=1 sup once || true; done
