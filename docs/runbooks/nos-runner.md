@@ -127,16 +127,28 @@ The watchdog moves it back to `mimolette` after healthy checks.
 
 ## 7. Deploy the watchdog Worker
 
-Deploy through the Cloudflare API, never the dashboard. The steps below are an outline;
-the deploy task fills in the exact calls.
+Deploy with wrangler (it calls the Cloudflare API), never the dashboard. Run each command
+from `workers/nos-runner-watchdog/`, logged in to the nightowlstudio account (`npx wrangler@4 whoami`).
+First deployed 2026-11-12.
 
-1. Create the KV namespace through the API. Put its ID in `workers/nos-runner-watchdog/wrangler.toml`.
-   The binding is `STATE`.
-2. Set the four secrets: `APP_ID`, `INSTALLATION_ID`, `APP_KEY_PKCS8`, `NTFY_TOPIC`.
-3. Upload the Worker from `workers/nos-runner-watchdog/` with the cron `*/10 * * * *`.
-4. Check the first scheduled run.
-5. To stop the watchdog (full stop), remove its cron trigger through the API, so the Worker has no schedule.
-   The deploy task records the exact call. To start it again, set the cron `*/10 * * * *` again.
+1. The KV namespace `nos-runner-watchdog-state` exists. Its ID is in `wrangler.toml`, binding `STATE`.
+   To make a new one: `npx wrangler@4 kv namespace create nos-runner-watchdog-state`, then update the ID.
+2. Upload the Worker and its cron: `npx wrangler@4 deploy`. The cron `*/10 * * * *` comes from `wrangler.toml`.
+   `workers_dev = false`, so the Worker has no public URL.
+3. Set the four secrets from 1Password, piped so they never print:
+
+   ```bash
+   printf '%s' <app-id> | npx wrangler@4 secret put APP_ID
+   printf '%s' <installation-id> | npx wrangler@4 secret put INSTALLATION_ID
+   op document get nos-runner-watchdog-pkcs8 --vault Automation | npx wrangler@4 secret put APP_KEY_PKCS8
+   op read op://Automation/nos-runner-ntfy-topic/password | tr -d '\n' | npx wrangler@4 secret put NTFY_TOPIC
+   ```
+
+   The watchdog App is ID 5732501, installation 181333652. The ntfy topic is only for this runner.
+4. Check a scheduled run: `npx wrangler@4 kv key list --binding STATE --remote` lists `state` after the first tick.
+   Never `kv key get token`: that key holds a live installation token.
+5. To stop the watchdog (full stop), set `crons = []` in `wrangler.toml` and run `npx wrangler@4 triggers deploy`.
+   Restore `crons = ["*/10 * * * *"]` and run it again to start. (Not yet tested.)
 
 ## 8. Alerts
 
