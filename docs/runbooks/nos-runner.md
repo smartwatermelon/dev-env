@@ -135,16 +135,21 @@ First deployed 2026-11-12.
    To make a new one: `npx wrangler@4 kv namespace create nos-runner-watchdog-state`, then update the ID.
 2. Upload the Worker and its cron: `npx wrangler@4 deploy`. The cron `*/10 * * * *` comes from `wrangler.toml`.
    `workers_dev = false`, so the Worker has no public URL.
-3. Set the four secrets from 1Password, piped so they never print:
+3. Set the five secrets from 1Password, piped so they never print:
 
    ```bash
    printf '%s' <app-id> | npx wrangler@4 secret put APP_ID
    printf '%s' <installation-id> | npx wrangler@4 secret put INSTALLATION_ID
    op document get nos-runner-watchdog-pkcs8 --vault Automation | npx wrangler@4 secret put APP_KEY_PKCS8
    op read op://Automation/nos-runner-ntfy-topic/password | tr -d '\n' | npx wrangler@4 secret put NTFY_TOPIC
+   op read op://Automation/nos-runner-ntfy-token/password | tr -d '\n' | npx wrangler@4 secret put NTFY_TOKEN
    ```
 
    The watchdog App is ID 5732501, installation 181333652. The ntfy topic is only for this runner.
+   `NTFY_TOKEN` is an access token for the paid ntfy.sh account (Supporter tier).
+   Without it, ntfy.sh counts Worker posts against one quota shared by all of Cloudflare and returns 429.
+   Even with it, ntfy.sh drops about half of the connections from Workers (HTTP 522 after about 20 s),
+   so the Worker tries each alert up to 3 times (measured 2026-11-12).
 4. Check a scheduled run: `npx wrangler@4 kv key list --binding STATE --remote` lists `state` after the first tick.
    Never `kv key get token`: that key holds a live installation token.
 5. To stop the watchdog (full stop), set `crons = []` in `wrangler.toml` and run `npx wrangler@4 triggers deploy`.
