@@ -15,6 +15,8 @@ const FALLBACK = "ubuntu-latest";
 const TOKEN_TTL = 3000;
 // Skipped ticks in a row (about 30 minutes) before the one "watchdog skipping" alert.
 const SKIP_ALERT = 3;
+// Sends per alert. A tick sends at most two alerts, so retries fit in the CAP headroom.
+const NTFY_TRIES = 3;
 
 const MESSAGES = {
   down: () =>
@@ -76,19 +78,27 @@ export async function runTick(env, { fetch: rawFetch, now }) {
   // Skip tracking lives outside state, which a skipped tick must not touch. A good tick only reads it.
   const skipsRaw = await kv.get("skips");
   const skips = parseOr(skipsRaw, null, "skips");
+  // ntfy.sh drops many Worker connections (522), so retry network errors and 5xx.
+
+  // Without the token, Worker posts share one exhausted IP quota (429).
+  const headers = { "Content-Type": "text/plain" };
+  if (env.NTFY_TOKEN) headers.Authorization = `Bearer ${env.NTFY_TOKEN}`;
   const notify = async (text) => {
-    try {
-      const res = await fetchFn(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: text,
-      });
-      if (!res.ok) log(`ntfy failed: HTTP ${res.status}`);
-      return res.ok;
-    } catch (e) {
-      log("ntfy failed", e);
-      return false;
+    for (let i = 1; i <= NTFY_TRIES && budget.canAfford(1); i += 1) {
+      try {
+        const res = await fetchFn(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+          method: "POST",
+          headers,
+          body: text,
+        });
+        if (res.ok) return true;
+        log(`ntfy failed: HTTP ${res.status} (try ${i})`);
+        if (res.status < 500) return false;
+      } catch (e) {
+        log(`ntfy failed (try ${i})`, e);
+      }
     }
+    return false;
   };
   // On a skipped tick: count it, and alert once at SKIP_ALERT in a row.
   const skipTick = async (msg, e) => {
