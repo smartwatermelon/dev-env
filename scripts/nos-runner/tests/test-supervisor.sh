@@ -219,7 +219,7 @@ reset() {
   /bin/rm -rf "${S}"
   mkdir -p "${S}"
   touch "${S}/pf.ok"
-  printf '%s' "${1:-mimolette}" >"${S}/var.value"
+  printf '%s' "${1-mimolette}" >"${S}/var.value"
 }
 sup() { /bin/bash "${SCRIPT}" "$@" 2>>"${S}/sup.err"; }
 runs() { count '^run ' "${S}/container.argv"; }
@@ -303,6 +303,33 @@ STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
 check_eq "no_alert_when_var_already_ubuntu: no alert" 0 count . "${S}/ntfy.log"
 check "no_alert_when_var_already_ubuntu: GET was made" grep -q '^GET .*/actions/variables/NOS_RUNNER' "${S}/requests.log"
 check_eq "no_alert_when_var_already_ubuntu: no write" 0 count '^(PATCH|POST) .*/actions/variables' "${S}/requests.log"
+
+echo "-- hold_value_never_overwritten"
+reset ubuntu-24.04
+STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
+check_eq "hold_value_never_overwritten: self-check keeps the hold" ubuntu-24.04 cat "${S}/var.value"
+check_eq "hold_value_never_overwritten: self-check writes nothing" 0 count '^(PATCH|POST) .*/actions/variables' "${S}/requests.log"
+check_eq "hold_value_never_overwritten: self-check sends no alert" 0 count . "${S}/ntfy.log"
+check "hold_value_never_overwritten: logged" grep -q 'held at ubuntu-24.04' "${S}/sup.err"
+reset ubuntu-24.04
+env /bin/bash "${SCRIPT}" run 2>>"${S}/sup.err" &
+pid=$!
+n=0
+for _ in $(seq 100); do
+  n="$(runs)"
+  [[ "${n}" -lt 2 ]] || break
+  sleep 0.1
+done
+kill -TERM "${pid}" 2>/dev/null
+wait "${pid}" 2>/dev/null || true
+check_eq "hold_value_never_overwritten: slots ran before SIGTERM" 2 runs
+check_eq "hold_value_never_overwritten: SIGTERM keeps the hold" ubuntu-24.04 cat "${S}/var.value"
+check_eq "hold_value_never_overwritten: SIGTERM writes nothing" 0 count '^(PATCH|POST) .*/actions/variables' "${S}/requests.log"
+check_eq "hold_value_never_overwritten: SIGTERM sends no alert" 0 count . "${S}/ntfy.log"
+check_eq "hold_value_never_overwritten: SIGTERM still stops idle slots" 2 count '^stop mimolette-' "${S}/container.argv"
+reset ''
+STUB_DF_AVAIL_KB=$((19 * GB)) sup once || true
+check_eq "hold_value_never_overwritten: an empty value is written" ubuntu-latest cat "${S}/var.value"
 
 echo "-- variable_missing_uses_post"
 reset

@@ -311,13 +311,19 @@ deregister_pending() {
   done
 }
 
-# set_ubuntu REASON: write NOS_RUNNER=ubuntu-latest unless GET shows it already. Alert only after a good write.
+# set_ubuntu REASON: write ubuntu-latest only over mimolette or an unset/empty value; any other value is a manual hold.
+
+# Alert only after a good write. A failed GET (not 404) still writes: the value is unknown.
 set_ubuntu() {
   local resp cur=""
   ensure_token || return 1
   if resp="$(gh_api GET "${VAR_PATH}" 2>/dev/null)"; then
     cur="$(printf '%s' "${resp}" | "${JQ_BIN}" -r '.value // empty' 2>/dev/null)"
     if [[ "${cur}" == ubuntu-latest ]]; then return 0; fi
+    if [[ -n "${cur}" && "${cur}" != mimolette ]]; then
+      log "NOS_RUNNER held at ${cur}; not changed: $1"
+      return 0
+    fi
   else
     api_code
     [[ "${API_CODE}" == 404 ]] || log "GET NOS_RUNNER failed (HTTP ${API_CODE}); writing anyway"
