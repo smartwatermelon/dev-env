@@ -503,6 +503,7 @@ sup once
 STUB_LS_HEADER="ID IMAGE OS ARCH STATE ADDR CPUS MEMORY STARTED" sup once || true
 check_eq "vm_ip_rules: a header with no IP column fails closed" ubuntu-latest cat "${S}/var.value"
 check "vm_ip_rules: no IP column stops the VMs" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check "vm_ip_rules: no IP column has its own reason" grep -q "has no IP column" "${S}/ntfy.log"
 
 echo "-- three_failed_slot_starts_is_selfcheck_failure"
 reset

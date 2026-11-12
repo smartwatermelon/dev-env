@@ -186,9 +186,14 @@ local_check() {
     [[ -n "${bad}" ]]
   }; then
     # Sticky: VMs started on the next pass would reach the LAN again. Remove the marker by hand once the network is fixed.
-    if [[ ! -f "${SUBNET_MARK}" ]]; then printf '%s\n' "${bad}" >"${SUBNET_MARK}"; fi
+    if [[ -n "${bad}" ]]; then
+      printf '%s\n' "${bad}" >"${SUBNET_MARK}" || log "cannot write ${SUBNET_MARK}; the next pass may start VMs again"
+    else
+      bad="$(cat "${SUBNET_MARK}")" || bad="?"
+    fi
     KIND=pf
-    REASON="VM $(cat "${SUBNET_MARK}") is outside 192.168.64.0/24, which the pf rules cover; remove ${SUBNET_MARK} once fixed"
+    REASON="VM ${bad} is outside 192.168.64.0/24, which the pf rules cover; remove ${SUBNET_MARK} once fixed"
+    if [[ "${bad}" == "header no-IP-column" ]]; then REASON="container ls has no IP column; remove ${SUBNET_MARK} once checked"; fi
   elif ! running; then
     : # SIGTERM or SIGHUP: skip the slower checks; cmd_once returns next.
   elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then
