@@ -173,6 +173,16 @@ The supervisor also sends its own alerts:
 - A VM is outside `192.168.64.0/24`, which the pf rules cover. Every VM is stopped, and no VM starts
   until you fix the container network and delete `~/.local/state/nos-runner/subnet-bad`.
 
+**Alert drill.** Test both alert paths without failing anything:
+
+- Supervisor, on MIMOLETTE: `/bin/bash ~/.local/libexec/nos-runner/supervisor.sh test-alert`.
+  It sends "NOS runner drill: supervisor alert path" and exits 0 only when ntfy accepted it.
+  It reads the topic from `~/.config/nos-runner/env` and touches no VM, slot or variable.
+- Watchdog, from `workers/nos-runner-watchdog/`: `npx wrangler@4 kv key put drill 1 --binding STATE --remote`.
+  The next tick sends "NOS runner drill: watchdog alert path", then deletes `drill`.
+  Read the result with `npx wrangler@4 kv key get drill-result --binding STATE --remote`: `ok` and `tries` (1 to 3).
+  KV reads can lag a write by about 2 minutes.
+
 **Recovery backoff.** After repeated outages, recovery waits longer each time:
 20, then 40, then 80, then 160 minutes.
 One stable hour resets the backoff.
