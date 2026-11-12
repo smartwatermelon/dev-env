@@ -48,7 +48,7 @@ cfg="$(bash -c 'source "$1/config.sh" && printf "%s\n%s\n" "${NOS_SHUTDOWN_MAX_S
 exit_timeout="$(printf '%s\n' "${cfg}" | sed -n 1p)"
 nos_image="$(printf '%s\n' "${cfg}" | sed -n 2p)"
 [[ "${exit_timeout}" =~ ^[0-9]+$ ]] || die "NOS_SHUTDOWN_MAX_S is not a number: ${exit_timeout}"
-[[ -n "${nos_image}" ]] || die "NOS_IMAGE is empty; ${HERE}/image/Containerfile has no ARG RUNNER_VERSION"
+[[ -n "${nos_image}" ]] || die "NOS_IMAGE is empty: no ARG RUNNER_VERSION in ${HERE}/image/Containerfile, or no sha256sum/shasum"
 
 # NTFY_TOPIC comes from the env file so the update job renders the same plist. An env value is saved there first.
 if [[ -n "${NTFY_TOPIC:-}" ]]; then

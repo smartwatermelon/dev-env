@@ -138,6 +138,51 @@ new_home
 NOS_SHUTDOWN_MAX_S=4321 run_install
 check "plist_exit_timeout_matches_shutdown_max: env override" grep -qF -- '<integer>4321</integer>' "${sup}"
 check "NOS_IMAGE rendered from the Containerfile" grep -qF -- '<key>NOS_IMAGE</key>' "${sup}"
+check "NOS_IMAGE rendered as version plus content hash" grep -qE -- '<string>nos-runner:[0-9.]+-[0-9a-f]{12}</string>' "${sup}"
+
+echo "-- image tag"
+# tag_of DIR [SHA256SUM_BIN] [SHASUM_BIN]: NOS_IMAGE as config.sh in DIR derives it.
+tag_of() {
+  (
+    unset NOS_IMAGE
+    if [[ -n "${2:-}" ]]; then export SHA256SUM_BIN="$2"; fi
+    if [[ -n "${3:-}" ]]; then export SHASUM_BIN="$3"; fi
+    bash -c 'source "$1/config.sh" && printf "%s" "${NOS_IMAGE}"' _ "$1"
+  )
+}
+tree="${WORK}/tree"
+rm -rf "${tree:?}"
+mkdir -p "${tree}"
+cp -R "${HERE}/../config.sh" "${HERE}/../image" "${tree}/"
+t1="$(tag_of "${tree}")"
+t2="$(tag_of "${tree}")"
+treal="$(tag_of "${HERE}/..")"
+check "image_tag_stable_when_unchanged: form version-12hex" grep -qE '^nos-runner:[0-9.]+-[0-9a-f]{12}$' <<<"${t1}"
+check "image_tag_stable_when_unchanged: same tag twice" test "${t1}" = "${t2}"
+check "image_tag_stable_when_unchanged: a copy elsewhere gives the same tag" test "${t1}" = "${treal}"
+touch -t 202001010000 "${tree}/image/entrypoint.sh"
+t3="$(tag_of "${tree}")"
+check "image_tag_stable_when_unchanged: mtime alone changes nothing" test "${t1}" = "${t3}"
+echo "# changed" >>"${tree}/image/entrypoint.sh"
+t4="$(tag_of "${tree}")"
+check "image_tag_changes_with_entrypoint: tag differs" test "${t1}" != "${t4}"
+check "image_tag_changes_with_entrypoint: version part kept" test "${t1%-*}" = "${t4%-*}"
+echo "x" >"${tree}/image/new-file"
+t5="$(tag_of "${tree}")"
+check "image tag changes with a new image/ file" test "${t4}" != "${t5}"
+# Both tools give the same digest, so GNU and macOS hosts agree on the tag.
+cat >"${WORK}/bin/nohash" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+chmod +x "${WORK}/bin/nohash"
+if command -v sha256sum >/dev/null 2>&1 && command -v shasum >/dev/null 2>&1; then
+  tg="$(tag_of "${tree}" "" "${WORK}/bin/nohash")"
+  tm="$(tag_of "${tree}" no-such-sha256sum)"
+  check "image tag: sha256sum and shasum agree" test -n "${tg}" -a "${tg}" = "${tm}"
+fi
+tf="$(tag_of "${tree}" "${WORK}/bin/nohash" "${WORK}/bin/nohash")"
+check "image tag: a failed hash leaves NOS_IMAGE empty, never a bare version" test -z "${tf}"
 
 echo "-- idempotent"
 new_home
@@ -232,7 +277,7 @@ echo "-- image build"
 new_home
 STUB_INSPECT_RC=1 run_install
 check "install_builds_image_when_missing: exit 0" test "$?" -eq 0
-check "install_builds_image_when_missing: build -t image dir" grep -qE "^build -t nos-runner:[0-9.]+ .*/scripts/nos-runner/image$" "${WORK}/log/container"
+check "install_builds_image_when_missing: build -t image dir" grep -qE "^build -t nos-runner:[0-9.]+-[0-9a-f]{12} .*/scripts/nos-runner/image$" "${WORK}/log/container"
 check "install_builds_image_when_missing: inspected first" grep -qE "^image inspect nos-runner:" "${WORK}/log/container"
 new_home
 run_install

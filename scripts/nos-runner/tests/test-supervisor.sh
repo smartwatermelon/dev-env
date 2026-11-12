@@ -231,7 +231,7 @@ check_eq "starts_two_slots_when_healthy: two container runs" 2 runs
 check "starts_two_slots_when_healthy: slot 1 name" grep -qE '^run .*--name mimolette-1-[0-9]+ ' "${S}/container.argv"
 check "starts_two_slots_when_healthy: slot 2 name" grep -qE '^run .*--name mimolette-2-[0-9]+ ' "${S}/container.argv"
 check "starts_two_slots_when_healthy: flags and image" \
-  grep -qE '^run -d --rm --name mimolette-1-[0-9]+ -c 4 -m 4g --env-file [^ ]+ nos-runner:2\.338\.2$' "${S}/container.argv"
+  grep -qE '^run -d --rm --name mimolette-1-[0-9]+ -c 4 -m 4g --env-file [^ ]+ nos-runner:2\.338\.2-[0-9a-f]{12}$' "${S}/container.argv"
 check "starts_two_slots_when_healthy: jit body" grep -qE \
   '^POST .*/orgs/nightowlstudiollc/actions/runners/generate-jitconfig \{"name":"mimolette-1-[0-9]+","runner_group_id":1,"labels":\["mimolette"\],"work_folder":"_work"\}$' \
   "${S}/requests.log"
@@ -706,6 +706,6 @@ img="$(
   source "${HERE}/../config.sh"
   echo "${NOS_IMAGE}"
 )"
-check "image_tag_from_containerfile" test "${img}" = nos-runner:2.338.2
+check "image_tag_from_containerfile" grep -qE '^nos-runner:2\.338\.2-[0-9a-f]{12}$' <<<"${img}"
 
 exit "${fail}"

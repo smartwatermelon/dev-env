@@ -27,9 +27,33 @@ _nos_conf_dir="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${NOS_DISK_PATH:=${HOME}}"
 : "${NTFY_BASE:=https://ntfy.sh}"
 
-# The image tag follows the runner version pinned in the Containerfile, so a bump there cannot drift from here.
+: "${SHA256SUM_BIN:=sha256sum}"
+: "${SHASUM_BIN:=shasum}"
+
+# _nos_sha256 [FILE]: GNU sha256sum when present, else macOS shasum -a 256. Both print "<hex>  <name>".
+_nos_sha256() {
+  if command -v "${SHA256SUM_BIN}" >/dev/null 2>&1; then "${SHA256SUM_BIN}" "$@"; else "${SHASUM_BIN}" -a 256 "$@"; fi
+}
+
+# _nos_image_hash DIR: first 12 hex of a SHA-256 over "<digest>  <relative name>" for each file, in C sort order.
+_nos_image_hash() {
+  local files f d list=""
+  files="$(cd "$1" && find . -type f)" || return 1
+  files="$(LC_ALL=C sort <<<"${files}")" || return 1
+  [[ -n "${files}" ]] || return 1
+  while IFS= read -r f; do
+    d="$(_nos_sha256 "$1/${f}")" || return 1
+    list="${list}${d%% *}  ${f}"$'\n'
+  done <<<"${files}"
+  d="$(printf '%s' "${list}" | _nos_sha256)" || return 1
+  d="${d:0:12}"
+  [[ "${d}" =~ ^[0-9a-f]{12}$ ]] || return 1
+  printf '%s' "${d}"
+}
+
+# Tag = runner version + hash of image/, so any image change builds a new tag. Without image/ (libexec), the plist env sets it.
 if [[ -z "${NOS_IMAGE:-}" ]]; then
   _nos_rv="$(sed -n 's/^ARG RUNNER_VERSION=//p' "${_nos_conf_dir}/image/Containerfile" 2>/dev/null)"
-  if [[ -n "${_nos_rv}" ]]; then NOS_IMAGE="nos-runner:${_nos_rv}"; fi
+  if [[ -n "${_nos_rv}" ]] && _nos_h="$(_nos_image_hash "${_nos_conf_dir}/image")"; then NOS_IMAGE="nos-runner:${_nos_rv}-${_nos_h}"; fi
 fi
 : "${NOS_IMAGE:=}"
