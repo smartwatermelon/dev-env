@@ -123,6 +123,7 @@ if [[ "\${hdr_stdin}" -eq 1 ]]; then cat >>"\${S}/curl.stdin"; fi
 case "\${url}" in
   https://ntfy.sh/*)
     echo "\${url} \${data}" >>"\${S}/ntfy.log"
+    if [[ -n "\${STUB_NTFY_FAIL:-}" ]]; then exit 22; fi
     exit 0
     ;;
 esac
@@ -745,6 +746,33 @@ check "failed_start_keeps_undeleted_runner: id kept for retry" grep -qx 'id=101'
 sup once
 check_eq "failed_start_keeps_undeleted_runner: retry deletes 101" 2 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
 check "failed_start_keeps_undeleted_runner: slot 1 then starts" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+
+echo "-- test_alert_sends_one_alert_and_touches_nothing"
+reset
+sup test-alert
+check_eq "test_alert_sends_one_alert_and_touches_nothing: exit 0" 0 echo $?
+check_eq "test_alert_sends_one_alert_and_touches_nothing: one alert" 1 count . "${S}/ntfy.log"
+check "test_alert_sends_one_alert_and_touches_nothing: drill text" grep -q 'NOS runner drill: supervisor alert path' "${S}/ntfy.log"
+check_not "test_alert_sends_one_alert_and_touches_nothing: no GitHub call" test -s "${S}/requests.log"
+check_not "test_alert_sends_one_alert_and_touches_nothing: no container call" test -s "${S}/container.argv"
+check_not "test_alert_sends_one_alert_and_touches_nothing: no slot state" test -e "${S}/state"
+check_eq "test_alert_sends_one_alert_and_touches_nothing: variable untouched" mimolette cat "${S}/var.value"
+
+echo "-- test_alert_fails_when_ntfy_fails"
+reset
+STUB_NTFY_FAIL=1 sup test-alert
+check_eq "test_alert_fails_when_ntfy_fails: exit 1" 1 echo $?
+
+echo "-- test_alert_reads_topic_from_env_file"
+reset
+printf 'NTFY_TOPIC=filetopic\n' >"${S}/env"
+NTFY_TOPIC='' NOS_ENV_FILE="${S}/env" sup test-alert
+check_eq "test_alert_reads_topic_from_env_file: exit 0" 0 echo $?
+check "test_alert_reads_topic_from_env_file: URL" grep -q '^https://ntfy.sh/filetopic ' "${S}/ntfy.log"
+reset
+NTFY_TOPIC='' NOS_ENV_FILE="${S}/missing" sup test-alert
+check_eq "test_alert_reads_topic_from_env_file: no topic exits 1" 1 echo $?
+check_not "test_alert_reads_topic_from_env_file: no topic sends nothing" test -s "${S}/ntfy.log"
 
 echo "-- never_writes_mimolette"
 writes="$(grep -E '^(PATCH|POST) [^ ]*/actions/variables' "${WORK}/all-requests.log")"
