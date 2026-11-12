@@ -16,7 +16,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # All three suites are hermetic: they put a stub `gh` on PATH and never
+      # The bash suites are hermetic: they put a stub `gh` on PATH and never
       # reach GitHub. They need bash and jq; ubuntu-latest ships both.
       - name: Run org-migration tests
         run: bash scripts/org-migration/tests/run-tests.sh
@@ -26,6 +26,12 @@ jobs:
 
       - name: Run site-monitor tests
         run: bash scripts/site-monitor/tests/run-tests.sh
+
+      - name: Run nos-runner tests
+        run: bash scripts/nos-runner/tests/run-tests.sh
+
+      - name: Run watchdog tests
+        run: npm --prefix workers/nos-runner-watchdog test
 
       # Not hermetic: reads claude-config's conf at main (claude-config#725).
       # curl -f and the checker both fail on a failed or empty download.
