@@ -1,0 +1,19 @@
+FROM ubuntu:24.04
+ARG RUNNER_VERSION=2.338.2
+ARG RUNNER_SHA=670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git curl jq unzip ca-certificates build-essential sudo libicu74 python3 gnupg \
+ && rm -rf /var/lib/apt/lists/*
+RUN useradd -m -s /bin/bash runner \
+ && echo 'runner ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/runner \
+ && chmod 0440 /etc/sudoers.d/runner
+WORKDIR /home/runner
+RUN curl -fsSL -o r.tgz "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-arm64-${RUNNER_VERSION}.tar.gz" \
+ && echo "${RUNNER_SHA}  r.tgz" | sha256sum -c - \
+ && tar xzf r.tgz && rm r.tgz \
+ && ./bin/installdependencies.sh
+COPY entrypoint.sh /home/runner/entrypoint.sh
+RUN chmod 0755 /home/runner/entrypoint.sh && chown -R runner:runner /home/runner
+USER runner
+ENTRYPOINT ["/home/runner/entrypoint.sh"]

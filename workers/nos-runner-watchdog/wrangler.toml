@@ -1,0 +1,13 @@
+name = "nos-runner-watchdog"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Task 9 creates the namespace through the Cloudflare API and fills in the id.
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_AT_DEPLOY"
+
+# Secrets, set at deploy: APP_ID, INSTALLATION_ID, APP_KEY_PKCS8, NTFY_TOPIC.
