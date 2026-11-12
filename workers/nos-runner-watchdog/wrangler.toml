@@ -1,13 +1,15 @@
 name = "nos-runner-watchdog"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
+# Cron only: no public URL.
+workers_dev = false
 
 [triggers]
 crons = ["*/10 * * * *"]
 
-# Task 9 creates the namespace through the Cloudflare API and fills in the id.
+# Namespace nos-runner-watchdog-state, created 2026-11-12 on the nightowlstudio account.
 [[kv_namespaces]]
 binding = "STATE"
-id = "REPLACE_AT_DEPLOY"
+id = "ddbff24fed0048d8b3cdce120f846bb9"
 
 # Secrets, set at deploy: APP_ID, INSTALLATION_ID, APP_KEY_PKCS8, NTFY_TOPIC.
