@@ -3,7 +3,7 @@
 **As of 2026-09-16, with 2026-10-01, 2026-10-02 (three), 2026-10-05
 (three), 2026-10-06, 2026-10-06/07, 2026-10-07 evening, 2026-10-08,
 2026-10-12, 2026-10-13 to 10-16, 2026-10-19, 2026-10-19 to 10-21,
-2026-10-22, 2026-10-27, 2026-10-29 and 2026-10-30 updates below.**
+2026-10-22, 2026-10-27, 2026-10-29, 2026-10-30 and 2026-11-12 updates below.**
 Point-in-time snapshot of the infrastructure backlog
 (`docs/superpowers/specs/2026-09-01-infrastructure-backlog-design.md`). The
 design doc is authoritative on *what* each item is and why; this file records
@@ -722,6 +722,30 @@ or be explicitly parked with a resume note, by then — see the tracker.
   goes to the site monitor's topic, and a new section reads each repo's
   security-updates setting. Only `enabled: false` counts as off: the off
   answer was not captured, so any other response is unreadable.
+
+**2026-11-12 update (Pacific): NOS self-hosted runner live (`dev-env#265`):**
+
+- **What runs:** private `nightowlstudiollc` CI picks its runner from org
+  variable `NOS_RUNNER` (`mimolette` or `ubuntu-latest`). MIMOLETTE runs
+  two ephemeral Apple `container` VMs, one job each. The Cloudflare Worker
+  `nos-runner-watchdog` checks every 10 minutes and fails over to GitHub.
+  Runbook: `docs/runbooks/nos-runner.md`.
+- **Deployed 2026-11-12:** Worker (`#270`), ntfy delivery from Workers
+  (`#271`: paid ntfy account, token, 3 tries), alert drills (`#272`, both
+  paths verified on the phone), `gh` in the image (`#273`).
+- **Two defects found live and fixed:** `install.sh` bootstrapped before
+  `bootout` finished, a 10-minute outage on each image change (`#274`). The
+  supervisor counted every finished job as a failed start, so 3 jobs on a
+  slot failed over: false failovers at 12:44 and 13:21 (`#275`).
+- **Pilot:** kebab-tax `ci.yml` on the runner (`kebab-tax#1555`, merged
+  13:20). First run: Mobile Tests 125 s vs 300 s hosted, Worker Tests
+  35 s vs 67 s. **Measure 2026-11-15 after 13:34** (when `#275` went live):
+  billed minutes and durations against Nov 1–10.
+- **Open:** detect a runner that dies before its job (needs the VM to
+  report the runner's exit; `#275` removed the false signal); the runbook's
+  cron-stop step is untested; the rollout plan (other kebab-tax workflows,
+  a `runner` input in github-workflows, other NOS repos) waits for the
+  pilot numbers. Andrew still has to confirm the NOS $50 budget.
 
 **Kanban tracker: GitHub Issues + a Project board in `smartwatermelon/dev-env`**,
 using the org's `Priority`/`Target date`/`Effort` issue fields. Board columns
