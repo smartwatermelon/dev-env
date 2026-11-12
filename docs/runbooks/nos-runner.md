@@ -203,7 +203,9 @@ tail -n 50 ~/Library/Logs/nos-runner-update.log
 
 Key lines to look for:
 
-- `was still registered`: a runner stayed registered after its VM exited. The VM died before its job, and counts as a failed start. Three failed starts in a row fail over.
+- `was still registered after its VM exited; deleted`: normal after a job. GitHub keeps a JIT runner listed for a while,
+  so the supervisor deletes it. A VM exit is not a failed start: a runner that dies before its job is not detected yet.
+- `container run failed`: a failed start. Three in a row fail over.
 - `NOS_RUNNER set to ubuntu-latest`: the supervisor failed over. The reason follows.
 - `stopping: switching NOS_RUNNER`: the supervisor got SIGTERM.
 - `held at <value>; not changed`: a manual hold is set, so the supervisor did not fail over the variable.

@@ -625,15 +625,19 @@ stops="$(count '^stop mimolette-1-' "${S}/container.argv")"
 sup once || true
 check_eq "dropped_marker_cleared_by_any_stop: new VM in slot 1 is not stopped" "${stops}" count '^stop mimolette-1-' "${S}/container.argv"
 
-echo "-- three_exits_with_runner_registered_trip_selfcheck"
+echo "-- exit_with_runner_registered_is_not_failed_start"
+# 2026-11-12: GitHub still listed each JIT runner 12-23 s after its job finished; DELETE got 204 every time.
 reset
-for _ in 1 2 3; do STUB_RUN_EXITS=1 sup once || true; done
-check_eq "three_exits_with_runner_registered_trip_selfcheck: two failed starts do not switch" mimolette cat "${S}/var.value"
-check "three_exits_with_runner_registered_trip_selfcheck: DELETE 204 counted" grep -qx 'fails=2' "${S}/state/slot-1"
+for _ in 1 2 3 4 5; do STUB_RUN_EXITS=1 sup once || true; done
+check_eq "exit_with_runner_registered_is_not_failed_start: never switches" mimolette cat "${S}/var.value"
+check "exit_with_runner_registered_is_not_failed_start: fails stays 0" grep -qx 'fails=0' "${S}/state/slot-1"
+check_eq "exit_with_runner_registered_is_not_failed_start: no alert" 0 count . "${S}/ntfy.log"
+check "exit_with_runner_registered_is_not_failed_start: runner deleted" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+reset
+STUB_RUN_FAIL=1 sup once || true
 STUB_RUN_EXITS=1 sup once || true
-check_eq "three_exits_with_runner_registered_trip_selfcheck: third switches" ubuntu-latest cat "${S}/var.value"
-check_eq "three_exits_with_runner_registered_trip_selfcheck: no start on that pass" 6 runs
-check_eq "three_exits_with_runner_registered_trip_selfcheck: one alert" 1 count . "${S}/ntfy.log"
+sup once || true
+check "exit_with_runner_registered_is_not_failed_start: a VM exit resets a run-failure count" grep -qx 'fails=0' "${S}/state/slot-1"
 
 echo "-- short_job_runner_gone_is_good_start"
 reset
@@ -653,7 +657,8 @@ check "unknown_delete_result_keeps_count: fails unchanged" grep -qx 'fails=0' "$
 check "unknown_delete_result_keeps_count: id kept" grep -qx 'id=101' "${S}/state/slot-1"
 check "unknown_delete_result_keeps_count: marker kept" test -f "${S}/state/exited-1"
 sup once
-check "unknown_delete_result_keeps_count: next pass counts it" grep -qx 'fails=1' "${S}/state/slot-1"
+check "unknown_delete_result_keeps_count: next pass deletes it" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_not "unknown_delete_result_keeps_count: then the marker is gone" test -f "${S}/state/exited-1"
 
 echo "-- pf_stale_stops_all_without_token"
 reset
