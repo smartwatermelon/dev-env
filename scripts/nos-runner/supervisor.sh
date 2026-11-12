@@ -276,6 +276,8 @@ stop_slot() {
     fi
   fi
   log "slot ${n}: stopped ${name}"
+  # The VM is gone, so a dropped-N marker would wrongly stop the next VM in this slot.
+  "${RM_BIN}" -f "${NOS_STATE_DIR}/dropped-${n}"
   slot_load "${n}"
   slot_put "${n}" "" "${SL_ID}" "${SL_FAILS}" "${SL_STARTED}"
 }

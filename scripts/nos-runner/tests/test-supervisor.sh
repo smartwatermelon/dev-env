@@ -610,6 +610,20 @@ check_eq "apiserver_down_deregisters_idle_runners: slot 1 gets a fresh runner" 3
 check "apiserver_down_deregisters_idle_runners: slot 1 has the new runner" grep -qx 'id=103' "${S}/state/slot-1"
 check_not "apiserver_down_deregisters_idle_runners: marker cleared" test -e "${S}/state/dropped-1"
 
+echo "-- dropped_marker_cleared_by_any_stop"
+reset
+sup once
+echo 102 >"${S}/busy"
+STUB_LS_FAIL=1 STUB_STOP_FAIL=1 sup once || true
+check "dropped_marker_cleared_by_any_stop: marker written" test -e "${S}/state/dropped-1"
+STUB_LS_FAIL=1 sup once || true
+check_not "dropped_marker_cleared_by_any_stop: a good stop clears the marker" test -e "${S}/state/dropped-1"
+sup once || true
+check "dropped_marker_cleared_by_any_stop: slot 1 restarted" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+stops="$(count '^stop mimolette-1-' "${S}/container.argv")"
+sup once || true
+check_eq "dropped_marker_cleared_by_any_stop: new VM in slot 1 is not stopped" "${stops}" count '^stop mimolette-1-' "${S}/container.argv"
+
 echo "-- three_exits_with_runner_registered_trip_selfcheck"
 reset
 for _ in 1 2 3; do STUB_RUN_EXITS=1 sup once || true; done
