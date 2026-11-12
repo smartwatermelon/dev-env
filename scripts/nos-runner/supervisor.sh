@@ -340,7 +340,7 @@ delete_runner() {
 }
 # deregister_pending: delete runners whose VM is gone (name= empty, id= set). A failed DELETE keeps id= for retry.
 
-# After a VM exit, DELETE 404 means the runner took a job and removed itself (fails=0); 2xx means it died before one.
+# After a VM exit, the slot's fail count resets: 2xx and 404 both follow a finished job (see the comment inside).
 deregister_pending() {
   local n id fails mark
   for ((n = 1; n <= NOS_SLOTS; n += 1)); do
@@ -351,12 +351,9 @@ deregister_pending() {
     fails="${SL_FAILS}"
     mark="${NOS_STATE_DIR}/exited-${n}"
     if [[ -f "${mark}" ]]; then
-      if [[ "${API_CODE}" == 404 ]]; then
-        fails=0
-      else
-        fails=$((fails + 1))
-        log "slot ${n}: runner ${id} was still registered after its VM exited; failed start ${fails}"
-      fi
+      # A JIT runner stays registered after its job, so 2xx is no sign it died first (2026-11-12 false failovers).
+      fails=0
+      if [[ "${API_CODE}" != 404 ]]; then log "slot ${n}: runner ${id} was still registered after its VM exited; deleted"; fi
       "${RM_BIN}" -f "${mark}"
     fi
     slot_put "${n}" "" "" "${fails}" "${SL_STARTED}"
