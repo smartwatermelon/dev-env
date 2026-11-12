@@ -340,6 +340,8 @@ chmod 644 "${sup}"
 run_install
 mode_ok="$(find "${sup}" -perm 600 || true)"
 check "plist mode drift is repaired" test -n "${mode_ok}"
+state_mode="$(find "${WORK}/home/.local/state/nos-runner" -prune -perm 700 || true)"
+check "state dir is mode 700" test -n "${state_mode}"
 new_home
 mkdir -p "${WORK}/h&m<e"
 HOME="${WORK}/h&m<e" STUB_LOG="${WORK}/log" ID_BIN="${WORK}/bin/id" LAUNCHCTL_BIN="${WORK}/bin/launchctl" \

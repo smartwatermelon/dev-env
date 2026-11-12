@@ -141,6 +141,7 @@ case "\${method} \${url}" in
     reply "{\"id\":\${id},\"busy\":\${b}}" 200
     ;;
   "POST "*/actions/runners/generate-jitconfig)
+    if [[ -n "\${STUB_JIT_CODE:-}" ]]; then reply '{"message":"boom"}' "\${STUB_JIT_CODE}"; exit 0; fi
     n=\$((\$(cat "\${S}/jit.n" 2>/dev/null || echo 0) + 1))
     echo "\${n}" >"\${S}/jit.n"
     id=\$((100 + n))
@@ -640,6 +641,21 @@ check_eq "token_failure_alerts_once: one alert" 1 count . "${S}/ntfy.log"
 check_eq "token_failure_alerts_once: no VM started" 0 runs
 sup once
 check_eq "token_failure_alerts_once: recovers" 2 runs
+check_eq "token_failure_alerts_once: recovery alert" 2 count . "${S}/ntfy.log"
+check "token_failure_alerts_once: recovery alert text" grep -q 'mint GitHub App tokens again' "${S}/ntfy.log"
+sup once
+check_eq "token_failure_alerts_once: no further alert" 2 count . "${S}/ntfy.log"
+
+echo "-- github_side_jitconfig_errors_are_not_failed_starts"
+for code in 503 429; do
+  reset
+  for _ in 1 2 3 4; do STUB_JIT_CODE="${code}" sup once || true; done
+  check_eq "github_side_jitconfig_errors_are_not_failed_starts: ${code} never switches" mimolette cat "${S}/var.value"
+  check "github_side_jitconfig_errors_are_not_failed_starts: ${code} keeps fails=0" grep -qx 'fails=0' "${S}/state/slot-1"
+done
+reset
+for _ in 1 2 3; do STUB_JIT_CODE=422 sup once || true; done
+check_eq "github_side_jitconfig_errors_are_not_failed_starts: 422 counts and switches" ubuntu-latest cat "${S}/var.value"
 
 echo "-- stop_failure_keeps_slot_state"
 reset

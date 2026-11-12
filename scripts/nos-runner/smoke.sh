@@ -7,7 +7,7 @@ CONTAINER_BIN="${CONTAINER_BIN:-/opt/homebrew/bin/container}"
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OK_FILE="${NOS_PF_OK_FILE:-/var/run/nos-runner-pf.ok}"
 TAG="nos-runner-smoke:local"
-# shellcheck source=smoke-lib.sh
+# shellcheck source=SCRIPTDIR/smoke-lib.sh
 . "${HERE}/smoke-lib.sh"
 
 failed() {

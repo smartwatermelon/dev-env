@@ -70,7 +70,10 @@ fi
 
 STATE_DIR="${NOS_STATE_DIR:-${HOME}/.local/state/nos-runner}"
 PENDING="${STATE_DIR}/pending"
-mkdir -p "${LIBEXEC}" "${AGENTS}" "${HOME}/Library/Logs" "${PENDING}" || die "cannot create install directories"
+mkdir -p "${LIBEXEC}" "${AGENTS}" "${HOME}/Library/Logs" || die "cannot create install directories"
+# The state dir holds JIT env files while a VM starts; keep it owner-only, also when an older install made it 0755.
+(umask 077 && mkdir -p "${PENDING}") || die "cannot create ${PENDING}"
+chmod 700 "${STATE_DIR}" || die "cannot chmod ${STATE_DIR}"
 # Rendered plists live here; the trap needs it to exist before the first possible exit.
 rendered="$(mktemp -d "${TMPDIR:-/tmp}/nos-install.XXXXXX")" || die "cannot create a temp directory"
 trap '"${RM_BIN}" -rf "${rendered:?}"' EXIT

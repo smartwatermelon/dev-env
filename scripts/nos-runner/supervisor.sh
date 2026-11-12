@@ -105,7 +105,10 @@ ensure_token() {
     return 1
   fi
   TOKEN_AT="${t}"
-  if [[ -f "${mark}" ]]; then "${RM_BIN}" -f "${mark}"; fi
+  if [[ -f "${mark}" ]]; then
+    "${RM_BIN}" -f "${mark}"
+    notify "NOS runner: supervisor can mint GitHub App tokens again"
+  fi
 }
 
 # Slot state, one file per slot: name= VM (empty: none), id= runner to deregister, fails=, started= epoch.
@@ -416,7 +419,9 @@ start_slot() {
   if ! resp="$(gh_api POST "/orgs/${NOS_ORG}/actions/runners/generate-jitconfig" "${body}" 2>/dev/null)"; then
     api_code
     log "slot ${n}: generate-jitconfig failed (HTTP ${API_CODE})"
-    slot_put "${n}" "" "" $((fails + 1)) 0
+    # A GitHub-side error (5xx, 429, no reply) is not a failed start; the next pass retries.
+    case "${API_CODE}" in 000 | 429 | 5[0-9][0-9]) ;; *) fails=$((fails + 1)) ;; esac
+    slot_put "${n}" "" "" "${fails}" 0
     return 1
   fi
   id="$(printf '%s' "${resp}" | "${JQ_BIN}" -er '.runner.id' 2>/dev/null)" || id=""
