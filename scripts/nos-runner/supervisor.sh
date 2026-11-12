@@ -155,9 +155,24 @@ pf_ok_fresh() {
   [[ -n "${hit}" ]]
 }
 
+# bad_vm_ip: print "NAME IP" for the first mimolette-* VM whose IPv4 (IP column) is outside 192.168.64.0/24.
+
+# Verified IP form: 192.168.64.3/24. A row with no IPv4 there (no IP yet) is logged, not a failure. No IP column fails.
+bad_vm_ip() {
+  printf '%s\n' "${RUNNING}" | awk '
+    NR == 1 { for (i = 1; i <= NF; i++) if ($i == "IP") c = i; if (!c) { print "header no-IP-column"; exit } next }
+    $1 !~ /^mimolette-/ { next }
+    $c !~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(\/[0-9]+)?$/ { print $1 > "/dev/stderr"; next }
+    $c !~ /^192\.168\.64\.[0-9]+(\/[0-9]+)?$/ { print $1 " " $c; exit }' 2>"${CTR_OUT}.noip"
+  local noip=""
+  if [[ -s "${CTR_OUT}.noip" ]]; then noip="$(tr '\n' ' ' <"${CTR_OUT}.noip")" || noip="?"; fi
+  if [[ -n "${noip}" ]]; then log "VM with no IPv4 address in container ls yet: ${noip}"; fi
+}
+SUBNET_MARK="${NOS_STATE_DIR}/subnet-bad"
+
 # local_check: no token needed. On failure set KIND (pf | apiserver | other) and REASON. pf wins: it is the LAN guard.
 local_check() {
-  local gb
+  local gb bad=""
   refresh_ls
   KIND=""
   if ! pf_ok_fresh; then
@@ -166,6 +181,14 @@ local_check() {
   elif [[ "${LS_OK}" -ne 1 ]]; then
     KIND=apiserver
     REASON="container apiserver does not answer (container ls failed or timed out)"
+  elif [[ -f "${SUBNET_MARK}" ]] || {
+    bad="$(bad_vm_ip)"
+    [[ -n "${bad}" ]]
+  }; then
+    # Sticky: VMs started on the next pass would reach the LAN again. Remove the marker by hand once the network is fixed.
+    if [[ ! -f "${SUBNET_MARK}" ]]; then printf '%s\n' "${bad}" >"${SUBNET_MARK}"; fi
+    KIND=pf
+    REASON="VM $(cat "${SUBNET_MARK}") is outside 192.168.64.0/24, which the pf rules cover; remove ${SUBNET_MARK} once fixed"
   elif ! running; then
     : # SIGTERM or SIGHUP: skip the slower checks; cmd_once returns next.
   elif [[ -z "${NOS_IMAGE}" ]] || ! ctr image inspect "${NOS_IMAGE}"; then

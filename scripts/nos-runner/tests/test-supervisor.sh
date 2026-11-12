@@ -56,11 +56,11 @@ case "\$1" in
     [[ -z "\${STUB_LS_HANG:-}" ]] || exec sleep 30
     [[ -z "\${STUB_LS_SLEEP:-}" ]] || sleep "\${STUB_LS_SLEEP}"
     [[ -z "\${STUB_LS_EMPTY:-}" ]] || exit 0
-    echo "ID IMAGE OS ARCH STATE IP CPUS MEMORY STARTED"
-    echo "buildkit moby/buildkit:latest linux arm64 running 192.168.64.3 2 2048MB 2026-11-10T10:00:00Z"
+    echo "\${STUB_LS_HEADER:-ID IMAGE OS ARCH STATE IP CPUS MEMORY STARTED}"
+    echo "buildkit moby/buildkit:latest linux arm64 running \${STUB_BUILDKIT_IP:-192.168.64.3/24} 2 2048MB 2026-11-10T10:00:00Z"
     if [[ -f "\${S}/running" ]]; then
       while read -r n; do
-        [[ -n "\${n}" ]] && echo "\${n} nos-runner:2.338.2 linux arm64 running 192.168.64.2 4 4096MB 2026-11-10T10:00:00Z"
+        [[ -n "\${n}" ]] && echo "\${n} nos-runner:2.338.2 linux arm64 running \${STUB_VM_IP-192.168.64.2/24} 4 4096MB 2026-11-10T10:00:00Z"
       done <"\${S}/running"
     fi
     ;;
@@ -464,6 +464,45 @@ check "container_ls_hang_is_apiserver_failure: pass ended within the bound" test
 check_eq "container_ls_hang_is_apiserver_failure: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
 check_eq "container_ls_hang_is_apiserver_failure: no VM started" 0 runs
 check "container_ls_hang_is_apiserver_failure: logged as apiserver" grep -q 'apiserver does not answer' "${S}/sup.err"
+
+echo "-- vm_ip_outside_subnet_is_pf_failure"
+reset
+sup once
+echo 102 >"${S}/busy"
+STUB_VM_IP=10.0.5.2/24 sup once || true
+check_eq "vm_ip_outside_subnet_is_pf_failure: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+check "vm_ip_outside_subnet_is_pf_failure: idle slot 1 stopped" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check "vm_ip_outside_subnet_is_pf_failure: busy slot 2 stopped too" grep -qE '^stop mimolette-2-' "${S}/container.argv"
+check "vm_ip_outside_subnet_is_pf_failure: logged with the IP" grep -q '10.0.5.2/24' "${S}/sup.err"
+check "vm_ip_outside_subnet_is_pf_failure: alert names the subnet" grep -q '192.168.64.0/24' "${S}/ntfy.log"
+check "vm_ip_outside_subnet_is_pf_failure: marker kept" test -f "${S}/state/subnet-bad"
+sup once || true
+check_eq "vm_ip_outside_subnet_is_pf_failure: marker blocks new VMs" 2 runs
+check_eq "vm_ip_outside_subnet_is_pf_failure: no second alert" 1 count . "${S}/ntfy.log"
+/bin/rm -f "${S}/state/subnet-bad"
+sup once
+check_eq "vm_ip_outside_subnet_is_pf_failure: starts again once the marker is removed" 4 runs
+
+echo "-- vm_ip_rules"
+reset
+sup once
+STUB_BUILDKIT_IP=10.0.5.3/24 sup once
+check_eq "vm_ip_rules: a non-mimolette VM elsewhere is ignored" mimolette cat "${S}/var.value"
+STUB_VM_IP=192.168.64.77 sup once
+check_eq "vm_ip_rules: an address without a prefix inside the subnet passes" mimolette cat "${S}/var.value"
+STUB_VM_IP=192.168.640.2/24 sup once || true
+check_eq "vm_ip_rules: 192.168.640.x is outside" ubuntu-latest cat "${S}/var.value"
+reset
+sup once
+STUB_VM_IP='' sup once
+check_eq "vm_ip_rules: a VM with no IP yet is not a failure" mimolette cat "${S}/var.value"
+check "vm_ip_rules: a VM with no IP is logged" grep -q 'no IPv4 address' "${S}/sup.err"
+
+reset
+sup once
+STUB_LS_HEADER="ID IMAGE OS ARCH STATE ADDR CPUS MEMORY STARTED" sup once || true
+check_eq "vm_ip_rules: a header with no IP column fails closed" ubuntu-latest cat "${S}/var.value"
+check "vm_ip_rules: no IP column stops the VMs" grep -qE '^stop mimolette-1-' "${S}/container.argv"
 
 echo "-- three_failed_slot_starts_is_selfcheck_failure"
 reset
