@@ -11,6 +11,7 @@ CP_BIN="${CP_BIN:-cp}"
 MV_BIN="${MV_BIN:-mv}"
 RM_BIN="${RM_BIN:-rm}"
 CURL_BIN="${CURL_BIN:-curl}"
+SLEEP_BIN="${SLEEP_BIN:-sleep}"
 if [[ -z "${CONTAINER_BIN:-}" ]]; then
   if [[ -x /opt/homebrew/bin/container ]]; then CONTAINER_BIN=/opt/homebrew/bin/container; else CONTAINER_BIN=container; fi
 fi
@@ -144,9 +145,19 @@ updater_changed() {
       echo "install: ntfy delivery failed" >&2
   fi
 }
-# load LABEL: bootout (a not-loaded job is fine), then bootstrap. Clears the marker only when bootstrap works.
+# wait_gone LABEL: bootout returns while the job drains; an early bootstrap fails with 5. Waits up to the exit timeout + 30 s.
+wait_gone() {
+  local i
+  for ((i = 0; i < exit_timeout + 30; i += 1)); do
+    "${LAUNCHCTL_BIN}" print "${domain}/$1" >/dev/null 2>&1 || return 0
+    "${SLEEP_BIN}" 1
+  done
+  echo "install: $1 still loaded after bootout; trying bootstrap anyway" >&2
+}
+# load LABEL: bootout (a not-loaded job is fine), wait, bootstrap. Clears the marker only when bootstrap works.
 load() {
   "${LAUNCHCTL_BIN}" bootout "${domain}/$1" >/dev/null 2>&1 || true
+  wait_gone "$1"
   if "${LAUNCHCTL_BIN}" bootstrap "${domain}" "${AGENTS}/$1.plist"; then
     "${RM_BIN}" -f "${PENDING}/load-$1"
     if [[ "$1" == "${SUP_LABEL}" ]]; then sup_booted=1; fi

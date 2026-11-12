@@ -35,7 +35,20 @@ cat >"${WORK}/bin/launchctl" <<'STUB'
 echo "$*" >>"${STUB_LOG}/launchctl"
 if [[ "$1" == bootstrap && -n "${STUB_BOOTSTRAP_FAIL:-}" ]]; then exit 5; fi
 if [[ "$1" == kill && -n "${STUB_KICK_FAIL:-}" ]]; then exit 6; fi
+# print: the job stays loaded for STUB_LOADED_PRINTS calls after bootout (a draining supervisor), then is gone (113).
+if [[ "$1" == print ]]; then
+  n="$(cat "${STUB_LOG}/loaded" 2>/dev/null || echo "${STUB_LOADED_PRINTS:-0}")"
+  if [[ "${n}" -gt 0 ]]; then
+    echo "$((n - 1))" >"${STUB_LOG}/loaded"
+    exit 0
+  fi
+  exit 113
+fi
 exit 0
+STUB
+cat >"${WORK}/bin/sleep" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"${STUB_LOG}/sleep"
 STUB
 # cp and mv log their arguments, then delegate to the real binary.
 cat >"${WORK}/bin/cp" <<'STUB'
@@ -83,7 +96,8 @@ new_home() {
 }
 run_install() {
   HOME="${WORK}/home" STUB_LOG="${WORK}/log" ID_BIN="${WORK}/bin/id" LAUNCHCTL_BIN="${WORK}/bin/launchctl" \
-    CP_BIN="${WORK}/bin/cp" MV_BIN="${WORK}/bin/mv" CONTAINER_BIN="${WORK}/bin/container" CURL_BIN="${WORK}/bin/curl" bash "${INSTALL}" >"${WORK}/out" 2>"${WORK}/err"
+    CP_BIN="${WORK}/bin/cp" MV_BIN="${WORK}/bin/mv" CONTAINER_BIN="${WORK}/bin/container" CURL_BIN="${WORK}/bin/curl" \
+    SLEEP_BIN="${WORK}/bin/sleep" bash "${INSTALL}" >"${WORK}/out" 2>"${WORK}/err"
 }
 run_update() {
   HOME="${WORK}/home" STUB_LOG="${WORK}/log" GIT_BIN="${WORK}/bin/git" BASH_BIN="${WORK}/bin/bash-install" \
@@ -251,6 +265,29 @@ rm -f "${LC}"
 run_install
 check "rerun after a failed bootstrap exits 0" test "$?" -eq 0
 check "rerun after a failed bootstrap retries bootstrap" grep -qF -- "bootstrap gui/501 ${sup}" "${LC}"
+
+echo "-- bootout returns before a draining job exits"
+# 2026-11-12: bootstrap ran while the supervisor still drained its VMs and failed with 5 (EIO).
+new_home
+SUP_PRINT='print gui/501/com.nightowlstudio.nos-runner'
+rc=0
+STUB_LOADED_PRINTS=3 run_install || rc=$?
+check "bootstrap_waits_for_bootout: exits 0" test "${rc}" -eq 0
+polls="$(grep -cx -- "${SUP_PRINT}" "${LC}")" || true
+check "bootstrap_waits_for_bootout: polled until gone" test "${polls}" -eq 4
+sleeps="$(wc -l <"${WORK}/log/sleep")" || true
+check "bootstrap_waits_for_bootout: slept between polls" test "${sleeps}" -eq 3
+last_print="$(grep -nx -- "${SUP_PRINT}" "${LC}" | tail -n 1 | cut -d: -f1)" || true
+first_boot="$(grep -nF -- "bootstrap gui/501 ${sup}" "${LC}" | head -n 1 | cut -d: -f1)" || true
+check "bootstrap_waits_for_bootout: bootstrap after the last print" test "${first_boot:-0}" -gt "${last_print:-0}"
+new_home
+max_s="$(bash -c 'source "$1" && echo "${NOS_SHUTDOWN_MAX_S}"' _ "${HERE}/../config.sh")" || true
+rc=0
+STUB_LOADED_PRINTS=100000 run_install || rc=$?
+check "bootout_wait_is_bounded: still tries bootstrap" grep -qF -- "bootstrap gui/501 ${sup}" "${LC}"
+polls="$(grep -cx -- "${SUP_PRINT}" "${LC}")" || true
+check "bootout_wait_is_bounded: at most the exit timeout plus 30 polls" test "${polls}" -le "$((max_s + 30))"
+check "bootout_wait_is_bounded: logs the timeout" grep -qF "still loaded after bootout" "${WORK}/err"
 
 echo "-- a failed step does not lose the restart"
 new_home
