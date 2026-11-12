@@ -26,18 +26,30 @@ trap 'rm -rf "${WORK:?}"' EXIT
 cat >"${WORK}/bin/pfctl" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"${PF_STATE}/calls"
+# Record whether the ok file exists at each call, to prove a good run never removes it.
+if [[ -e "${NOS_PF_OK_FILE}" ]]; then echo present >>"${PF_STATE}/okseen"; else echo absent >>"${PF_STATE}/okseen"; fi
 case "$*" in
 "-a com.apple/nos-runner-v6 -f "*) [[ -f "${PF_STATE}/v6-fail" ]] && exit 1; exit 0 ;;
 "-a com.apple/nos-runner -f "*) [[ -f "${PF_STATE}/load-fail" ]] && exit 1; exit 0 ;;
 "-s info")
   if [[ -f "${PF_STATE}/enabled" ]]; then echo "Status: Enabled for 1 days"; else echo "Status: Disabled"; fi ;;
 "-E")
-  touch "${PF_STATE}/enabled"
+  [[ -f "${PF_STATE}/no-enable" ]] || touch "${PF_STATE}/enabled"
   printf 'pf enabled\nToken : 424242\n' >&2 ;;
 "-a com.apple/nos-runner -s rules") cat "${PF_STATE}/rules" 2>/dev/null ;;
+"-s rules")
+  if [[ -f "${PF_STATE}/main" ]]; then cat "${PF_STATE}/main"; else
+    printf 'scrub-anchor "com.apple/*" all fragment reassemble\nanchor "com.apple/*" all\n'
+  fi ;;
 esac
 STUB
-chmod +x "${WORK}/bin/pfctl"
+# mv stub: logs, then delegates (all paths are under ${WORK}).
+cat >"${WORK}/bin/mv" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"${PF_STATE}/mv"
+exec /bin/mv "$@"
+STUB
+chmod +x "${WORK}/bin/pfctl" "${WORK}/bin/mv"
 
 good_rules() {
   cat >"${WORK}/state/rules" <<'R'
@@ -52,7 +64,7 @@ reset() {
   printf 'rule\n' >"${WORK}/nos-runner.pf"
 }
 run() {
-  PF_STATE="${WORK}/state" PFCTL_BIN="${WORK}/bin/pfctl" NOS_PF_RULES="${WORK}/nos-runner.pf" \
+  PF_STATE="${WORK}/state" PFCTL_BIN="${WORK}/bin/pfctl" MV_BIN="${WORK}/bin/mv" NOS_PF_RULES="${WORK}/nos-runner.pf" \
     NOS_PF_OK_FILE="${WORK}/ok" NOS_PF_TOKEN_FILE="${WORK}/token" bash "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
 }
 mode_of() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
@@ -133,5 +145,54 @@ rm -f "${WORK:?}/nos-runner.pf"
 touch "${WORK}/ok"
 run || true
 check_not "stale ok file removed when the rules file is missing" test -f "${WORK}/ok"
+
+echo "-- pf_guard_never_removes_ok_file_on_a_good_run"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/ok"
+rc=0
+run || rc=$?
+check "good run exits 0" test "${rc}" -eq 0
+seen="$(grep -c . "${WORK}/state/okseen" || true)"
+check "ok file presence recorded at each pfctl call" test "${seen}" -gt 0
+check_not "ok file never absent during a good run" grep -qx absent "${WORK}/state/okseen"
+check "ok file still there after the run" test -f "${WORK}/ok"
+check "ok file written by mv (atomic)" grep -qF -- "${WORK}/ok" "${WORK}/state/mv"
+check_not "no temp file left" test -e "${WORK}/ok.tmp"
+touch -t 202001010000 "${WORK}/ok"
+run || true
+fresh="$(find "${WORK}/ok" -mmin -10)"
+check "good run refreshes the ok file mtime" test -n "${fresh}"
+: >"${WORK}/state/rules"
+rc=0
+run || rc=$?
+check "failed run exits 1" test "${rc}" -eq 1
+check_not "failed run removes the ok file" test -f "${WORK}/ok"
+
+echo "-- pf_guard_requires_main_ruleset_anchor"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/ok"
+printf 'scrub-anchor "com.apple/*" all fragment reassemble\npass all\n' >"${WORK}/state/main"
+rc=0
+run || rc=$?
+check "exit 1 when the main ruleset has only scrub-anchor" test "${rc}" -eq 1
+check_not "no ok file without anchor com.apple/*" test -f "${WORK}/ok"
+check "says the main ruleset lacks the anchor" grep -q 'main ruleset' "${WORK}/err"
+: >"${WORK}/state/main"
+touch "${WORK}/ok"
+run || true
+check_not "no ok file with an empty main ruleset" test -f "${WORK}/ok"
+
+echo "-- pf_guard_requires_pf_enabled"
+reset
+good_rules
+touch "${WORK}/ok"
+# pfctl -E that does not enable pf: Status stays Disabled.
+touch "${WORK}/state/no-enable"
+rc=0
+run || rc=$?
+check "exit 1 when pf stays disabled" test "${rc}" -eq 1
+check_not "no ok file while pf is disabled" test -f "${WORK}/ok"
 
 exit "${fail}"
