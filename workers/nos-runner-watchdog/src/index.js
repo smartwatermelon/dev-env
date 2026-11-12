@@ -78,13 +78,17 @@ export async function runTick(env, { fetch: rawFetch, now }) {
   // Skip tracking lives outside state, which a skipped tick must not touch. A good tick only reads it.
   const skipsRaw = await kv.get("skips");
   const skips = parseOr(skipsRaw, null, "skips");
+  // A drill request (any value) sends one test alert after the state put. Set it by hand to test delivery.
+  const drill = await kv.get("drill");
   // ntfy.sh drops many Worker connections (522), so retry network errors and 5xx.
-
   // Without the token, Worker posts share one exhausted IP quota (429).
   const headers = { "Content-Type": "text/plain" };
   if (env.NTFY_TOKEN) headers.Authorization = `Bearer ${env.NTFY_TOKEN}`;
+  let notifyTries = 0;
   const notify = async (text) => {
+    notifyTries = 0;
     for (let i = 1; i <= NTFY_TRIES && budget.canAfford(1); i += 1) {
+      notifyTries = i;
       try {
         const res = await fetchFn(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
           method: "POST",
@@ -200,6 +204,20 @@ export async function runTick(env, { fetch: rawFetch, now }) {
   if (skips) {
     if (skips.notified) await notify("watchdog ok: ticks are running again.");
     await kv.delete("skips");
+  }
+  if (drill !== null) {
+    const ok = await notify(
+      "NOS runner drill: watchdog alert path. No action needed.",
+    );
+    await kv.put(
+      "drill-result",
+      JSON.stringify({
+        at: new Date(now).toISOString(),
+        ok,
+        tries: notifyTries,
+      }),
+    );
+    await kv.delete("drill");
   }
 
   // Optional phase. A budget skip leaves work for the next tick; 401/403/429 stop the phase.

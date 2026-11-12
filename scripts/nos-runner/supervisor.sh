@@ -1,7 +1,7 @@
 #!/bin/bash
 # NOS runner supervisor (launchd, gui/501): keeps ephemeral runner VMs up; a failed self-check sets NOS_RUNNER=ubuntu-latest.
 
-# Usage: supervisor.sh run (loop until SIGTERM) | supervisor.sh once (one pass, for tests).
+# Usage: supervisor.sh run (loop until SIGTERM) | once (one pass, for tests) | test-alert (one drill alert).
 set -uo pipefail
 unset CDPATH
 
@@ -54,7 +54,9 @@ now() { date +%s; }
 # api_code: set API_CODE to the last HTTP status (000 when unknown).
 api_code() { API_CODE="$(cat "${NOS_API_STATUS_FILE}" 2>/dev/null)" || API_CODE=000; }
 
+# notify MSG: always returns 0, since callers end with it; NOTIFY_OK=1 only when ntfy accepted MSG.
 notify() {
+  NOTIFY_OK=0
   if [[ -z "${NTFY_TOPIC:-}" ]]; then
     log "warning: NTFY_TOPIC is unset; alert not sent: $1"
     return 0
@@ -64,7 +66,12 @@ notify() {
     return 0
   fi
   # The URL goes to curl on stdin so the topic never shows in ps.
-  printf 'url = "%s/%s"\n' "${NTFY_BASE}" "${NTFY_TOPIC}" | "${CURL_BIN}" -fsS --max-time 20 -K - -d "$1" >/dev/null 2>&1 || log "ntfy delivery failed"
+  if printf 'url = "%s/%s"\n' "${NTFY_BASE}" "${NTFY_TOPIC}" | "${CURL_BIN}" -fsS --max-time 20 -K - -d "$1" >/dev/null 2>&1; then
+    NOTIFY_OK=1
+  else
+    log "ntfy delivery failed"
+  fi
+  return 0
 }
 
 # bounded SECS CMD...: run CMD in the background (stdout to CTR_OUT); kill it after SECS; return its status or 124.
@@ -569,14 +576,37 @@ cmd_run() {
   exit 0
 }
 
+# test-alert: one drill alert; touches no VM, slot or variable. Exit 0 only when ntfy accepted it.
+
+# By hand NTFY_TOPIC is not set, so read the env file install.sh writes.
+cmd_test_alert() {
+  local f="${NOS_ENV_FILE:-${HOME}/.config/nos-runner/env}" at
+  if [[ -z "${NTFY_TOPIC:-}" && -f "${f}" ]]; then
+    NTFY_TOPIC="$(sed -n 's/^NTFY_TOPIC=//p' "${f}" | sed -n 1p)"
+  fi
+  if [[ -z "${NTFY_TOPIC:-}" ]]; then
+    log "test-alert: no NTFY_TOPIC in the environment or ${f}"
+    return 1
+  fi
+
+  at="$(date '+%H:%M')" || at="?"
+  notify "NOS runner drill: supervisor alert path (${at}). No action needed."
+  if [[ "${NOTIFY_OK}" -ne 1 ]]; then return 1; fi
+  log "test-alert: sent"
+}
+
 case "${1:-}" in
   run) cmd_run ;;
+  test-alert)
+    cmd_test_alert
+    exit $?
+    ;;
   once)
     cmd_once
     exit $?
     ;;
   *)
-    echo "usage: supervisor.sh run|once" >&2
+    echo "usage: supervisor.sh run|once|test-alert" >&2
     exit 2
     ;;
 esac
