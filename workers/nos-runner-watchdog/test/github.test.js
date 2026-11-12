@@ -18,6 +18,7 @@ import {
   cancelRun,
   rerunFailed,
   oldestQueuedMinutes,
+  scanQueue,
   GitHubError,
 } from "../src/github.js";
 
@@ -138,7 +139,7 @@ test("oldest_queued_reads_oldest_run_jobs_only", async () => {
         ],
       },
     },
-    [`GET ${runs}?status=queued&per_page=100`]: {
+    [`GET ${runs}?status=queued&per_page=100&exclude_pull_requests=true`]: {
       json: {
         workflow_runs: [
           { id: 2, created_at: minutesAgo(5) },
@@ -155,11 +156,65 @@ test("oldest_queued_reads_oldest_run_jobs_only", async () => {
         ],
       },
     },
-    [`GET ${GH}/repos/nightowlstudiollc/b/actions/runs?status=queued&per_page=100`]:
+    [`GET ${runs}?status=in_progress&per_page=100&exclude_pull_requests=true`]:
+      {
+        json: { workflow_runs: [] },
+      },
+    [`GET ${GH}/repos/nightowlstudiollc/b/actions/runs?status=queued&per_page=100&exclude_pull_requests=true`]:
+      {
+        json: { workflow_runs: [] },
+      },
+    [`GET ${GH}/repos/nightowlstudiollc/b/actions/runs?status=in_progress&per_page=100&exclude_pull_requests=true`]:
       {
         json: { workflow_runs: [] },
       },
   });
   assert.equal(await oldestQueuedMinutes("t", NOW, f.fn), 25);
   assert.deepEqual(f.unexpected, []);
+});
+
+test("scan_queue_rotates_from_cursor", async () => {
+  const names = ["a", "b", "c"];
+  const routes = {
+    [`GET ${GH}/installation/repositories?per_page=100`]: {
+      json: {
+        repositories: names.map((n) => ({
+          full_name: `nightowlstudiollc/${n}`,
+        })),
+      },
+    },
+  };
+  for (const n of names) {
+    for (const s of ["queued", "in_progress"]) {
+      routes[
+        `GET ${GH}/repos/nightowlstudiollc/${n}/actions/runs?status=${s}&per_page=100&exclude_pull_requests=true`
+      ] = { json: { workflow_runs: [] } };
+    }
+  }
+  const f = fakeFetch(routes);
+  let left = 10; // each repo asks for its worst case: 2 lists + 3 job probes
+  const canFetch = (n) => {
+    if (n > left) return false;
+    left -= n;
+    return true;
+  };
+  const out = await scanQueue("t", f.fn, { cursor: 1, canFetch });
+  assert.deepEqual(
+    out.repos.map((r) => r.repo),
+    ["nightowlstudiollc/b", "nightowlstudiollc/c"],
+  );
+  assert.equal(out.nextCursor, 0);
+  assert.deepEqual(f.unexpected, []);
+});
+
+test("pkcs1_key_fails_with_clear_message", async () => {
+  const env = {
+    APP_ID: "1",
+    INSTALLATION_ID: "77",
+    APP_KEY_PKCS8:
+      "-----BEGIN RSA PRIVATE KEY-----\nAAAA\n-----END RSA PRIVATE KEY-----\n",
+  };
+  const f = fakeFetch({});
+  await assert.rejects(appToken(env, f.fn, NOW), /PKCS1/);
+  assert.equal(f.calls.length, 0);
 });

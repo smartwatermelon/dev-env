@@ -43,6 +43,11 @@ const b64urlJson = (obj) =>
   b64url(new TextEncoder().encode(JSON.stringify(obj)));
 
 function pemToDer(pem) {
+  if (pem.includes("BEGIN RSA PRIVATE KEY")) {
+    throw new Error(
+      "APP_KEY_PKCS8 is PKCS1: convert with openssl pkcs8 -topk8 -nocrypt",
+    );
+  }
   const b64 = pem
     .replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "")
     .replace(/\s+/g, "");
@@ -148,13 +153,16 @@ export async function listRepos(token, fetchFn) {
   return (out.repositories ?? []).map((r) => r.full_name);
 }
 
-/** Runs in one repo with the given status, as [{id, created_at}]. */
+/** Runs in one repo with the given status, as [{id, created_at, run_attempt, status}]. */
 export async function listRuns(token, repo, status, fetchFn) {
-  const path = `/repos/${repo}/actions/runs?status=${status}&per_page=100`;
+  // exclude_pull_requests shrinks each page, keeping JSON parsing inside the 10 ms CPU limit.
+  const path = `/repos/${repo}/actions/runs?status=${status}&per_page=100&exclude_pull_requests=true`;
   const out = await call(token, "GET", path, `runs ${status}`, fetchFn);
   return (out.workflow_runs ?? []).map((r) => ({
     id: r.id,
     created_at: r.created_at,
+    run_attempt: r.run_attempt ?? 1,
+    status,
   }));
 }
 
@@ -176,36 +184,55 @@ export function mimoletteJobs(jobs, statuses = ["queued", "in_progress"]) {
   );
 }
 
-/** Queued runs per repo, then jobs of each repo's oldest run, oldest first. canFetch() can stop it early. */
-export async function scanQueue(token, now, fetchFn, canFetch = () => true) {
-  const repos = [];
-  for (const repo of await listRepos(token, fetchFn)) {
-    if (!canFetch()) break;
-    const runs = await listRuns(token, repo, "queued", fetchFn);
-    repos.push({ repo, runs, jobs: new Map() });
+// A multi-job run waiting on mimolette shows as in_progress, so both lists are read.
+const SCAN_STATUSES = ["queued", "in_progress"];
+// Runs whose jobs one repo scan may fetch; a mimolette job behind more hosted runs stays hidden.
+export const MAX_JOB_PROBES = 3;
+
+/** One repo: its waiting runs, then jobs run by run until a queued mimolette job. Null when canFetch(n) refuses. */
+export async function scanRepo(token, repo, fetchFn, canFetch = () => true) {
+  // Ask for the worst case (lists + job probes) up front, so a started repo is never dropped half-read.
+  if (!canFetch(SCAN_STATUSES.length + MAX_JOB_PROBES)) return null;
+  const runs = [];
+  for (const status of SCAN_STATUSES) {
+    runs.push(...(await listRuns(token, repo, status, fetchFn)));
   }
-  const oldestOf = (runs) =>
-    runs.reduce((a, r) => (a && a.created_at <= r.created_at ? a : r), null);
-  const withRuns = repos.filter((r) => r.runs.length > 0);
-  withRuns.sort((a, b) =>
-    oldestOf(a.runs).created_at < oldestOf(b.runs).created_at ? -1 : 1,
+  const jobs = new Map();
+  let oldestAt = null;
+  // Oldest first across both lists: a run whose first job started is in_progress with mimolette still queued.
+  const ordered = [...runs].sort(
+    (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
   );
-  let oldest = null;
-  for (const r of withRuns) {
-    if (!canFetch()) break;
-    const run = oldestOf(r.runs);
-    const jobs = await getJobs(token, r.repo, run.id, fetchFn);
-    r.jobs.set(run.id, jobs);
-    for (const j of mimoletteJobs(jobs, ["queued"])) {
-      const minutes = (now - Date.parse(j.created_at)) / 60000;
-      if (oldest === null || minutes > oldest) oldest = minutes;
-    }
+  for (const run of ordered.slice(0, MAX_JOB_PROBES)) {
+    const list = await getJobs(token, repo, run.id, fetchFn);
+    jobs.set(run.id, list);
+    const queued = mimoletteJobs(list, ["queued"]);
+    if (queued.length === 0) continue;
+    oldestAt = Math.min(...queued.map((j) => Date.parse(j.created_at)));
+    break;
   }
-  return { oldestQueuedMinutes: oldest, repos };
+  return { repo, runs, jobs, oldestAt };
 }
 
+/** Scans repos in rotation from cursor until canFetch(n) refuses. oldestAt is epoch ms or null. */
+export async function scanQueue(token, fetchFn, { cursor = 0, canFetch } = {}) {
+  const all = await listRepos(token, fetchFn);
+  const n = all.length;
+  const start = n > 0 ? ((cursor % n) + n) % n : 0;
+  const repos = [];
+  for (let i = 0; i < n; i += 1) {
+    const r = await scanRepo(token, all[(start + i) % n], fetchFn, canFetch);
+    if (!r) break;
+    repos.push(r);
+  }
+  return { all, repos, nextCursor: n > 0 ? (start + repos.length) % n : 0 };
+}
+
+/** Minutes the oldest queued mimolette job has waited, all repos, no budget gate. Tests and diagnostics only. */
 export async function oldestQueuedMinutes(token, now, fetchFn) {
-  return (await scanQueue(token, now, fetchFn)).oldestQueuedMinutes;
+  const { repos } = await scanQueue(token, fetchFn);
+  const times = repos.map((r) => r.oldestAt).filter((t) => t !== null);
+  return times.length > 0 ? (now - Math.min(...times)) / 60000 : null;
 }
 
 export async function getRun(token, repo, runId, fetchFn) {
