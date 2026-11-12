@@ -86,9 +86,11 @@ Who can reach the key: anyone who can push a branch to a repository in the
 organization. A workflow on any branch, not only the default branch, can
 name the organization secret and read it. A probe on 2026-11-05 confirmed
 this: a `push` workflow on a throwaway branch of github-workflows read
-`MERGE_APP_CLIENT_ID` as set. Anyone who can move a gate tag in
-`smartwatermelon/github-workflows` can reach it too. All of these already
-have write access. A pull request from a fork cannot: `pull_request` runs
+`MERGE_APP_CLIENT_ID` as set. Moving a gate tag in
+`smartwatermelon/github-workflows` would reach it too, but since 2026-11-12
+the `protect-all-tags` ruleset lets only `twistedmelonman` move or delete a
+tag there (dev-env#269). All of these already have write access. A pull
+request from a fork cannot: `pull_request` runs
 from forks get no secrets, and `pull_request_target` runs the base branch's
 workflow, not the PR's.
 
@@ -99,7 +101,11 @@ then approve and merge its own PR as this App. That skips Andrew's approval
 in the repositories whose merge-lock policy is `review`. The gap existed
 under `lock` too: the App's merge never needed a lock file. No fix is chosen.
 Limiting the secret to selected repositories narrows the gap but does not
-close it in the repositories that call the gate.
+close it in the repositories that call the gate. A `main`-only environment
+does not close it either: the nightowlstudiollc-agent App also has Workflows
+write, and 17 of 37 callers need no approval on `main`, so an agent can land a
+workflow there. Only removing Workflows write from the agent Apps closes it;
+Andrew parked that on 2026-11-12 (dev-env#253).
 
 ## 1. Create the App
 
