@@ -217,8 +217,10 @@ A "no" on 1 or 2 stops the design and comes back to Andrew.
 
 ## Undo
 
-Set `NOS_RUNNER=ubuntu-latest`, or delete it. Every job is back on
-GitHub-hosted runners at once.
+Set `NOS_RUNNER=ubuntu-24.04` (a manual hold). Every job is back on
+GitHub-hosted runners at once. `ubuntu-latest` or an unset variable is
+not a lasting undo: the watchdog moves either back to `mimolette`. See
+the runbook, section 6.
 
 ## Spike results
 
