@@ -424,6 +424,21 @@ check_eq "sigterm_mid_pass_starts_no_vm: no VM started" 0 runs
 check_eq "sigterm_mid_pass_starts_no_vm: no JIT minted" 0 count 'generate-jitconfig' "${S}/requests.log"
 check_eq "sigterm_mid_pass_starts_no_vm: variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
 
+echo "-- subnet_alert_not_repeated_in_run_loop"
+reset ubuntu-latest
+printf 'mimolette-1-1\n' >"${S}/running"
+bg_run NOS_INTERVAL=1 STUB_VM_IP=10.0.5.2/24
+i=0
+passes=0
+while [[ "${passes}" -lt 4 && "${i}" -lt 150 ]]; do
+  sleep 0.1
+  ((i += 1))
+  passes="$(count '^ls' "${S}/container.argv")"
+done
+end_pid TERM
+check "subnet_alert_not_repeated_in_run_loop: several passes ran" test "${passes}" -ge 4
+check_eq "subnet_alert_not_repeated_in_run_loop: one subnet alert" 1 count 'subnet-bad' "${S}/ntfy.log"
+
 echo "-- hup_exits_without_failover"
 reset
 bg_run
@@ -479,10 +494,18 @@ check "vm_ip_outside_subnet_is_pf_failure: alert names the subnet" grep -q '192.
 check "vm_ip_outside_subnet_is_pf_failure: marker kept" test -f "${S}/state/subnet-bad"
 sup once || true
 check_eq "vm_ip_outside_subnet_is_pf_failure: marker blocks new VMs" 2 runs
-check_eq "vm_ip_outside_subnet_is_pf_failure: no second alert" 1 count . "${S}/ntfy.log"
+check_eq "vm_ip_outside_subnet_is_pf_failure: failover alert plus one subnet alert, no repeat" 2 count . "${S}/ntfy.log"
 /bin/rm -f "${S}/state/subnet-bad"
 sup once
 check_eq "vm_ip_outside_subnet_is_pf_failure: starts again once the marker is removed" 4 runs
+
+reset ubuntu-latest
+sup once
+STUB_VM_IP=10.0.5.2/24 sup once || true
+check_eq "vm_ip_outside_subnet_alerts_when_already_ubuntu: one alert" 1 count . "${S}/ntfy.log"
+check "vm_ip_outside_subnet_alerts_when_already_ubuntu: names the marker" grep -q 'subnet-bad' "${S}/ntfy.log"
+sup once || true
+check_eq "vm_ip_outside_subnet_alerts_when_already_ubuntu: not repeated" 1 count . "${S}/ntfy.log"
 
 echo "-- vm_ip_rules"
 reset

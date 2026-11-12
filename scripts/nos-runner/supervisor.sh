@@ -172,12 +172,14 @@ bad_vm_ip() {
   if [[ -n "${noip}" ]]; then log "VM with no IPv4 address in container ls yet: ${noip}"; fi
 }
 SUBNET_MARK="${NOS_STATE_DIR}/subnet-bad"
+SUBNET_NEW=0
 
 # local_check: no token needed. On failure set KIND (pf | apiserver | other) and REASON. pf wins: it is the LAN guard.
 local_check() {
   local gb bad=""
   refresh_ls
   KIND=""
+  SUBNET_NEW=0
   if ! pf_ok_fresh; then
     KIND=pf
     REASON="pf ok file ${NOS_PF_OK_FILE} is missing or older than 10 min"
@@ -190,6 +192,7 @@ local_check() {
   }; then
     # Sticky: VMs started on the next pass would reach the LAN again. Remove the marker by hand once the network is fixed.
     if [[ -n "${bad}" ]]; then
+      SUBNET_NEW=1
       printf '%s\n' "${bad}" >"${SUBNET_MARK}" || log "cannot write ${SUBNET_MARK}; the next pass may start VMs again"
     else
       bad="$(cat "${SUBNET_MARK}")" || bad="?"
@@ -496,6 +499,8 @@ cmd_once() {
   if [[ "${LS_OK}" -eq 1 ]]; then reconcile; fi
   # The LAN guard may be off: stop every VM now, before anything that needs the network or a token.
   if [[ "${ok}" -eq 0 && "${KIND}" == pf ]]; then stop_all_slots; fi
+  # The marker blocks every start until removed by hand; say so once, even when NOS_RUNNER needs no write.
+  if [[ "${SUBNET_NEW}" -eq 1 ]]; then notify "NOS runner: ${REASON}"; fi
   running || return 1
   HAVE_TOKEN=0
   if ensure_token; then HAVE_TOKEN=1; fi
