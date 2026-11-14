@@ -258,6 +258,21 @@ inst --pubkey "${KEY}"
 check "gate folder not root-owned: exit 1" test "$?" -eq 1
 check_not "gate folder not root-owned: nothing installed" test -e "${R}/usr/local/libexec/agent-ro/gate"
 
+echo "-- an early refusal on a re-run removes the old keys"
+reset
+inst --pubkey "${KEY}" >/dev/null
+check "pre-installed keys" test -f "${AK}"
+touch "${S}/admin"
+inst
+check "re-run, now admin: exit 1" test "$?" -eq 1
+check_not "re-run, now admin: keys removed" test -e "${AK}"
+reset
+inst --pubkey "${KEY}" >/dev/null
+echo "501 755" >"${S}/stat"
+inst
+check "re-run, gate folder not root-owned: exit 1" test "$?" -eq 1
+check_not "re-run, gate folder not root-owned: keys removed" test -e "${AK}"
+
 echo "-- a bad sshd drop-in is removed and sudo stays untouched"
 reset
 touch "${S}/sshd-t-fail"

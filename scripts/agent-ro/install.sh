@@ -73,6 +73,21 @@ fi
 [[ -z "${from}" || ${#pubkeys[@]} -gt 0 ]] || die "--from needs --pubkey (it applies to the keys given)"
 
 # ─── preconditions ──────────────────────────────────────────────────────
+# Set before the first refusal: a re-run that refuses (say, agentro is now an admin) must not keep old keys.
+installed=0
+work=""
+on_exit() {
+  if [[ "${installed}" != 1 && -e "${KEYS_DIR}/authorized_keys" ]]; then
+    if "${RM_BIN}" -f "${KEYS_DIR}/authorized_keys"; then
+      echo "install: removed ${AGENT_RO_KEYS_DIR}/authorized_keys; fix the error, then re-run with --pubkey" >&2
+    fi
+  fi
+  if [[ -n "${work}" ]]; then
+    "${RM_BIN}" -f "${work:?}"/* 2>/dev/null
+    rmdir "${work}" 2>/dev/null
+  fi
+}
+trap on_exit EXIT
 uid="$("${ID_BIN}" -u)" || exit 1
 [[ "${uid}" == "0" ]] || die "run as root (sudo)"
 "${ID_BIN}" -u "${OWNER}" >/dev/null 2>&1 || die "no user ${OWNER}"
@@ -142,17 +157,6 @@ fi
 
 # git refuses repos another user owns unless they are listed as safe.
 work="$(mktemp -d "${TMPDIR:-/tmp}/agent-ro-install.XXXXXX")" || die "cannot make a temp folder"
-# Keys go live last. Any exit before success removes them, so a half-done install takes no logins.
-installed=0
-on_exit() {
-  if [[ "${installed}" != 1 && -e "${KEYS_DIR}/authorized_keys" ]]; then
-    "${RM_BIN}" -f "${KEYS_DIR}/authorized_keys"
-    echo "install: removed ${AGENT_RO_KEYS_DIR}/authorized_keys; fix the error, then re-run with --pubkey" >&2
-  fi
-  "${RM_BIN}" -f "${work:?}"/* 2>/dev/null
-  rmdir "${work}" 2>/dev/null
-}
-trap on_exit EXIT
 printf '[safe]\n\tdirectory = *\n' >"${work}/gitconfig"
 "${INSTALL_BIN}" -o root -g wheel -m 0644 "${work}/gitconfig" "${UHOME_P}/.gitconfig" || die "cannot write ${UHOME}/.gitconfig"
 
