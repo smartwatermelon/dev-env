@@ -41,8 +41,9 @@ cat >"${WORK}/bin/chmod" <<'STUB'
 ace="$2"; shift 2
 for p in "$@"; do
   printf '%s\t%s\n' "${ace}" "${p}" >>"${STUB_LOG}"
-  # Like chmod +a, change the status time (ctime) without changing access.
-  touch -a "${p}"
+  # Like chmod +a, change ctime, not the mode. Not touch -a: macOS keeps ctime. GNU stat -c first.
+  m="$(stat -c %a "${p}" 2>/dev/null || stat -f %Lp "${p}")"
+  /bin/chmod 0 "${p}" && /bin/chmod "${m}" "${p}"
 done
 STUB
 chmod +x "${WORK}/bin/chmod"
@@ -169,7 +170,8 @@ echo k2 >"${H}/.ssh/new_key"
 run_sweep
 has "${ALLOW_FILE}" "${H}/dir/new.txt"
 saw "new file gets read" $?
-touched "${H}/a.txt"
+# Not a.txt: it is the .npmrc deny target, so the deny pass changes its ctime after the allow stamp.
+touched "${H}/dir/b.txt"
 saw_not "unchanged file left alone" $?
 has "${DENY_FILE}" "${H}/.ssh/new_key"
 saw "new file in a deny folder denied" $?
