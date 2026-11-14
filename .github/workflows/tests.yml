@@ -30,6 +30,9 @@ jobs:
       - name: Run nos-runner tests
         run: bash scripts/nos-runner/tests/run-tests.sh
 
+      - name: Run agent-ro tests
+        run: bash scripts/agent-ro/tests/run-tests.sh
+
       - name: Run watchdog tests
         run: npm --prefix workers/nos-runner-watchdog test
 
