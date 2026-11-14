@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Installed by scripts/agent-ro/install.sh. Runs the sweep as the owner, every 600 s.
+     /bin/bash, not Homebrew bash: launchd jobs hang on a hidden privacy prompt with it. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.smartwatermelon.agent-ro-sweep</string>
+  <key>UserName</key>
+  <string>andrewrich</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/usr/local/libexec/agent-ro/sweep.sh</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>600</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/andrewrich/Library/Logs/agent-ro-sweep.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/andrewrich/Library/Logs/agent-ro-sweep.launchd.log</string>
+</dict>
+</plist>
