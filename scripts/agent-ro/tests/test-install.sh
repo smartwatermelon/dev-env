@@ -112,7 +112,7 @@ EOF
 stub sudo <<'EOF'
 [[ "$1" == "-u" ]] || exit 1
 who="$2"; shift 2
-[[ "$who" == "andrewrich" ]] && { [[ ! -f "$S/sweep-fail" ]]; exit; }
+[[ "$who" == "andrewrich" ]] && { [[ -f "$S/sweep-rc" ]] && exit "$(cat "$S/sweep-rc")"; exit 0; }
 case "$*" in
   "/bin/ls /Users/andrewrich") exit 0 ;;
   "/bin/ls /Users/andrewrich/.ssh") exit 1 ;;
@@ -280,11 +280,19 @@ check_not "no sudoers" test -e "${SUDOERS}"
 
 echo "-- a failed sweep stops the install, no keys"
 reset
-touch "${S}/sweep-fail"
+echo 1 >"${S}/sweep-rc"
 inst --pubkey "${KEY}"
 check "sweep fails: exit 1" test "$?" -eq 1
 check_not "sweep fails: no key list" test -e "${AK}"
 check_not "sweep fails: job not loaded" grep -q "^launchctl bootstrap" "${CALLS}"
+
+echo "-- sweep exit 4 (locked folders only) warns and installs"
+reset
+echo 4 >"${S}/sweep-rc"
+inst --pubkey "${KEY}"
+check "sweep gaps: exit 0" test "$?" -eq 0
+check "sweep gaps: warns" grep -q "allow pass failed on some entries" "${WORK}/out"
+check "sweep gaps: keys installed" test -f "${AK}"
 
 echo "-- bootstrap fails: no keys"
 reset

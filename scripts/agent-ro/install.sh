@@ -224,9 +224,14 @@ EOF
 
 # ─── 6. ACLs now, then the sweep job ────────────────────────────────────
 say "applying read ACLs to ${AGENT_RO_OWNER_HOME} (about 1-3 minutes)"
-# Fatal: a failed sweep may have granted read without the credential denies.
-"${SUDO_BIN}" -u "${OWNER}" /bin/bash "${LIBEXEC}/sweep.sh" --full ||
-  die "the sweep failed; see ${AGENT_RO_LOG} and ${AGENT_RO_STATE_DIR}/last-errors"
+# Exit 4: every deny applied; only allow-pass entries failed (TCC folders). Anything else may lack denies.
+sweep_rc=0
+"${SUDO_BIN}" -u "${OWNER}" /bin/bash "${LIBEXEC}/sweep.sh" --full || sweep_rc=$?
+case "${sweep_rc}" in
+  0) ;;
+  4) say "warning: the allow pass failed on some entries; denies applied. See ${AGENT_RO_LOG} and ${AGENT_RO_STATE_DIR}/last-errors" ;;
+  *) die "the sweep failed (exit ${sweep_rc}); see ${AGENT_RO_LOG} and ${AGENT_RO_STATE_DIR}/last-errors" ;;
+esac
 "${INSTALL_BIN}" -o root -g wheel -m 0644 "${HERE}/${AGENT_RO_LABEL}.plist" "${PLIST}" || die "cannot install ${PLIST}"
 "${LAUNCHCTL_BIN}" bootout "system/${AGENT_RO_LABEL}" >/dev/null 2>&1 || true
 # bootout returns while a running sweep drains; an early bootstrap fails with 5.

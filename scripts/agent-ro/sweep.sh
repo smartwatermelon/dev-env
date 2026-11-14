@@ -1,6 +1,7 @@
 #!/bin/bash
 # Keep agentro's ACLs on the owner's home current. Runs as the owner; deny pass every run, allow pass daily.
 #   sweep.sh [--full | --deny-only]
+# Exit 0 ok; 4 = every deny applied, only the allow pass had errors (TCC folders); else failed.
 set -u
 unset CDPATH
 
@@ -91,6 +92,7 @@ num() {
 
 : >"${errs}"
 rc=0
+gap=0
 start=${SECONDS}
 
 now=$("${DATE_BIN}" +%s)
@@ -112,7 +114,7 @@ if [ "${need_full}" = 1 ]; then
   # and git, watchers and backups rescan on that.
   st="${AGENT_RO_STATE_DIR}/allow-stamp"
   if [ "${mode}" = full ] || [ ! -f "${st}" ]; then st=""; fi
-  apply_tree "${H}" "${st}" "${skip[@]}" || rc=1
+  apply_tree "${H}" "${st}" "${skip[@]}" || gap=1
   # Stamp even on errors, or a TCC-blocked folder turns every run into a full walk.
   echo "${now}" >"${AGENT_RO_STATE_DIR}/last-full"
   # Stamp AFTER the pass: its own chmods change ctime, and must not count as changes.
@@ -146,6 +148,7 @@ done
 # A failed deny is retried in full next run: the stamp moves only on success.
 if [ "${deny_rc}" = 0 ]; then "${TOUCH_BIN}" "${AGENT_RO_STATE_DIR}/deny-stamp"; else rc=1; fi
 
+if [ "${rc}" = 0 ] && [ "${gap}" = 1 ]; then rc=4; fi
 nerr=$(grep -c '' "${errs}" || true)
 log "mode=${mode} full=${need_full} rc=${rc} errors=${nerr} seconds=$((SECONDS - start))"
 exit "${rc}"

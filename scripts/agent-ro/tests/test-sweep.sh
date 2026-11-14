@@ -52,6 +52,13 @@ echo "chmod: Operation not permitted" >&2
 exit 1
 STUB
 chmod +x "${WORK}/bin/chmod-fail"
+# Refuses entries under a "locked" folder, as TCC does; other paths go to the normal stub.
+cat >"${WORK}/bin/chmod-locked" <<'STUB'
+#!/usr/bin/env bash
+for p in "$@"; do case "$p" in */locked | */locked/*) echo "chmod: $p: Operation not permitted" >&2; exit 1 ;; esac; done
+exec "${0%/*}/chmod" "$@"
+STUB
+chmod +x "${WORK}/bin/chmod-locked"
 
 cp "${SRC}/sweep.sh" "${WORK}/libexec/sweep.sh"
 sed -e "s|^export AGENT_RO_OWNER=.*|export AGENT_RO_OWNER=\"${ME}\"|" \
@@ -212,6 +219,23 @@ rc=$?
 check "exit 1" test "${rc}" -eq 1
 check "errors counted" grep -q "rc=1 errors=[1-9]" "${H}/Library/Logs/agent-ro-sweep.log"
 check "stamp still written" test -s "${H}/.local/state/agent-ro/last-full"
+
+echo "-- a locked folder in the allow pass exits 4, denies still applied"
+make_home
+rm -f "${H}/.netrc" # its outside-home link fails the deny pass (exit 1)
+: >"${LOG}"
+STUB_LOG="${LOG}" CHMOD_BIN="${WORK}/bin/chmod" bash "${WORK}/libexec/sweep.sh" --full
+check "no gaps: exit 0" test "$?" -eq 0
+make_home
+rm -f "${H}/.netrc"
+mkdir -p "${H}/locked"
+: >"${H}/locked/mail"
+: >"${LOG}"
+STUB_LOG="${LOG}" CHMOD_BIN="${WORK}/bin/chmod-locked" bash "${WORK}/libexec/sweep.sh" --full
+rc=$?
+check "locked folder: exit 4" test "${rc}" -eq 4
+check "locked folder: error logged" grep -q "locked" "${H}/.local/state/agent-ro/last-errors"
+check "locked folder: deny ACL applied" grep -q "^${DENY_FILE}"$'\t'"${H}/.ssh/" "${LOG}"
 
 echo "-- refuses the wrong user and unknown options"
 make_home

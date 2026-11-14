@@ -49,7 +49,7 @@ The installer:
    It checks `sshd -t` and that `sshd -T` for the owner is unchanged; on any failure it removes the file.
 5. Adds `/etc/sudoers.d/agent-ro` (the gate only), checked with `visudo -cf` first.
 6. Applies the read and no-write ACLs to the whole home (1–3 minutes), then loads the sweep LaunchDaemon.
-   If the sweep fails, the install stops.
+   If any deny fails, the install stops. If only the allow pass fails on some entries (TCC folders), it warns.
 7. Runs a self-test as `agentro`.
 8. Writes the key list to `/etc/ssh/agent-ro/authorized_keys` (root-owned, every key `restrict`).
 
@@ -95,7 +95,10 @@ Anything that changes state still needs the owner's own login.
 - A credential file that a tool replaces loses its deny entry until the next sweep, at most 10 minutes later.
   A credential directory (such as `~/.ssh`) does not have this gap.
 - The sweep skips `~/Library/CloudStorage` and `~/Library/Mobile Documents` (iCloud): walking them stalls.
-- Folders under macOS privacy control (TCC) may refuse the sweep. Their error count is in the sweep log.
+- Folders under macOS privacy control (TCC) may refuse the sweep. Without the read ACL, agentro cannot read them.
+  The sweep exits 4 for this, and their error count is in the sweep log.
+- The gate's `launchctl print` shows each job's environment variables. A token set in a plist's
+  `EnvironmentVariables` is readable by agentro. Keep tokens out of plists, or accept this.
 - A deny path that is a symlink denies its target when the target is in the home; otherwise the sweep logs it.
 - The deny list covers the common credentials, not every one (for example `.env` files in repos).
   It mitigates; it does not guarantee.
