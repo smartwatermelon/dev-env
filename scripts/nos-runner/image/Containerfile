@@ -4,7 +4,20 @@ ARG RUNNER_SHA=670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     git curl jq unzip ca-certificates build-essential sudo libicu74 python3 gnupg \
+    xz-utils pipx \
  && rm -rf /var/lib/apt/lists/*
+# GitHub-hosted runners ship Node, npm, pipx and xz; the standards-check reusable workflow
+# needs all four (markdownlint-cli2 via npm, yamllint via pipx, the shellcheck .tar.xz).
+ARG NODE_VERSION=26.13.1
+ARG NODE_SHA=89e1853138db51e8b82d3e98ba9c0d3f2956a28e5e55ea1b7e12d25aae92d5dd
+RUN curl -fsSL -o node.txz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-arm64.tar.xz" \
+ && echo "${NODE_SHA}  node.txz" | sha256sum -c - \
+ && tar xJf node.txz --strip-components=1 -C /usr/local --exclude='*/CHANGELOG.md' --exclude='*/README.md' \
+ && rm node.txz && node --version && npm --version
+# `npm install -g` runs as the runner user, so global installs go to a prefix it owns.
+# ~/.local/bin is the directory standards-check already adds to PATH.
+ENV NPM_CONFIG_PREFIX=/home/runner/.local
+ENV PATH=/home/runner/.local/bin:${PATH}
 # GitHub-hosted runners ship gh, and NOS workflows call it (kebab-tax ci.yml `changes`).
 ARG GH_VERSION=2.103.3
 ARG GH_SHA=ee32df2323c8847f5fac6cb6b4b69ca75828e9329a8f22f677021f7b3306ce63
