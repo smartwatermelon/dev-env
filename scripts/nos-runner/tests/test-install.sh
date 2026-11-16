@@ -151,8 +151,18 @@ check "plist_exit_timeout_matches_shutdown_max: default exceeds 30" test "${expe
 new_home
 NOS_SHUTDOWN_MAX_S=4321 run_install
 check "plist_exit_timeout_matches_shutdown_max: env override" grep -qF -- '<integer>4321</integer>' "${sup}"
-check "NOS_IMAGE rendered from the Containerfile" grep -qF -- '<key>NOS_IMAGE</key>' "${sup}"
-check "NOS_IMAGE rendered as version plus content hash" grep -qE -- '<string>nos-runner:[0-9.]+-[0-9a-f]{12}</string>' "${sup}"
+check_not "image_tag_not_in_plist: no NOS_IMAGE key" grep -qF -- '<key>NOS_IMAGE</key>' "${sup}"
+check "image_tag_in_libexec: version plus content hash" grep -qxE -- 'nos-runner:[0-9.]+-[0-9a-f]{12}' "${lib}/image.tag"
+# cfg_tag DIR: NOS_IMAGE as config.sh in DIR resolves it, with no env override.
+cfg_tag() { bash -c 'unset NOS_IMAGE; source "$1/config.sh" && printf "%s" "${NOS_IMAGE}"' _ "$1"; }
+libtag="$(cat "${lib}/image.tag")"
+srctag="$(cfg_tag "${HERE}/..")"
+readtag="$(cfg_tag "${lib}")"
+check "image_tag_in_libexec: matches the source tree" test "${libtag}" = "${srctag}"
+check "image_tag_in_libexec: config.sh in libexec reads it" test "${readtag}" = "${libtag}"
+mkdir -p "${WORK}/badlib" && cp "${lib}/config.sh" "${WORK}/badlib/" && echo "garbage" >"${WORK}/badlib/image.tag"
+badtag="$(cfg_tag "${WORK}/badlib")"
+check "image_tag_in_libexec: a malformed tag leaves NOS_IMAGE empty" test -z "${badtag}"
 
 echo "-- image tag"
 # tag_of DIR [SHA256SUM_BIN] [SHASUM_BIN]: NOS_IMAGE as config.sh in DIR derives it.
@@ -205,6 +215,19 @@ rm -f "${WORK}/log/launchctl"
 run_install
 check "install_is_idempotent: second run exits 0" test "$?" -eq 0
 check_not "install_is_idempotent: no launchctl call at all" test -s "${WORK}/log/launchctl"
+
+echo "-- image change"
+new_home
+run_install
+cp "${sup}" "${WORK}/sup-before"
+rm -f "${WORK}/log/launchctl"
+NOS_IMAGE="nos-runner:9.9.9-0123456789ab" run_install
+check "image_change_sends_hup: exit 0" test "$?" -eq 0
+check "image_change_sends_hup: kill SIGHUP" grep -qF -- "kill SIGHUP gui/501/com.nightowlstudio.nos-runner" "${LC}"
+check_not "image_change_sends_hup: no bootout (SIGTERM would fail over)" grep -qF -- "bootout" "${LC}"
+check "image_change_sends_hup: plist unchanged" cmp -s "${sup}" "${WORK}/sup-before"
+check "image_change_sends_hup: new tag written" grep -qxF -- "nos-runner:9.9.9-0123456789ab" "${lib}/image.tag"
+check_not "image_change_sends_hup: marker cleared" test -e "${WORK}/home/.local/state/nos-runner/pending/restart"
 
 echo "-- script change"
 new_home

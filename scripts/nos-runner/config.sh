@@ -51,9 +51,13 @@ _nos_image_hash() {
   printf '%s' "${d}"
 }
 
-# Tag = runner version + hash of image/, so any image change builds a new tag. Without image/ (libexec), the plist env sets it.
+# Tag = runner version + hash of image/, so any image change builds a new tag. Without image/ (libexec), read image.tag.
 if [[ -z "${NOS_IMAGE:-}" ]]; then
   _nos_rv="$(sed -n 's/^ARG RUNNER_VERSION=//p' "${_nos_conf_dir}/image/Containerfile" 2>/dev/null)"
   if [[ -n "${_nos_rv}" ]] && _nos_h="$(_nos_image_hash "${_nos_conf_dir}/image")"; then NOS_IMAGE="nos-runner:${_nos_rv}-${_nos_h}"; fi
+fi
+if [[ -z "${NOS_IMAGE:-}" && ! -d "${_nos_conf_dir}/image" && -f "${_nos_conf_dir}/image.tag" ]]; then
+  _nos_t="$(sed -n 1p "${_nos_conf_dir}/image.tag")"
+  if [[ "${_nos_t}" =~ ^nos-runner:[0-9.]+-[0-9a-f]{12}$ ]]; then NOS_IMAGE="${_nos_t}"; fi
 fi
 : "${NOS_IMAGE:=}"
