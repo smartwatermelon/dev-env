@@ -543,6 +543,17 @@ cmd_once() {
   return 0
 }
 
+# planned_stop: 0 when install.sh marked this SIGTERM as a planned reload (marker within the shutdown window). Removes it.
+planned_stop() {
+  local f="${NOS_STATE_DIR}/planned-stop" at t
+  [[ -f "${f}" ]] || return 1
+  at="$(sed -n 1p "${f}")"
+  "${RM_BIN}" -f "${f}"
+  [[ "${at}" =~ ^[0-9]+$ ]] || return 1
+  t="$(now)" || return 1
+  ((t - at <= NOS_SHUTDOWN_MAX_S + 120))
+}
+
 # On SIGTERM: switch the fleet, then stop and deregister idle VMs. Busy VMs finish; the next start adopts them.
 cmd_run() {
   trap 'STOP=1; [[ -z "${SLEEP_PID}" ]] || kill "${SLEEP_PID}" 2>/dev/null' TERM INT
@@ -563,10 +574,15 @@ cmd_run() {
     log "restarting on SIGHUP: no failover, slot state kept"
     exit 0
   fi
-  log "stopping: switching NOS_RUNNER to ubuntu-latest"
   HAVE_TOKEN=0
   if ensure_token; then HAVE_TOKEN=1; fi
-  set_ubuntu "supervisor stopped" || log "could not set NOS_RUNNER on shutdown"
+  # A plist reload by install.sh: the new supervisor starts at once, so keep NOS_RUNNER. The watchdog covers a failed bootstrap.
+  if planned_stop; then
+    log "stopping for a planned reload by install.sh: NOS_RUNNER kept"
+  else
+    log "stopping: switching NOS_RUNNER to ubuntu-latest"
+    set_ubuntu "supervisor stopped" || log "could not set NOS_RUNNER on shutdown"
+  fi
   refresh_ls
   stop_idle_slots
   deregister_pending

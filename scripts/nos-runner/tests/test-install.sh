@@ -33,6 +33,9 @@ STUB
 cat >"${WORK}/bin/launchctl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/launchctl"
+# Record the planned-stop marker as the job would see it on SIGTERM.
+pm="${HOME}/.local/state/nos-runner/planned-stop"
+if [[ "$1" == bootout && -f "${pm}" ]]; then echo "$2 $(cat "${pm}")" >>"${STUB_LOG}/planned"; fi
 if [[ "$1" == bootstrap && -n "${STUB_BOOTSTRAP_FAIL:-}" ]]; then exit 5; fi
 if [[ "$1" == kill && -n "${STUB_KICK_FAIL:-}" ]]; then exit 6; fi
 # print: the job stays loaded for STUB_LOADED_PRINTS calls after bootout (a draining supervisor), then is gone (113).
@@ -252,11 +255,15 @@ new_home
 run_install
 echo "<!-- stale -->" >>"${sup}"
 echo "# changed" >>"${lib}/supervisor.sh"
-rm -f "${WORK}/log/launchctl"
+rm -f "${WORK}/log/launchctl" "${WORK}/log/planned"
 run_install
 check "plist change: bootout" grep -qF -- "bootout gui/501/com.nightowlstudio.nos-runner" "${LC}"
 check "plist change: bootstrap" grep -qF -- "bootstrap gui/501 ${sup}" "${LC}"
 check_not "plist change: no HUP" grep -qF -- "kill SIGHUP" "${LC}"
+check "planned_stop_marker: present at the supervisor's bootout" grep -qE -- "^gui/501/com.nightowlstudio.nos-runner [0-9]+$" "${WORK}/log/planned"
+planned_n="$(wc -l <"${WORK}/log/planned")"
+check "planned_stop_marker: written for that bootout only" test "${planned_n}" -eq 1
+check_not "planned_stop_marker: removed after the reload" test -e "${WORK}/home/.local/state/nos-runner/planned-stop"
 check_not "plist change: updater untouched" grep -qF -- "${upd}" "${LC}"
 
 echo "-- NTFY_TOPIC"

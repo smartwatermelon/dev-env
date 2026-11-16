@@ -94,10 +94,14 @@ The updater LaunchAgent runs every 600 s. It pulls the clone and runs `install.s
   `install.sh` builds it first, then writes the tag to `image.tag` in libexec, where the supervisor reads it.
   That is a script change, so the restart is SIGHUP and there is no failover.
   Old image tags are not removed. Remove them by hand when disk is low.
-- **Plist change.** `install.sh` runs `bootout` and `bootstrap`.
-  This fails over to `ubuntu-latest`, then recovers: the supervisor's "set to ubuntu-latest … Reason: supervisor
-  stopped" alert, then the watchdog's "recovered" alert. During a hold, the supervisor leaves the variable alone.
-  Recovery can take up to about 160 minutes. To end it sooner, set `NOS_RUNNER` back to `mimolette` by hand.
+- **Plist change.** `install.sh` runs `bootout` and `bootstrap`. Before `bootout` it writes
+  `~/.local/state/nos-runner/planned-stop`, so the supervisor's SIGTERM keeps `NOS_RUNNER` and sends no alert.
+  The marker is removed once the job is gone, and the supervisor ignores one older than its shutdown window.
+  If `bootstrap` then fails, the watchdog sees the runner offline and fails over.
+- **Any other SIGTERM** (`launchctl bootout` by hand, a logout) fails over to `ubuntu-latest`, then recovers:
+  the supervisor's "set to ubuntu-latest … Reason: supervisor stopped" alert, then the watchdog's "recovered" alert.
+  During a hold, the supervisor leaves the variable alone. Recovery can take up to about 160 minutes.
+  To end it sooner, set `NOS_RUNNER` back to `mimolette` by hand.
 - **Updater plist change.** A job cannot reload itself. The updater logs
   "updater plist changed; run install.sh by hand" and sends one alert. Run `install.sh` by hand (section 4, step 3).
 - A pf rule change needs `install-pf.sh` again with sudo. The updater never touches root files.
