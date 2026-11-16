@@ -158,8 +158,13 @@ wait_gone() {
 }
 # load LABEL: bootout (a not-loaded job is fine), wait, bootstrap. Clears the marker only when bootstrap works.
 load() {
+  # The marker tells the supervisor this SIGTERM is a reload, so it keeps NOS_RUNNER. It is removed once the job is gone.
+  if [[ "$1" == "${SUP_LABEL}" ]]; then
+    date +%s >"${STATE_DIR}/planned-stop" || echo "install: cannot write the planned-stop marker; this reload fails over" >&2
+  fi
   "${LAUNCHCTL_BIN}" bootout "${domain}/$1" >/dev/null 2>&1 || true
   wait_gone "$1"
+  "${RM_BIN}" -f "${STATE_DIR}/planned-stop"
   if "${LAUNCHCTL_BIN}" bootstrap "${domain}" "${AGENTS}/$1.plist"; then
     "${RM_BIN}" -f "${PENDING}/load-$1"
     if [[ "$1" == "${SUP_LABEL}" ]]; then sup_booted=1; fi

@@ -402,6 +402,32 @@ check_eq "sigterm_sets_ubuntu_then_exits: variable is ubuntu-latest" ubuntu-late
 check_eq "sigterm_sets_ubuntu_then_exits: one alert" 1 count . "${S}/ntfy.log"
 check_eq "sigterm_sets_ubuntu_then_exits: idle slots stopped" 2 count '^stop mimolette-' "${S}/container.argv"
 
+echo "-- planned_stop_keeps_variable"
+reset
+bg_run
+wait_runs 2
+mkdir -p "${S}/state" && date +%s >"${S}/state/planned-stop"
+end_pid TERM
+check "planned_stop_keeps_variable: exited within 15 s, exit 0" test "${exited}${rc}" = 00
+check_eq "planned_stop_keeps_variable: variable kept" mimolette cat "${S}/var.value"
+check_eq "planned_stop_keeps_variable: no write" 0 count '^(PATCH|POST) .*/actions/variables' "${S}/requests.log"
+check_eq "planned_stop_keeps_variable: no alert" 0 count . "${S}/ntfy.log"
+check_eq "planned_stop_keeps_variable: idle slots still stopped" 2 count '^stop mimolette-' "${S}/container.argv"
+check_not "planned_stop_keeps_variable: marker consumed" test -e "${S}/state/planned-stop"
+check "planned_stop_keeps_variable: logged" grep -q 'planned reload by install.sh' "${S}/sup.err"
+
+echo "-- planned_stop_stale_or_bad_fails_over"
+for marker in 1000 garbage; do
+  reset
+  bg_run
+  wait_runs 2
+  mkdir -p "${S}/state" && echo "${marker}" >"${S}/state/planned-stop"
+  end_pid TERM
+  check_eq "planned_stop_stale_or_bad_fails_over (${marker}): variable is ubuntu-latest" ubuntu-latest cat "${S}/var.value"
+  check_eq "planned_stop_stale_or_bad_fails_over (${marker}): one alert" 1 count . "${S}/ntfy.log"
+  check_not "planned_stop_stale_or_bad_fails_over (${marker}): marker removed" test -e "${S}/state/planned-stop"
+done
+
 echo "-- sigterm_stops_idle_keeps_busy"
 reset
 echo 102 >"${S}/busy"
