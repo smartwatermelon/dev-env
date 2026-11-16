@@ -106,7 +106,6 @@ render() {
     fi
     line="${line//@LIBEXEC@/${x_libexec}}"
     line="${line//@HOME@/${x_home}}"
-    line="${line//@NOS_IMAGE@/${x_image}}"
     line="${line//@EXIT_TIMEOUT@/${exit_timeout}}"
     printf '%s\n' "${line}" >>"$2"
   done <"$1"
@@ -114,7 +113,6 @@ render() {
 
 x_libexec="$(xml_esc "${LIBEXEC}")"
 x_home="$(xml_esc "${HOME}")"
-x_image="$(xml_esc "${nos_image}")"
 
 # Build the runner image before anything starts or restarts. inspect exits 1 when it is missing; a failed build changes nothing.
 inspect_rc=0
@@ -131,6 +129,10 @@ for f in ${RUNTIME_FILES}; do
   # update.sh is read fresh on every updater run, so only the supervisor's own files need a restart.
   if [[ "${PUT}" == 1 && "${f}" != "update.sh" ]]; then : >"${PENDING}/restart"; fi
 done
+# Tag in libexec, not the plist: a new image restarts by SIGHUP. A plist change means SIGTERM, which fails over.
+printf '%s\n' "${nos_image}" >"${rendered}/image.tag" || die "cannot write the image tag"
+put_file "${rendered}/image.tag" "${LIBEXEC}/image.tag" 0644
+if [[ "${PUT}" == 1 ]]; then : >"${PENDING}/restart"; fi
 
 domain="gui/${uid}"
 
