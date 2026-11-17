@@ -41,9 +41,12 @@ Out of scope:
 - **Fork PRs need approval.** The org fork-PR policy is "Require approval for
   all external contributors". Verified on all 24 public repos.
 - **The fork guard is required**, in addition to the approval setting.
-- **Agents may call the GitHub API with App tokens from scripts on
-  MIMOLETTE.** The agent hook that blocks `curl` with a GitHub credential
-  should allow this. That hook change is a separate claude-config change.
+- **No exception to the agent GitHub hook.** During spike step 5, Andrew gave
+  a one-time OK for the spike's runner calls with the `swm-runner` key only.
+  That OK does not carry forward. The agent hook does not change, and every
+  agent GitHub call still goes through `gh`. The production supervisor runs
+  under launchd, not in an agent session, so the hook never sees its calls
+  and needs no exception.
 
 ## Architecture
 
