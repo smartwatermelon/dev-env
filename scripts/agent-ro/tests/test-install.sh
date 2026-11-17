@@ -100,12 +100,17 @@ stub visudo <<'EOF'
 [[ ! -f "$S/visudo-fail" ]]
 EOF
 # sshd stub: fixed owner block; agentro settings once the drop-in exists; flags fake bad drop-ins.
+# Keywords are mixed case, as macOS 27 sshd -T prints them (MIMOLETTE, 2026-11-17: "PermitTTY yes").
 stub sshd <<'EOF'
 conf="$R/etc/ssh/sshd_config.d/200-agent-ro.conf"
 case "$*" in
   "-t") [[ ! -f "$S/sshd-t-fail" ]] ;;
-  *user=andrewrich*) echo "permittty yes"; [[ -f "$conf" && -f "$S/sshd-leak" ]] && echo "subsystem none"; exit 0 ;;
-  *user=agentro*) if [[ -f "$conf" ]]; then printf "permittty no\npasswordauthentication no\ndisableforwarding yes\nauthenticationmethods publickey\nauthorizedkeysfile /etc/ssh/agent-ro/authorized_keys\n"; else echo "permittty yes"; fi ;;
+  *user=andrewrich*) echo "PermitTTY yes"; [[ -f "$conf" && -f "$S/sshd-leak" ]] && echo "Subsystem none"; exit 0 ;;
+  *user=agentro*)
+    if [[ -f "$conf" ]]; then
+      tty="no"; [[ -f "$S/sshd-tty-yes" ]] && tty="yes"
+      printf "PermitTTY %s\nPasswordAuthentication no\nDisableForwarding yes\nAuthenticationMethods publickey\nAuthorizedKeysFile /etc/ssh/agent-ro/authorized_keys\n" "${tty}"
+    else echo "PermitTTY yes"; fi ;;
 esac
 EOF
 # sudo stub for the self-test: reads and the gate work, the rest fails, unless a flag breaks it.
@@ -285,6 +290,11 @@ touch "${S}/sshd-leak"
 inst --pubkey "${KEY}"
 check "owner settings changed: exit 1" test "$?" -eq 1
 check_not "owner settings changed: drop-in removed" test -e "${SSHD_CONF}"
+reset
+touch "${S}/sshd-tty-yes"
+inst --pubkey "${KEY}"
+check "agentro keeps a TTY: exit 1" test "$?" -eq 1
+check_not "agentro keeps a TTY: drop-in removed" test -e "${SSHD_CONF}"
 
 echo "-- visudo rejects: no sudoers file"
 reset

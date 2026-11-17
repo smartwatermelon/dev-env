@@ -213,6 +213,9 @@ check="$("${SSHD_BIN}" -t 2>&1)" || undo_sshd "sshd -t rejects the config: ${che
 after="$("${SSHD_BIN}" -T -C "${ctx_owner}" 2>&1)" || undo_sshd "sshd -T fails: ${after}"
 [[ "${before}" == "${after}" ]] || undo_sshd "the drop-in changed settings for ${OWNER}"
 agent="$("${SSHD_BIN}" -T -C "${ctx_agent}" 2>&1)" || undo_sshd "sshd -T for ${U} fails: ${agent}"
+# Keyword case differs by sshd build (macOS 27 prints "PermitTTY no"), so
+# lowercase the keyword only; values, such as paths, keep their case.
+agent="$(awk '{ $1 = tolower($1); print }' <<<"${agent}")"
 for want in "permittty no" "passwordauthentication no" "disableforwarding yes" "authenticationmethods publickey" "authorizedkeysfile ${AGENT_RO_KEYS_DIR}/authorized_keys"; do
   grep -qx "${want}" <<<"${agent}" || undo_sshd "sshd does not apply '${want}' to ${U}"
 done
