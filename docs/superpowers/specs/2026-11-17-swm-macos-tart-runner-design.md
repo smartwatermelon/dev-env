@@ -155,12 +155,11 @@ As with the NOS runner, nothing connects to MIMOLETTE from outside.
   `runs-on: ${{ vars.SWM_MACOS_RUNNER || 'macos-latest' }}`. Unset means
   GitHub-hosted, so the fail-safe is the default. Org variables reach public
   repos.
-- **Open:** who switches `SWM_MACOS_RUNNER` when MIMOLETTE is down. Options:
-  1. Extend the NOS watchdog Worker to watch the `mimolette-macos` runner and
-     set the variable. It needs a smartwatermelon App with Variables write;
-     `swm-runner` has only Self-hosted runners write.
-  2. No automatic fallback: a stuck job waits up to 24 hours, and Andrew sets
-     the variable by hand.
+- **Decided (Andrew, 2026-11-17): automatic fallback.** The NOS watchdog
+  Worker is extended to watch the `mimolette-macos` runner and set
+  `SWM_MACOS_RUNNER` when it is down. This needs a smartwatermelon App with
+  org Variables write; `swm-runner` has only Self-hosted runners write. The
+  plan settles which App that is.
 
 ## Credentials
 
@@ -206,8 +205,8 @@ the backup and the live keychain; 66 after).
 
 ## Rollout
 
-1. Build the image, supervisor, hook and pf guard changes; settle the Open item
-   (fallback).
+1. Build the image, supervisor, hook and pf guard changes, and the watchdog
+   fallback.
 2. dotfiles `bash-tests.yml` uses `vars.SWM_MACOS_RUNNER`.
 3. Measure for 3 days.
 4. Other smartwatermelon repos with macOS jobs.
