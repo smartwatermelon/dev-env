@@ -140,9 +140,14 @@ As with the NOS runner, nothing connects to MIMOLETTE from outside.
   - The grant is keyed to tart's designated requirement (bundle
     `com.github.cirruslabs.tart`, Developer ID team `9M2P8L4D89`), so it
     should survive upgrades. Not proven until a real upgrade.
-- **Open:** internal or external disk. Recommendation: external, for room to
-  grow; the supervisor's self-check must catch a hang (a slot that does not
-  start within a time limit) and alert.
+- **Decided (Andrew, 2026-11-17): the external disk.** `TART_HOME` is
+  `/Volumes/extra-vieille/Caches/tart`. The supervisor's self-check must
+  catch a TCC hang (a slot that does not start within a time limit) and
+  alert. The image copy on the internal disk (33 GB) is no longer needed;
+  removing it needs Andrew's OK.
+- If the external disk gets too small, both NAS units have a lot of free
+  space. Whether Tart can keep its images or VMs on a network share is not
+  tested.
 
 ### 6. Workflow selection and fallback
 
@@ -201,8 +206,8 @@ the backup and the live keychain; 66 after).
 
 ## Rollout
 
-1. Build the image, supervisor, hook and pf guard changes; settle the two Open
-   items.
+1. Build the image, supervisor, hook and pf guard changes; settle the Open item
+   (fallback).
 2. dotfiles `bash-tests.yml` uses `vars.SWM_MACOS_RUNNER`.
 3. Measure for 3 days.
 4. Other smartwatermelon repos with macOS jobs.
