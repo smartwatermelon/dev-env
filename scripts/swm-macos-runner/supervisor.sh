@@ -196,7 +196,8 @@ self_checks() {
 # probe ready|v6: the guest agent answers | the IPv6 ok file is newer than this VM's start.
 probe() {
   case "$1" in
-    ready) tt "${SWM_EXEC_LIMIT_S}" exec "${VM}" /usr/bin/true ;;
+    # Not tt: an exec time-out while the guest boots is a slow start, not a hung tart.
+    ready) bounded "${SWM_EXEC_LIMIT_S}" "${TART_BIN}" exec "${VM}" /usr/bin/true ;;
     v6) [[ -f "${SWM_PF_OK_FILE_V6}" && "${SWM_PF_OK_FILE_V6}" -nt "${START_MARK}" ]] ;;
     *) return 1 ;;
   esac
@@ -218,6 +219,8 @@ wait_until() {
 # start_vm: clone and boot VM, wait for its IP, its guest agent and the IPv6 block.
 start_vm() {
   running || return 1
+  # From here to the end of the job, SIGTERM ends the tart call in progress; teardown then runs.
+  ABORT_OK=1
   VM="mimolette-macos-$(now)"
   SL_NAME="${VM}"
   slot_save

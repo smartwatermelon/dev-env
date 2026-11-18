@@ -89,6 +89,7 @@ case "${cmd}" in
       [[ -z "${STUB_JOB_FAIL:-}" ]] || exit 1
     else
       echo "tart exec" >>"${S}/order.log"
+      [[ -z "${STUB_READY_HANG:-}" ]] || hang
       [[ -z "${STUB_NOT_READY:-}" ]] || exit 1
     fi ;;
   stop)
@@ -464,6 +465,24 @@ check_is "sigterm: no second VM" 1 "$(clones)"
 check_is "sigterm: job=0" 0 "$(slot job)"
 check_is "sigterm: shutdown is not a failure" 0 "$(slot fails)"
 check_is "sigterm: no alert" 0 "$(count . "${S}/ntfy.log")"
+
+echo "-- SIGTERM during a hung clone -> exits at once, VM deleted"
+reset
+bg_run STUB_CLONE_HANG=1 SWM_CLONE_LIMIT_S=60
+wait_for "${S}/order.log" 2
+SECONDS=0
+end_pid TERM
+check "sigterm clone: exited within 10 s, exit 0" test "${exited}${rc}" = 00
+check "sigterm clone: did not wait for the clone limit" test "${SECONDS}" -lt 10
+check "sigterm clone: half-cloned VM deleted" grep -qE '^delete mimolette-macos-[0-9]+$' "${S}/tart.argv"
+check_is "sigterm clone: no JIT request" 0 "$(jits)"
+
+echo "-- readiness exec that times out is a start failure, not tart-hung"
+reset
+STUB_READY_HANG=1 SWM_EXEC_LIMIT_S=1 sup once
+check_is "ready hang: no alert on the first fail" 0 "$(count . "${S}/ntfy.log")"
+check_is "ready hang: fails=1" 1 "$(slot fails)"
+check_is "ready hang: no JIT request" 0 "$(jits)"
 
 echo "-- tart run that ignores stop is killed"
 reset
