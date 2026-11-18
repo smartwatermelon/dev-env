@@ -421,6 +421,42 @@ check_is "job fail: fails=1" 1 "$(slot fails)"
 check_is "job fail: job=0" 0 "$(slot job)"
 check_is "job fail: id= cleared" "" "$(slot id)"
 
+echo "-- 3 failed jobs -> one start alert, backoff"
+reset
+bg_run STUB_JOB_FAIL=1 SWM_INTERVAL_S=0
+wait_for "${S}/ntfy.log"
+sleep 1.5
+check_is "job backoff: three passes, then the backoff holds the fourth" 3 "$(count '^list' "${S}/tart.argv")"
+check_is "job backoff: three runners handed a JIT" 3 "$(jits)"
+check_is "job backoff: one start alert" 1 "$(alerts 'starts failed in a row')"
+check_is "job backoff: no recovered alert" 0 "$(alerts 'recovered')"
+check_is "job backoff: fails=3" 3 "$(slot fails)"
+end_pid TERM
+check "job backoff: SIGTERM ends the backoff" test "${exited}${rc}" = 00
+
+echo "-- failed job while an alert is active -> no recovered alert"
+reset
+mkdir -p "${S}/state"
+printf 'name=\nid=\nfails=1\nalert=pf\njob=0\n' >"${S}/state/slot"
+STUB_JOB_FAIL=1 sup once
+check_is "job fail with alert: no recovered alert" 0 "$(alerts 'recovered')"
+check_is "job fail with alert: alert= kept" pf "$(slot alert)"
+check_is "job fail with alert: fails=2" 2 "$(slot fails)"
+
+echo "-- job exec hits SWM_JOB_MAX_S -> neutral: fails and alert unchanged"
+reset
+mkdir -p "${S}/state"
+printf 'name=\nid=\nfails=2\nalert=pf\njob=0\n' >"${S}/state/slot"
+STUB_JOB_HANG=1 SWM_JOB_MAX_S=1 sup once
+vm="$(vm_name)"
+check_is "job max: fails unchanged" 2 "$(slot fails)"
+check_is "job max: alert= unchanged" pf "$(slot alert)"
+check_is "job max: no alert sent" 0 "$(count . "${S}/ntfy.log")"
+check "job max: logged" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check "job max: VM deleted" grep -qx "delete ${vm}" "${S}/tart.argv"
+check "job max: runner deleted" grep -q '^DELETE .*/actions/runners/4242 ' "${S}/requests.log"
+check_is "job max: job=0" 0 "$(slot job)"
+
 echo "-- 3 fails -> one start alert, backoff"
 reset
 bg_run STUB_NO_IP=1 SWM_INTERVAL_S=0

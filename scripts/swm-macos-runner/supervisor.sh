@@ -258,12 +258,6 @@ run_job() {
     jit=""
     set_fail start "generate-jitconfig reply lacks runner.id or encoded_jit_config" || return 1
   fi
-  # The VM is up and registered: the start worked.
-  SL_FAILS=0
-  if [[ -n "${SL_ALERT}" ]]; then
-    notify "macOS runner: recovered; runner ${VM} is up again (last alert: ${SL_ALERT})"
-    SL_ALERT=""
-  fi
   SL_JOB=1
   slot_save
   log "runner ${VM} (id ${id}) handed its JIT config"
@@ -276,7 +270,19 @@ run_job() {
   SL_JOB=0
   slot_save
   if [[ "${STOP}" -eq 1 ]]; then return 1; fi
+  # An idle JIT runner reaches SWM_JOB_MAX_S every 6 h: neutral, so it never counts as a fail or a recovery.
+  if [[ "${rc}" -eq 124 ]]; then
+    log "runner ${VM} reached SWM_JOB_MAX_S (${SWM_JOB_MAX_S} s); not counted"
+    return 0
+  fi
   [[ "${rc}" -eq 0 ]] || set_fail start "runner exited with status ${rc}" || return 1
+  # The job ran to the end: only now is the runner known good.
+  SL_FAILS=0
+  if [[ -n "${SL_ALERT}" ]]; then
+    notify "macOS runner: recovered; runner ${VM} ran a job again (last alert: ${SL_ALERT})"
+    SL_ALERT=""
+  fi
+  slot_save
   log "runner ${VM} finished its job"
 }
 
