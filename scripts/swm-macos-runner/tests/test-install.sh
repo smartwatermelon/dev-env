@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# install.sh in a fake HOME with stub id, launchctl, install, rm and sleep: libexec copy, modes, plist, topic check, no /Volumes writes.
+# install.sh in a fake HOME with stub id, launchctl, install, rm, sleep: libexec copy, modes, both plists, topic check.
 set -uo pipefail
 unset CDPATH
 # The caller's environment must not reach real paths or change the rendered values.
-unset NTFY_TOPIC NTFY_BASE TART_HOME SWM_IMAGE SWM_GUEST_DIR SWM_ENV_FILE SWM_STATE_DIR
+unset NTFY_TOPIC NTFY_BASE TART_HOME SWM_IMAGE SWM_GUEST_DIR SWM_ENV_FILE SWM_STATE_DIR SWM_FROM_UPDATER
 fail=0
 _pass() { echo "  PASS: $1"; }
 _fail() { echo "  FAIL: $1" >&2; fail=1; }
@@ -33,6 +33,7 @@ cat >"${WORK}/bin/launchctl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/launchctl"
 if [[ "$1" == bootstrap && -n "${STUB_BOOTSTRAP_FAIL:-}" ]]; then exit 5; fi
+if [[ "$1" == bootstrap && "$*" == *-update.plist && -n "${STUB_BOOTSTRAP_FAIL_UPDATER:-}" ]]; then exit 5; fi
 # print: loaded for STUB_LOADED_PRINTS calls after bootout (a draining job), then gone (113).
 if [[ "$1" == print ]]; then
   n="$(cat "${STUB_LOG}/loaded" 2>/dev/null || echo "${STUB_LOADED_PRINTS:-0}")"
@@ -82,6 +83,13 @@ for a in "$@"; do
 done
 exec /bin/rm "$@"
 STUB
+# git stub: log prints a fixed revision; STUB_GIT_FAIL makes it fail.
+cat >"${WORK}/bin/git" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"${STUB_LOG}/git"
+if [[ -n "${STUB_GIT_FAIL:-}" ]]; then exit 1; fi
+echo REVX
+STUB
 chmod +x "${WORK}"/bin/*
 
 # run_install [NAME=value ...]: fresh HOME and log dir; sets H, L, OUT, RC. ENV_BODY is the env file text ("" for none).
@@ -94,7 +102,7 @@ run_install() {
     printf '%s\n' "${ENV_BODY-NTFY_TOPIC=drill-topic_1.x}" >"${H}/.config/nos-runner/env"
   fi
   OUT="$(env HOME="${H}" STUB_LOG="${L}" ID_BIN="${WORK}/bin/id" LAUNCHCTL_BIN="${WORK}/bin/launchctl" \
-    INSTALL_BIN="${WORK}/bin/install" RM_BIN="${WORK}/bin/rm" SLEEP_BIN="${WORK}/bin/sleep" "$@" bash "${INSTALL}" 2>&1)"
+    INSTALL_BIN="${WORK}/bin/install" RM_BIN="${WORK}/bin/rm" SLEEP_BIN="${WORK}/bin/sleep" GIT_BIN="${WORK}/bin/git" SWM_STATE_DIR="${H}/state" "$@" bash "${INSTALL}" 2>&1)"
   RC=$?
 }
 n=0
@@ -141,6 +149,44 @@ check "bootout comes before bootstrap" test "$(first_line "${L}/launchctl" '^boo
 check_not "no install destination under /Volumes" grep -q ' /Volumes' "${L}/install"
 check "guest copied whole" test -f "${H}/${LX}/guest/run-job.sh"
 check "config.sh in libexec resolves SWM_IMAGE" test -n "$(image_of "${H}/${LX}")"
+
+echo "== updater"
+U="Library/LaunchAgents/com.smartwatermelon.swm-macos-runner-update.plist"
+check "update.sh is 0755 in libexec" test "$(mode_of "${H}/${LX}/update.sh")" = 755
+check "updater plist exists" test -f "${H}/${U}"
+check_not "updater plist has no placeholder left" grep -q '@[A-Z_]*@' "${H}/${U}"
+check "updater plist label" grep -q '<string>com.smartwatermelon.swm-macos-runner-update</string>' "${H}/${U}"
+check "updater runs /bin/bash on the libexec copy" grep -q "<string>${H}/${LX}/update.sh</string>" "${H}/${U}"
+check "updater plist uses /bin/bash" grep -qF '<string>/bin/bash</string>' "${H}/${U}"
+check "updater StartInterval is 600" awk -v k=StartInterval -v v='<integer>600</integer>' "${PLIST_AWK}" "${H}/${U}"
+check "updater RunAtLoad is true" awk -v k=RunAtLoad -v v='<true/>' "${PLIST_AWK}" "${H}/${U}"
+check_not "updater plist has no KeepAlive" grep -q 'KeepAlive' "${H}/${U}"
+check "updater logs to ~/Library/Logs/swm-macos-runner-update.log" grep -q "${H}/Library/Logs/swm-macos-runner-update.log" "${H}/${U}"
+check "updater bootstrapped" grep -q "^bootstrap gui/501 ${H}/${U}\$" "${L}/launchctl"
+check "updater bootout comes before its bootstrap" test "$(first_line "${L}/launchctl" '^bootout gui/501/com.smartwatermelon.swm-macos-runner-update')" -lt "$(first_line "${L}/launchctl" "^bootstrap gui/501 ${H}/${U}")"
+check "supervisor bootstrapped before the updater" test "$(first_line "${L}/launchctl" "^bootstrap gui/501 ${H}/${P}")" -lt "$(first_line "${L}/launchctl" "^bootstrap gui/501 ${H}/${U}")"
+
+echo "== version mark"
+check "hand install records the version" test "$(cat "${H}/state/installed")" = REVX
+check "mark uses the runner paths" grep -q 'log -1 --format=%H -- scripts/swm-macos-runner scripts/nos-runner/github-app.sh' "${L}/git"
+run_install STUB_GIT_FAIL=1
+check "a failing revision lookup does not fail the install" test "${RC}" -eq 0
+check_not "a failing revision lookup writes no mark" test -e "${H}/state/installed"
+
+echo "== run from the updater"
+run_install SWM_FROM_UPDATER=1
+check "exit 0" test "${RC}" -eq 0
+check "update.sh still installed" test -x "${H}/${LX}/update.sh"
+check "updater plist still written" test -f "${H}/${U}"
+check "supervisor still bootstrapped" grep -q "^bootstrap gui/501 ${H}/${P}\$" "${L}/launchctl"
+check_not "updater not booted out" grep -q "^bootout gui/501/com.smartwatermelon.swm-macos-runner-update" "${L}/launchctl"
+check_not "updater not bootstrapped" grep -q "^bootstrap gui/501 ${H}/${U}" "${L}/launchctl"
+check_not "the updater run leaves the mark to update.sh" test -e "${H}/state/installed"
+
+echo "== updater bootstrap failure"
+run_install STUB_BOOTSTRAP_FAIL_UPDATER=1
+check "failed updater bootstrap exits non-zero" test "${RC}" -ne 0
+check "supervisor was bootstrapped first" grep -q "^bootstrap gui/501 ${H}/${P}\$" "${L}/launchctl"
 
 echo "== no topic"
 ENV_BODY="" run_install

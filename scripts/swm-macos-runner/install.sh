@@ -9,6 +9,7 @@ ID_BIN="${ID_BIN:-id}"
 LAUNCHCTL_BIN="${LAUNCHCTL_BIN:-launchctl}"
 INSTALL_BIN="${INSTALL_BIN:-install}"
 RM_BIN="${RM_BIN:-rm}"
+GIT_BIN="${GIT_BIN:-git}"
 SLEEP_BIN="${SLEEP_BIN:-sleep}"
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIBEXEC="${HOME}/.local/libexec/swm-macos-runner"
@@ -16,6 +17,8 @@ AGENTS="${HOME}/Library/LaunchAgents"
 ENV_FILE="${SWM_ENV_FILE:-${HOME}/.config/nos-runner/env}"
 LABEL="com.smartwatermelon.swm-macos-runner"
 PLIST="${AGENTS}/${LABEL}.plist"
+UPD_LABEL="com.smartwatermelon.swm-macos-runner-update"
+UPD_PLIST="${AGENTS}/${UPD_LABEL}.plist"
 # Matches ExitTimeOut in the plist (300 s); bootout returns while the job drains.
 EXIT_TIMEOUT=300
 
@@ -77,6 +80,8 @@ trap '"${RM_BIN}" -rf "${rendered:?}"' EXIT
 
 render "${HERE}/launchd/${LABEL}.plist" "${rendered}/${LABEL}.plist" || die "cannot render ${LABEL}.plist"
 if grep -q '@[A-Z_]*@' "${rendered}/${LABEL}.plist"; then die "an unfilled placeholder is left in ${LABEL}.plist"; fi
+render "${HERE}/launchd/${UPD_LABEL}.plist" "${rendered}/${UPD_LABEL}.plist" || die "cannot render ${UPD_LABEL}.plist"
+if grep -q '@[A-Z_]*@' "${rendered}/${UPD_LABEL}.plist"; then die "an unfilled placeholder is left in ${UPD_LABEL}.plist"; fi
 
 domain="gui/${uid}"
 # Stop the old job first: bash reads a script as it runs. Bootout returns mid-drain; wait up to 330 s.
@@ -103,7 +108,28 @@ put "${HERE}/../nos-runner/github-app.sh" "${LIBEXEC}/github-app.sh" 0644
 for f in "${HERE}/image/"*.sh; do put "${f}" "${LIBEXEC}/image/${f##*/}" 0755; done
 # config.sh hashes ${LIBEXEC}/guest into the image name, so guest/ must be installed whole.
 for f in "${HERE}/guest/"*; do put "${f}" "${LIBEXEC}/guest/${f##*/}" 0755; done
+# update.sh runs as one parsed line (main; exit 0), so a replaced file is not re-read mid-run.
+put "${HERE}/update.sh" "${LIBEXEC}/update.sh" 0755
 put "${rendered}/${LABEL}.plist" "${PLIST}" 0600
+put "${rendered}/${UPD_LABEL}.plist" "${UPD_PLIST}" 0600
 
 "${LAUNCHCTL_BIN}" bootstrap "${domain}" "${PLIST}" || die "launchctl bootstrap failed; rerun install.sh"
 echo "install: ${LABEL} loaded. The first start builds the image (about 15 min)." >&2
+
+# Booting the updater out from inside its own job would kill this script, so the updater run only writes the files.
+if [[ "${SWM_FROM_UPDATER:-}" == 1 ]]; then
+  echo "install: ${UPD_LABEL} not reloaded from the updater; run install.sh by hand if its plist changed" >&2
+  exit 0
+fi
+# Record this version so the updater's first run does not restart the supervisor and cut a build short.
+state_dir="${SWM_STATE_DIR:-${HOME}/.local/state/swm-macos-runner}"
+if rev="$("${GIT_BIN}" -C "${HERE}/../.." log -1 --format=%H -- scripts/swm-macos-runner scripts/nos-runner/github-app.sh 2>/dev/null)" && [[ -n "${rev}" ]]; then
+  (umask 077 && mkdir -p "${state_dir}" && printf '%s\n' "${rev}" >"${state_dir}/installed") || echo "install: cannot write ${state_dir}/installed" >&2
+fi
+"${LAUNCHCTL_BIN}" bootout "${domain}/${UPD_LABEL}" >/dev/null 2>&1 || true
+for ((i = 0; i < 30; i += 1)); do
+  if ! "${LAUNCHCTL_BIN}" print "${domain}/${UPD_LABEL}" >/dev/null 2>&1; then break; fi
+  "${SLEEP_BIN}" 1
+done
+"${LAUNCHCTL_BIN}" bootstrap "${domain}" "${UPD_PLIST}" || die "launchctl bootstrap of the updater failed; rerun install.sh"
+echo "install: ${UPD_LABEL} loaded (every 600 s)." >&2

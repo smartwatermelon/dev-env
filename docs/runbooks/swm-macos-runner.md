@@ -61,11 +61,35 @@ It then renders `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner.pli
 - `install.sh` refuses a topic with characters outside `A-Za-z0-9_.-`. It warns, and sends no alerts, when there is no topic.
 - Run it again after any change under `scripts/swm-macos-runner/`. The log is `~/Library/Logs/swm-macos-runner.log`.
 
+`install.sh` also installs `update.sh` and loads a second job, `com.smartwatermelon.swm-macos-runner-update` (section 3a).
+
 Drill the alert path (touches no VM):
 
 ```bash
 /bin/bash ~/.local/libexec/swm-macos-runner/supervisor.sh test-alert
 ```
+
+## 3a. The updater
+
+The updater job runs `update.sh` at load and every 600 s. It always exits 0.
+
+- It runs `git pull --ff-only` in `~/.local/share/dev-env`. A failed pull (network down, or the NOS updater holding the clone's lock) is logged and tried again on the next run.
+- The version is the last commit that touched `scripts/swm-macos-runner/` or `scripts/nos-runner/github-app.sh`.
+  The installed version is in `~/.local/state/swm-macos-runner/installed`.
+- A hand run of `install.sh` records the version it installs, so the updater's first run does not restart the supervisor a second time.
+- On a new version it runs `install.sh`, which restarts the supervisor. It waits while the slot file `~/.local/state/swm-macos-runner/slot` says `job=1`, so a running job is never cut short.
+  It logs `a job is running; waiting` and tries again in 600 s.
+- If `install.sh` fails, the version stays unmarked and the next run tries again.
+- The updater never reloads itself. When a change touches its own plist, run `install.sh` by hand.
+- The log is `~/Library/Logs/swm-macos-runner-update.log`.
+
+Stop the updater (the supervisor keeps running):
+
+```bash
+launchctl bootout gui/$(id -u)/com.smartwatermelon.swm-macos-runner-update
+```
+
+`install.sh` loads it again. To remove it for good, delete `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner-update.plist` after the bootout.
 
 ## 4. First build (about 15 min)
 
@@ -122,6 +146,7 @@ launchctl bootout gui/$(id -u)/com.smartwatermelon.swm-macos-runner
 
 A running job finishes its teardown first (up to about 230 s). The plist stays, so a login or `install.sh` starts it again.
 To remove it for good, delete `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner.plist` after the bootout.
+Stop the updater too (section 3a): the next time it installs new code, `install.sh` loads the supervisor again.
 
 There is no watchdog for this runner yet. If the supervisor is down while the variable says `mimolette-macos`, jobs wait. Hold first.
 
