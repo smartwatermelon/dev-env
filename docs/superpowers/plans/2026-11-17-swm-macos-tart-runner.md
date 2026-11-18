@@ -86,11 +86,11 @@ Each is open to veto at plan review.
 ## Review Focus
 
 1. **Tart hangs on a TCC prompt** (for example after a `tart` upgrade): the
-   slot times out, the runner registration is deleted, one `tart-hung` alert
-   is sent. Test in Task 5.
-2. **A minted JIT whose VM never boots**: the registration is deleted, the VM
-   is deleted, the fail count rises; three in a row alert once and back off.
-   Test in Task 5.
+   slot times out before any runner is minted, the VM is deleted, one
+   `tart-hung` alert is sent. Test in Task 5.
+2. **A minted JIT whose exec fails** (guest crash, runner refuses the
+   config): the registration is deleted, the VM is deleted, the fail count
+   rises; three in a row alert once and back off. Test in Task 5.
 3. **Supervisor restart with a VM still running** (crash, reboot, reinstall):
    every `mimolette-macos-*` VM and the recorded runner ID are cleaned up
    before the first new slot. Test in Task 5.
@@ -111,13 +111,21 @@ spec's "Spike results" section in this task's commit.
   `sudo pfctl -a com.apple/tart-spike -F all` then
   `sudo pfctl -X "$(cat ~/.local/state/tart-spike/pf-token)"`.
   Expected: `sudo pfctl -a com.apple/tart-spike -s rules` prints nothing.
-- [ ] **Step 2:** With no Tart VM running, Andrew loads the v6 rules (text in
-  Task 3) into a probe anchor: `sudo pfctl -a com.apple/swm-tart-probe -f swm-tart-v6.pf`.
-  Record whether it loads while `bridge101` is absent (`ifconfig bridge101`).
-- [ ] **Step 3:** Boot one VM under the spike LaunchAgent, run `probe.sh` in
-  it. Expected: DNS works, every LAN probe in the spec's step 3 table blocked.
-  Delete the VM, clone and boot a new one, probe again. Record whether the v6
-  rules still apply to the new `bridge101`.
+- [ ] **Step 2:** With no Tart VM running, Andrew loads both rule files (text
+  in Task 3) into two probe anchors:
+  `sudo pfctl -a com.apple/swm-tart-probe -f swm-tart.pf` and
+  `sudo pfctl -a com.apple/swm-tart-probe-v6 -f swm-tart-v6.pf`.
+  Record whether the v6 file loads while `bridge101` is absent
+  (`ifconfig bridge101`). The v4 rules match by source address and have never
+  run live; the spike used `on bridge101 ... from any`.
+- [ ] **Step 3:** Add one IPv6 LAN probe to `probe.sh`: TCP 22 to MIMOLETTE's
+  `fe80::` address on `bridge101` (not port 53). Clone `probe-1` from the base
+  image on the external disk, boot it under a temporary LaunchAgent in
+  `gui/501` (the spike plist with the VM name changed), and run `probe.sh`.
+  Expected: DNS works; every IPv4 probe in the spec's step 3 table and the
+  IPv6 probe are blocked. Delete `probe-1`, clone and boot `probe-2`, probe
+  again. Expected: the same, which shows the v6 rules apply to the new
+  `bridge101`.
 - [ ] **Step 4:** In a temporary LaunchAgent running `/bin/bash`, run
   `df -Pk /Volumes/extra-vieille/Caches/tart`. Expected: it prints within 5 s.
   If it hangs, stop and report: Task 5's disk check then needs a new design.
@@ -128,7 +136,9 @@ spec's "Spike results" section in this task's commit.
   section: unset and `macos-latest` are not holds once the watchdog runs; the
   hold value is `macos-26`.
 - [ ] **Step 6:** Remove the probe anchor (Andrew):
-  `sudo pfctl -a com.apple/swm-tart-probe -F all`.
+  `sudo pfctl -a com.apple/swm-tart-probe -F all` and
+  `sudo pfctl -a com.apple/swm-tart-probe-v6 -F all`. Delete `probe-2` and
+  unload its LaunchAgent.
 
 Go: Steps 3 and 4 pass. No-go: stop and report to Andrew.
 
@@ -156,6 +166,11 @@ Go: Steps 3 and 4 pass. No-go: stop and report to Andrew.
 - [ ] **Step 4:** `bash scripts/nos-runner/tests/run-tests.sh` → all PASS
   (this touches `scripts/nos-runner/`, so run that directory's suite).
 - [ ] **Step 5:** Commit `feat(nos-runner): let github-app.sh read any Keychain key item`.
+- [ ] **Step 6 (after merge):** The NOS updater installs the new
+  `github-app.sh` within 600 s and restarts the supervisor by SIGHUP (a
+  runtime-file change; no failover). Check over `ssh mimolette-ro`:
+  `~/Library/Logs/nos-runner.log` shows a clean restart and no auth error, and
+  `gh variable get NOS_RUNNER --org nightowlstudiollc` is unchanged.
 
 ### Task 2: Fork guard in the repo
 
@@ -269,9 +284,12 @@ Andrew re-runs `sudo bash scripts/nos-runner/net/install-pf.sh` after merge
 - Produces: `build-image.sh` exit 0 when `SWM_IMAGE` exists as a stopped
   local VM; it deletes only VMs matching `^swm-macos-runner-` other than
   `SWM_IMAGE`, and `swm-build-tmp`.
-- Produces: `run-job.sh` (guest) reads the JIT config from stdin, refuses an
-  empty one (exit 2), `exec`s `./run.sh --jitconfig "$jit"` in
-  `~/actions-runner` (as the NOS entrypoint does).
+- Produces: guest paths (the base image user is `admin`):
+  `/usr/local/libexec/swm-runner/run-job.sh` (`root:wheel 0755`), runner
+  directory `/Users/admin/actions-runner`, hook as in Global Constraints.
+  `run-job.sh` reads the JIT config from stdin, refuses an empty one (exit 2),
+  and `exec`s `./run.sh --jitconfig "$jit"` in the runner directory (as the
+  NOS entrypoint does).
 
 - [ ] **Step 1: Failing tests.** `test-config.sh`: `SWM_RUNNER_VERSION`
   equals `ARG RUNNER_VERSION` in `scripts/nos-runner/image/Containerfile`;
@@ -285,8 +303,8 @@ Andrew re-runs `sudo bash scripts/nos-runner/net/install-pf.sh` after merge
 - [ ] **Step 2:** Run in a Linux container → FAIL.
 - [ ] **Step 3:** Implement. `install-runner.sh` is the spike's
   `runner-guest.sh` minus the JIT and run lines: download, SHA-256 check,
-  unpack to `~/actions-runner`, install the hook root-owned, write `.env`,
-  check the `.env` line.
+  unpack to `/Users/admin/actions-runner`, install the hook and `run-job.sh`
+  root-owned, write `.env`, check the `.env` line.
 - [ ] **Step 4:** `bash scripts/swm-macos-runner/tests/run-tests.sh` → PASS;
   shellcheck clean.
 - [ ] **Step 5:** Commit `feat(swm-macos-runner): build a local runner image from the pinned base`.
@@ -314,14 +332,20 @@ One pass (`once`):
    10 min old), `disk` (bounded `df` ≥ `SWM_MIN_FREE_GB`), `image`
    (`SWM_IMAGE` listed; if not, run `build-image.sh`; a failed build is
    `build`).
-3. Mint token, POST the JIT request, record `id=` and `name=` before clone.
-4. Clone, start `tart run --no-graphics` in the background, wait for an IP.
+3. Record `name=`, clone, start `tart run --no-graphics` in the background,
+   wait for an IP.
+4. Readiness: retry `tart exec <vm> /usr/bin/true` every 5 s, up to
+   `SWM_READY_LIMIT_S=90` (the spike needed about 20 s after the IP).
 5. Wait up to 150 s for the v6 ok file to be newer than the VM's start.
-6. Pipe the JIT to `tart exec -i <vm> /bin/bash ~/run-job.sh`, bounded by
-   `SWM_JOB_MAX_S=21600`.
-7. Stop, delete, DELETE the runner, clear the slot.
+6. Mint the token, POST the JIT request, record `id=`. Minting last means a
+   VM that never boots leaves no registration behind.
+7. Pipe the JIT to
+   `tart exec -i <vm> /bin/bash /usr/local/libexec/swm-runner/run-job.sh`,
+   bounded by `SWM_JOB_MAX_S=21600`.
+8. Stop, delete, DELETE the runner, clear the slot.
 
-Any step failing: delete the VM, DELETE the runner, `fails += 1`. Alert once
+Any step failing: delete the VM, DELETE the runner if `id=` is set,
+`fails += 1`. Alert once
 per change of `KIND` (`pf`, `disk`, `build`, `tart-hung`, `start` after 3
 fails, `recovered`). After 3 fails, sleep `SWM_BACKOFF_S=600` between passes.
 
@@ -330,8 +354,10 @@ fails, `recovered`). After 3 fails, sleep `SWM_BACKOFF_S=600` between passes.
   from tart argv log and supervisor log`; `orphan VM and recorded id swept
   first`; `pf ok stale → no mint, one pf alert`; `df hang → disk alert, no
   mint`; `image missing → build runs; build fails → build alert`; `clone
-  hangs → tart-hung alert, runner DELETEd`; `no IP within limit → VM deleted,
-  runner DELETEd, fails=1`; `v6 ok not fresh in 150 s → no exec, VM deleted`;
+  hangs → tart-hung alert, no JIT request`; `no IP within limit → VM deleted,
+  no JIT request, fails=1`; `exec not ready in 90 s → VM deleted, no JIT
+  request`; `v6 ok not fresh in 150 s → VM deleted, no JIT request`;
+  `exec fails after mint → runner DELETEd, VM deleted, fails=1`;
   `3 fails → one start alert, backoff`; `success after fails → recovered
   alert, fails=0`; `SIGTERM mid-job → VM stopped and deleted, runner
   DELETEd`; `never deletes a VM outside mimolette-macos-*`.
@@ -360,7 +386,8 @@ fails, `recovered`). After 3 fails, sleep `SWM_BACKOFF_S=600` between passes.
   `~/.local/libexec/swm-macos-runner`; renders the plist (`@LIBEXEC@`,
   `@HOME@`, `@TART_HOME@`, `@NTFY_ENV@` from `~/.config/nos-runner/env`);
   `launchctl bootout` then `bootstrap gui/<uid>`. Plist: `RunAtLoad`,
-  `KeepAlive`, `ExitTimeOut` 180, log `~/Library/Logs/swm-macos-runner.log`.
+  `KeepAlive`, `ExitTimeOut` 300 (stop 60 + delete 120 + runner DELETE 30 + ntfy 20 =
+  230 s, plus margin), log `~/Library/Logs/swm-macos-runner.log`.
 
 - [ ] **Step 1: Failing tests** (`HOME` in a temp dir, stub `launchctl`,
   `install`): files land in libexec with mode 0755/0644; plist placeholders
