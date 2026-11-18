@@ -192,6 +192,8 @@ echo "== no topic"
 ENV_BODY="" run_install
 check "no topic still installs" test "${RC}" -eq 0
 check "warns about no topic" grep -q 'no NTFY_TOPIC' <<<"${OUT}"
+check_not "no topic: no key in the updater plist" grep -q 'NTFY_TOPIC' "${H}/${U}"
+check_not "no topic: no stray placeholder in the updater plist" grep -q '@NTFY_ENV@' "${H}/${U}"
 check_not "plist has no stray placeholder" grep -q '@NTFY_ENV@' "${H}/${P}"
 
 echo "== bad topic"
@@ -208,6 +210,7 @@ check "knobs: SWM_CLONE_LIMIT_S in the plist" awk -v k=SWM_CLONE_LIMIT_S -v v='<
 check "knobs: SWM_JOB_MAX_S in the plist" awk -v k=SWM_JOB_MAX_S -v v='<string>30</string>' "${PLIST_AWK}" "${H}/${P}"
 check_not "knobs: no literal newline escape in the plist" grep -qF '\n' "${H}/${P}"
 check "knobs: topic still in the plist" grep -q 'drill-topic_1.x' "${H}/${P}"
+check "updater plist gets the topic" grep -q '<string>drill-topic_1.x</string>' "${H}/${U}"
 check_not "knobs: not in the updater plist" grep -q 'SWM_CLONE_LIMIT_S' "${H}/${U}"
 ENV_BODY=$'SWM_CLONE_LIMIT_S=1' run_install
 check "knobs: knob alone (no topic) still installs" test "${RC}" -eq 0

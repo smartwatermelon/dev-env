@@ -77,6 +77,7 @@ cat >"${WORK}/bin/curl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/curl"
 cat >>"${STUB_LOG}/curl.stdin"
+if [[ -n "${STUB_CURL_FAIL:-}" ]]; then exit 22; fi
 STUB
 cat >"${WORK}/bin/git" <<'STUB'
 #!/usr/bin/env bash
@@ -84,13 +85,22 @@ echo "$*" >>"${STUB_LOG}/git"
 case " $* " in
 *" fetch "*) exit "${STUB_PULL_RC:-0}" ;;
 *" merge "*) exit "${STUB_MERGE_RC:-0}" ;;
-*" log "*) echo "${STUB_REV:-rev1}" ;;
+*" log "*) echo "${STUB_REV-rev1}" ;;
 esac
 STUB
 cat >"${WORK}/bin/bash-install" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/install-run"
 exit "${STUB_INSTALL_RC:-0}"
+STUB
+# rm stub for update.sh: removes only files under this test's WORK dir.
+cat >"${WORK}/bin/rm-stub" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"${STUB_LOG}/rm"
+for a in "$@"; do
+  case "${a}" in -*) ;; "${STUB_WORK}"/*) ;; *) echo "stub rm: outside WORK: ${a}" >&2; exit 9 ;; esac
+done
+exec /bin/rm "$@"
 STUB
 chmod +x "${WORK}"/bin/*
 
@@ -104,8 +114,8 @@ run_install() {
     SLEEP_BIN="${WORK}/bin/sleep" bash "${INSTALL}" >"${WORK}/out" 2>"${WORK}/err"
 }
 run_update() {
-  HOME="${WORK}/home" STUB_LOG="${WORK}/log" GIT_BIN="${WORK}/bin/git" BASH_BIN="${WORK}/bin/bash-install" \
-    NOS_CLONE="${WORK}/clone" bash "${UPDATE}" >"${WORK}/out" 2>"${WORK}/err"
+  HOME="${WORK}/home" STUB_LOG="${WORK}/log" STUB_WORK="${WORK}" GIT_BIN="${WORK}/bin/git" BASH_BIN="${WORK}/bin/bash-install" \
+    RM_BIN="${WORK}/bin/rm-stub" CURL_BIN="${WORK}/bin/curl" NOS_CLONE="${WORK}/clone" bash "${UPDATE}" >"${WORK}/out" 2>"${WORK}/err"
 }
 lib="${WORK}/home/.local/libexec/nos-runner"
 agents="${WORK}/home/Library/LaunchAgents"
@@ -147,6 +157,7 @@ check "bootstrap updater" grep -qF -- "bootstrap gui/501 ${upd}" "${LC}"
 check_not "first install does not HUP" grep -qF -- "kill SIGHUP" "${LC}"
 check "warns when NTFY_TOPIC is unset" grep -qF -- 'no NTFY_TOPIC' "${WORK}/err"
 check_not "no NTFY_TOPIC key without a topic" grep -qF -- '<key>NTFY_TOPIC</key>' "${sup}"
+check_not "no NTFY_TOPIC key in the updater plist without a topic" grep -qF -- '<key>NTFY_TOPIC</key>' "${upd}"
 
 echo "-- ExitTimeOut follows config.sh"
 expected="$(bash -c 'source "$1/config.sh" && echo "${NOS_SHUTDOWN_MAX_S}"' _ "${HERE}/..")"
@@ -273,6 +284,8 @@ NTFY_TOPIC=topic-abc.123 run_install
 check "topic from env lands in the supervisor plist" grep -qF -- '<string>topic-abc.123</string>' "${sup}"
 check "topic from env is saved to the env file" grep -qF -- 'NTFY_TOPIC=topic-abc.123' "${WORK}/home/.config/nos-runner/env"
 check "topic plist lints" "${LINT[@]}" "${sup}"
+check "topic from env lands in the updater plist" grep -qF -- '<string>topic-abc.123</string>' "${upd}"
+check "updater topic plist lints" "${LINT[@]}" "${upd}"
 check_not "topic never printed" grep -qF -- 'topic-abc.123' "${WORK}/out"
 rm -f "${WORK}/log/launchctl"
 run_install
@@ -449,5 +462,91 @@ rc=0
 STUB_INSTALL_RC=1 STUB_REV=rev4 run_update || rc=$?
 check "update_install_failure_exits_0" test "${rc}" -eq 0
 check "update_install_failure_keeps_old_rev" grep -qF -- rev2 "${WORK}/home/.local/state/nos-runner/installed-rev"
+
+echo "-- update.sh failure alerts"
+ns="${WORK}/home/.local/state/nos-runner"
+alerts() { if [[ -e "${WORK}/log/curl" ]]; then grep -c . "${WORK}/log/curl"; else echo 0; fi; }
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+export NTFY_TOPIC=topic-abc
+for _ in 1 2 3 4 5; do STUB_PULL_RC=1 run_update; done
+check "5 failures: count is 5" test "$(cat "${ns}/update-fails")" = 5
+check "5 failures: no alert" test "$(alerts)" -eq 0
+STUB_PULL_RC=1 run_update
+check "6th failure: one alert" test "$(alerts)" -eq 1
+check "alert names the runner" grep -qF -- 'NOS runner: the updater has failed 6 passes' "${WORK}/log/curl"
+check "alert gives the last reason" grep -qF -- 'Last failure: git update failed' "${WORK}/log/curl"
+check "alert marker written" test -e "${ns}/update-alerted"
+check "alert topic via stdin" grep -q 'topic-abc' "${WORK}/log/curl.stdin"
+check_not "alert topic not in argv" grep -q 'topic-abc' "${WORK}/log/curl"
+STUB_PULL_RC=1 run_update
+check "7th failure: still one alert" test "$(alerts)" -eq 1
+STUB_REV=rev1 run_update
+check "success after alert: recovery alert (two in all)" test "$(alerts)" -eq 2
+check "recovery text" grep -qF -- 'NOS runner: the updater works again' "${WORK}/log/curl"
+check_not "count cleared" test -e "${ns}/update-fails"
+check_not "marker cleared" test -e "${ns}/update-alerted"
+STUB_REV=rev1 run_update
+check "next success is quiet" test "$(alerts)" -eq 2
+for _ in 1 2 3 4 5 6; do STUB_PULL_RC=1 run_update; done
+check "a new run of failures alerts again" test "$(alerts)" -eq 3
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2 3; do STUB_PULL_RC=1 run_update; done
+STUB_REV=rev1 run_update
+check "success without an alert: no alert" test "$(alerts)" -eq 0
+check_not "success without an alert: count cleared" test -e "${ns}/update-fails"
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2 3 4 5 6; do STUB_INSTALL_RC=1 STUB_REV=rev5 run_update; done
+check "install failures count: one alert" test "$(alerts)" -eq 1
+check "install failure reason in the alert" grep -qF -- 'Last failure: install.sh failed' "${WORK}/log/curl"
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2 3 4 5 6; do STUB_REV='' run_update; done
+check "unreadable revision counts: one alert" test "$(alerts)" -eq 1
+check "revision reason in the alert" grep -qF -- 'cannot read the scripts/nos-runner revision' "${WORK}/log/curl"
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2; do STUB_PULL_RC=1 NOS_UPDATE_ALERT_AFTER=3 run_update; done
+check "threshold 3: no alert after 2" test "$(alerts)" -eq 0
+STUB_PULL_RC=1 NOS_UPDATE_ALERT_AFTER=3 run_update
+check "threshold 3: alert on the 3rd" test "$(alerts)" -eq 1
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2 3 4 5 6; do STUB_PULL_RC=1 NOS_UPDATE_ALERT_AFTER=bogus run_update; done
+check "bad threshold falls back to 6" test "$(alerts)" -eq 1
+check "bad threshold is logged" grep -qF -- 'not a positive number' "${WORK}/err"
+
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+for _ in 1 2 3; do STUB_PULL_RC=1 NOS_UPDATE_ALERT_AFTER=2 STUB_CURL_FAIL=1 run_update; done
+check "failed delivery is logged" grep -qF -- 'ntfy delivery failed' "${WORK}/err"
+check_not "no marker after a failed delivery" test -e "${ns}/update-alerted"
+STUB_PULL_RC=1 NOS_UPDATE_ALERT_AFTER=2 run_update
+check "the next failure sends it" test -e "${ns}/update-alerted"
+
+unset NTFY_TOPIC
+new_home
+mkdir -p "${ns}"
+echo rev1 >"${ns}/installed-rev"
+rc=0
+for _ in 1 2 3 4 5 6; do STUB_PULL_RC=1 run_update || rc=$?; done
+check "no topic: exit 0" test "${rc}" -eq 0
+check "no topic: no curl" test "$(alerts)" -eq 0
+check "no topic: warning logged" grep -qF -- 'NTFY_TOPIC is unset' "${WORK}/err"
+check_not "no topic: no marker" test -e "${ns}/update-alerted"
 
 exit "${fail}"

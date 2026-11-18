@@ -106,6 +106,14 @@ The updater LaunchAgent runs every 600 s. It pulls the clone and runs `install.s
   To end it sooner, set `NOS_RUNNER` back to `mimolette` by hand.
 - **Updater plist change.** A job cannot reload itself. The updater logs
   "updater plist changed; run install.sh by hand" and sends one alert. Run `install.sh` by hand (section 4, step 3).
+- **Failed updates alert.** A pass fails when the git fetch or fast-forward fails, the revision cannot be read, or `install.sh` fails.
+  The updater counts consecutive failed passes in `~/.local/state/nos-runner/update-fails`.
+  At 6 (one hour) it sends one `NOS runner: the updater has failed 6 passes in a row. Last failure: ...` alert and writes `update-alerted`; later failures stay quiet.
+  The first good pass after that sends `NOS runner: the updater works again.` and clears both files.
+  `NOS_UPDATE_ALERT_AFTER` overrides the threshold, but `install.sh` does not carry it into the plist: a hand edit of the plist lasts only until the next `install.sh`. A failed ntfy delivery is retried on the next failed or good pass.
+  The updater needs `NTFY_TOPIC` in its plist, which `install.sh` now writes from the env file.
+  The updater cannot reload its own plist, so one hand run of `install.sh` (section 4, step 3) is needed to turn the alert on.
+  Until then the updater logs `NTFY_TOPIC is unset` and sends nothing.
 - A pf rule change needs `install-pf.sh` again with sudo. The updater never touches root files.
 
 ## 6. Hold, release and full stop

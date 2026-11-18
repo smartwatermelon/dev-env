@@ -89,6 +89,15 @@ The updater job runs `update.sh` at load and every 600 s. It always exits 0.
   So an update installs within one cycle: at most `SWM_JOB_MAX_S` + 600 s after the merge, and sooner when a job ends.
 - If `install.sh` fails, the version stays unmarked and the next run tries again.
 - The updater never reloads itself. When a change touches its own plist, run `install.sh` by hand.
+- **Failed updates alert.** A pass fails when the git fetch or fast-forward fails, the revision cannot be read, or `install.sh` fails.
+  A pass that only waits for a running job is not a failure and does not change the count.
+  The updater counts consecutive failed passes in `~/.local/state/swm-macos-runner/update-fails`.
+  At 6 (one hour) it sends one `macOS runner: the updater has failed 6 passes in a row. Last failure: ...` alert and writes `update-alerted`; later failures stay quiet.
+  The first good pass after that sends `macOS runner: the updater works again.` and clears both files.
+  `SWM_UPDATE_ALERT_AFTER` overrides the threshold, but `install.sh` does not carry it into the plist: a hand edit of the plist lasts only until the next `install.sh`. A failed ntfy delivery is retried on the next failed or good pass.
+  The updater needs `NTFY_TOPIC` in its plist, which `install.sh` now writes from the env file (the topic only, not the supervisor knobs).
+  The updater cannot reload its own plist, so one hand run of `install.sh` is needed to turn the alert on.
+  Until then the updater logs `NTFY_TOPIC is unset` and sends nothing.
 - The log is `~/Library/Logs/swm-macos-runner-update.log`.
 
 Stop the updater (the supervisor keeps running):
