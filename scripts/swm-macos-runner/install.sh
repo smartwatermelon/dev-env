@@ -55,6 +55,20 @@ else
   echo "install: warning: no NTFY_TOPIC in ${ENV_FILE}; alerts will not be sent" >&2
 fi
 
+# SWM_<NAME>_S=<secs> env-file lines go into the plist; other SWM_ lines are refused.
+if [[ -f "${ENV_FILE}" ]]; then
+  knob_keys=" "
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    bare="${line#"${line%%[![:space:]]*}"}"
+    bare="${bare#export }"
+    [[ "${bare}" == SWM_* ]] || continue
+    [[ "${line}" =~ ^(SWM_[A-Z_]+_S)=([0-9]+)$ ]] || die "${ENV_FILE}: '${line}' is not SWM_<NAME>_S=<seconds>"
+    [[ "${knob_keys}" != *" ${BASH_REMATCH[1]} "* ]] || die "${ENV_FILE}: ${BASH_REMATCH[1]} is set twice"
+    knob_keys="${knob_keys}${BASH_REMATCH[1]} "
+    ntfy_env="${ntfy_env:+${ntfy_env}$'\n'}$(printf '    <key>%s</key>\n    <string>%s</string>' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")"
+  done <"${ENV_FILE}"
+fi
+
 x_libexec="$(xml_esc "${LIBEXEC}")"
 x_home="$(xml_esc "${HOME}")"
 x_tart="$(xml_esc "${tart_home}")"

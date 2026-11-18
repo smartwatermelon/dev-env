@@ -201,6 +201,29 @@ check "message names the characters" grep -q 'A-Za-z0-9_.-' <<<"${OUT}"
 check_not "nothing bootstrapped" test -s "${L}/launchctl"
 check_not "no plist written" test -e "${H}/${P}"
 
+echo "== hang-drill knobs"
+ENV_BODY=$'NTFY_TOPIC=drill-topic_1.x\nSWM_CLONE_LIMIT_S=1\nSWM_JOB_MAX_S=30' run_install
+check "knobs: install succeeds" test "${RC}" -eq 0
+check "knobs: SWM_CLONE_LIMIT_S in the plist" awk -v k=SWM_CLONE_LIMIT_S -v v='<string>1</string>' "${PLIST_AWK}" "${H}/${P}"
+check "knobs: SWM_JOB_MAX_S in the plist" awk -v k=SWM_JOB_MAX_S -v v='<string>30</string>' "${PLIST_AWK}" "${H}/${P}"
+check_not "knobs: no literal newline escape in the plist" grep -qF '\n' "${H}/${P}"
+check "knobs: topic still in the plist" grep -q 'drill-topic_1.x' "${H}/${P}"
+check_not "knobs: not in the updater plist" grep -q 'SWM_CLONE_LIMIT_S' "${H}/${U}"
+ENV_BODY=$'SWM_CLONE_LIMIT_S=1' run_install
+check "knobs: knob alone (no topic) still installs" test "${RC}" -eq 0
+check "knobs: knob alone lands in the plist" grep -q '<key>SWM_CLONE_LIMIT_S</key>' "${H}/${P}"
+run_install
+check_not "knobs: no knob, no SWM_ key in the plist" grep -q '<key>SWM_' "${H}/${P}"
+for bad in ' SWM_CLONE_LIMIT_S=1' 'export SWM_CLONE_LIMIT_S=1' 'SWM_CLONE_LIMIT_S=abc' 'SWM_CLONE_LIMIT_S=' 'SWM_CLONE_LIMIT=5' 'SWM_clone_S=5' 'SWM_CLONE_LIMIT_S=1 x' 'SWM_IMAGE=evil'; do
+  ENV_BODY="NTFY_TOPIC=drill-topic_1.x"$'\n'"${bad}" run_install
+  check "knobs: '${bad}' refused" test "${RC}" -ne 0
+  check "knobs: '${bad}' error names the line" grep -qF "${bad}" <<<"${OUT}"
+  check_not "knobs: '${bad}' bootstraps nothing" test -s "${L}/launchctl"
+  check_not "knobs: '${bad}' writes no plist" test -e "${H}/${P}"
+done
+ENV_BODY=$'SWM_CLONE_LIMIT_S=1\nSWM_CLONE_LIMIT_S=2' run_install
+check "knobs: a repeated knob is refused" test "${RC}" -ne 0
+
 echo "== bootstrap failure"
 run_install STUB_BOOTSTRAP_FAIL=1
 check "failed bootstrap exits non-zero" test "${RC}" -ne 0
