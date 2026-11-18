@@ -29,6 +29,10 @@ printf '%s\n' "$*" >>"${PF_STATE}/calls"
 # Record whether the ok file exists at each call, to prove a good run never removes it.
 if [[ -e "${NOS_PF_OK_FILE}" ]]; then echo present >>"${PF_STATE}/okseen"; else echo absent >>"${PF_STATE}/okseen"; fi
 case "$*" in
+"-a com.apple/swm-tart-v6 -f "*) [[ -f "${PF_STATE}/swm-v6-fail" ]] && exit 1; exit 0 ;;
+"-a com.apple/swm-tart -f "*) [[ -f "${PF_STATE}/swm-load-fail" ]] && exit 1; exit 0 ;;
+"-a com.apple/swm-tart -s rules") cat "${PF_STATE}/rules-swm" 2>/dev/null ;;
+"-a com.apple/swm-tart-v6 -s rules") cat "${PF_STATE}/rules-swm-v6" 2>/dev/null ;;
 "-a com.apple/nos-runner-v6 -f "*) [[ -f "${PF_STATE}/v6-fail" ]] && exit 1; exit 0 ;;
 "-a com.apple/nos-runner -f "*) [[ -f "${PF_STATE}/load-fail" ]] && exit 1; exit 0 ;;
 "-s info")
@@ -49,7 +53,13 @@ cat >"${WORK}/bin/mv" <<'STUB'
 printf '%s\n' "$*" >>"${PF_STATE}/mv"
 exec /bin/mv "$@"
 STUB
-chmod +x "${WORK}/bin/pfctl" "${WORK}/bin/mv"
+# rm stub: logs, then delegates (all paths are under ${WORK}).
+cat >"${WORK}/bin/rm" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"${PF_STATE}/rm"
+exec /bin/rm "$@"
+STUB
+chmod +x "${WORK}/bin/pfctl" "${WORK}/bin/mv" "${WORK}/bin/rm"
 
 good_rules() {
   cat >"${WORK}/state/rules" <<'R'
@@ -57,15 +67,32 @@ pass in quick inet proto udp from 192.168.64.0/24 to 192.168.64.1 port = 53 keep
 pass in quick inet proto tcp from 192.168.64.0/24 to 192.168.64.1 port = 53 flags S/SA keep state
 block drop in quick inet from 192.168.64.0/24 to <nos_private>
 R
+  good_swm
+}
+# What pfctl lists for the swm anchors: v4 expands to 2 pass + 1 block, v6 to 2 block (the destination list).
+good_swm() {
+  cat >"${WORK}/state/rules-swm" <<'R'
+pass in quick inet proto udp from 192.168.65.0/24 to 192.168.65.1 port = 53 keep state
+pass in quick inet proto tcp from 192.168.65.0/24 to 192.168.65.1 port = 53 flags S/SA keep state
+block drop in quick inet from 192.168.65.0/24 to <swm_private>
+R
+  cat >"${WORK}/state/rules-swm-v6" <<'R'
+block drop in quick on bridge101 inet6 from any to fc00::/7
+block drop in quick on bridge101 inet6 from any to fe80::/10
+R
 }
 reset() {
-  rm -rf "${WORK:?}/state" "${WORK:?}/ok" "${WORK:?}/token"
+  rm -rf "${WORK:?}/state" "${WORK:?}/ok" "${WORK:?}/token" "${WORK:?}/swm-ok" "${WORK:?}/swm-ok-v6"
   mkdir -p "${WORK}/state"
   printf 'rule\n' >"${WORK}/nos-runner.pf"
+  printf 'rule\n' >"${WORK}/swm-tart.pf"
+  printf 'rule\n' >"${WORK}/swm-tart-v6.pf"
 }
 run() {
-  PF_STATE="${WORK}/state" PFCTL_BIN="${WORK}/bin/pfctl" MV_BIN="${WORK}/bin/mv" NOS_PF_RULES="${WORK}/nos-runner.pf" \
-    NOS_PF_OK_FILE="${WORK}/ok" NOS_PF_TOKEN_FILE="${WORK}/token" bash "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
+  PF_STATE="${WORK}/state" PFCTL_BIN="${WORK}/bin/pfctl" MV_BIN="${WORK}/bin/mv" RM_BIN="${WORK}/bin/rm" \
+    NOS_PF_RULES="${WORK}/nos-runner.pf" NOS_PF_OK_FILE="${WORK}/ok" NOS_PF_TOKEN_FILE="${WORK}/token" \
+    SWM_PF_RULES="${WORK}/swm-tart.pf" SWM_PF_RULES_V6="${WORK}/swm-tart-v6.pf" \
+    SWM_PF_OK_FILE="${WORK}/swm-ok" SWM_PF_OK_FILE_V6="${WORK}/swm-ok-v6" bash "${SCRIPT}" >"${WORK}/out" 2>"${WORK}/err"
 }
 mode_of() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
 enable_count() { grep -c '^-E$' "${WORK}/state/calls"; }
@@ -194,5 +221,105 @@ rc=0
 run || rc=$?
 check "exit 1 when pf stays disabled" test "${rc}" -eq 1
 check_not "no ok file while pf is disabled" test -f "${WORK}/ok"
+
+echo "-- pf_guard_swm_tart_anchor"
+reset
+good_rules
+touch "${WORK}/state/enabled"
+rc=0
+run || rc=$?
+check "exit 0 when both sets are good" test "${rc}" -eq 0
+check "swm v4 anchor lists 2 pass + 1 block: swm ok written" test -f "${WORK}/swm-ok"
+check "swm v6 lists 0 pass + 2 block: v6 ok written" test -f "${WORK}/swm-ok-v6"
+swm_mode="$(mode_of "${WORK}/swm-ok")"
+check "swm ok file mode 0644" test "${swm_mode}" = 644
+check "NOS ok file written" test -f "${WORK}/ok"
+check "swm v4 rules loaded into their own anchor" grep -q '^-a com.apple/swm-tart -f ' "${WORK}/state/calls"
+check "swm v6 rules loaded into their own anchor" grep -q '^-a com.apple/swm-tart-v6 -f ' "${WORK}/state/calls"
+n="$(enable_count)"
+check "pf already enabled: no -E" test "${n}" -eq 0
+
+echo "-- pf_guard_swm_v4_load_failure_spares_nos"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/ok" "${WORK}/swm-ok" "${WORK}/swm-ok-v6" "${WORK}/state/swm-load-fail"
+rc=0
+run || rc=$?
+check "exit 1 when the swm v4 load fails" test "${rc}" -eq 1
+check "NOS ok file kept" test -f "${WORK}/ok"
+check_not "swm ok file removed" test -f "${WORK}/swm-ok"
+check_not "swm v6 ok file removed" test -f "${WORK}/swm-ok-v6"
+check "stderr names the swm anchor" grep -q 'swm-tart' "${WORK}/err"
+
+echo "-- pf_guard_swm_v4_listing_wrong"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/ok" "${WORK}/swm-ok"
+sed -i.bak '$d' "${WORK}/state/rules-swm"
+rc=0
+run || rc=$?
+check "exit 1 with 2 swm rules listed" test "${rc}" -eq 1
+check_not "swm ok file removed" test -f "${WORK}/swm-ok"
+check "NOS ok file kept" test -f "${WORK}/ok"
+
+echo "-- pf_guard_nos_failure_spares_swm"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/state/load-fail" "${WORK}/ok"
+rc=0
+run || rc=$?
+check "exit 1 when the NOS load fails" test "${rc}" -eq 1
+check_not "NOS ok file removed" test -f "${WORK}/ok"
+check "swm ok file still written" test -f "${WORK}/swm-ok"
+check "swm v6 ok file still written" test -f "${WORK}/swm-ok-v6"
+
+echo "-- pf_guard_swm_v6_is_best_effort"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/swm-ok-v6" "${WORK}/state/swm-v6-fail"
+rc=0
+run || rc=$?
+check "exit 0 when only the swm v6 load fails" test "${rc}" -eq 0
+check "swm v4 ok file kept" test -f "${WORK}/swm-ok"
+check_not "swm v6 ok file removed" test -f "${WORK}/swm-ok-v6"
+check "stderr warns about swm v6" grep -q 'swm-tart-v6' "${WORK}/err"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/swm-ok-v6"
+printf 'block drop in quick on bridge101 inet6 from any to fc00::/7\n' >"${WORK}/state/rules-swm-v6"
+rc=0
+run || rc=$?
+check "exit 0 when the swm v6 anchor lists 1 rule" test "${rc}" -eq 0
+check_not "swm v6 ok file removed on a wrong listing" test -f "${WORK}/swm-ok-v6"
+check "swm v4 ok file written" test -f "${WORK}/swm-ok"
+
+echo "-- pf_guard_swm_missing_rules_file"
+reset
+good_rules
+touch "${WORK}/state/enabled" "${WORK}/ok" "${WORK}/swm-ok" "${WORK}/swm-ok-v6"
+rm -f "${WORK:?}/swm-tart.pf"
+rc=0
+run || rc=$?
+check "exit 1 when the swm rules file is missing" test "${rc}" -eq 1
+check_not "swm ok files removed" test -f "${WORK}/swm-ok"
+check "NOS ok file kept" test -f "${WORK}/ok"
+
+echo "-- pf_guard_pf_disabled_clears_both_sets"
+reset
+good_rules
+touch "${WORK}/ok" "${WORK}/swm-ok" "${WORK}/swm-ok-v6" "${WORK}/state/no-enable"
+rc=0
+run || rc=$?
+check "exit 1 when pf stays disabled" test "${rc}" -eq 1
+check_not "NOS ok removed" test -f "${WORK}/ok"
+check_not "swm ok removed" test -f "${WORK}/swm-ok"
+check_not "swm v6 ok removed" test -f "${WORK}/swm-ok-v6"
+
+echo "-- shipped swm rules"
+check_not "swm-tart.pf has no 'on bridge'" grep -q 'on bridge' "${HERE}/../net/swm-tart.pf"
+swm_lines="$(grep -cE '^(table|pass|block) ' "${HERE}/../net/swm-tart.pf")"
+check "swm-tart.pf has 1 table, 1 pass, 1 block" test "${swm_lines}" -eq 3
+check "swm-tart.pf uses 192.168.65.0/24" grep -q 'from 192.168.65.0/24 to 192.168.65.1 port 53' "${HERE}/../net/swm-tart.pf"
+check "swm v6 file binds bridge101" grep -q 'on bridge101 inet6' "${HERE}/../net/swm-tart-v6.pf"
 
 exit "${fail}"

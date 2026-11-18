@@ -237,10 +237,12 @@ pass in quick inet proto { udp tcp } from 192.168.65.0/24 to 192.168.65.1 port 5
 block drop in quick inet from 192.168.65.0/24 to <swm_private>
 ```
 
-`swm-tart-v6.pf` (needs `bridge101`):
+`swm-tart-v6.pf` (names `bridge101`; Task 0 proved it loads while the
+interface is absent and still applies to a new `bridge101`). No IPv6 DNS
+pass: Task 0 showed a port-53 pass to the bridge's link-local address does
+not match, and DNS works through `192.168.65.1`, which the v4 file passes.
 
 ```text
-pass in quick on bridge101 inet6 proto { udp tcp } from any to (bridge101) port 53
 block drop in quick on bridge101 inet6 from any to { fc00::/7, fe80::/10 }
 ```
 
@@ -248,7 +250,7 @@ block drop in quick on bridge101 inet6 from any to { fc00::/7, fe80::/10 }
   `tart v4 load fails → NOS ok file kept, swm ok file removed, exit 1`;
   `NOS load fails → swm ok files still written when swm loads`;
   `swm v4 anchor lists 2 pass + 1 block → swm ok written`;
-  `swm v6 lists 2 pass + 2 block (the destination list expands) → v6 ok written`;
+  `swm v6 lists 0 pass + 2 block (the destination list expands) → v6 ok written`;
   `swm v6 load fails → v6 ok removed, v4 ok kept, warning on stderr`;
   `existing NOS cases unchanged`. `install-pf` installs both new rule files
   `root:wheel 0644`.
@@ -278,7 +280,7 @@ Andrew re-runs `sudo bash scripts/nos-runner/net/install-pf.sh` after merge
 
 **Interfaces:**
 
-- Produces (`config.sh`): `SWM_BASE_IMAGE` (`ghcr.io/cirruslabs/macos-tahoe-base@sha256:<digest from Task 0>`),
+- Produces (`config.sh`): `SWM_BASE_IMAGE` (`ghcr.io/cirruslabs/macos-tahoe-base@sha256:65c3133a633fda8753cf1f71f2d55727792d534a2125b0032466563dcc8e58fd`),
   `SWM_RUNNER_VERSION=2.338.2`, `SWM_RUNNER_SHA256`, `SWM_IMAGE`
   (`swm-macos-runner-<version>-<12 hex>`, hash over `guest/` files plus the
   base digest, same method as NOS `_nos_image_hash`), `SWM_CPUS=4`,
@@ -452,6 +454,17 @@ Andrew's OK before each step. No org variable changes in this task.
   `runs-on: mimolette-macos` on `bash-tests` plus a step that runs the LAN
   probes and fails if any LAN target answers. Expected: tests pass, the log
   shows `job-started hook: allowed pull_request`, the probes are blocked.
+  Also in this step, two probes from inside the job VM:
+  - IPv6: run `curl -6 -m 5` and `nc -6 -w 5 -z` to MIMOLETTE's global IPv6
+    address on port 22 and to the router's global IPv6 address. Expected: no
+    answer. If any answers: block all VM inet6 on bridge101, update the
+    pf-guard rule count and the spec, and tell Andrew before go-live.
+  - Hook env: run a same-repo job whose workflow sets
+    `env: {JQ_BIN: /nonexistent, ALLOWED_OWNERS: nobody}`. Expected: the job
+    is allowed as normal (workflow env does not reach the hook). If the hook
+    denies, or behaves differently: harden the hook (hard-coded jq path and
+    owner list in the installed copy; no imported functions) before go-live,
+    and tell Andrew.
 - [ ] **Step 4:** Andrew opens a PR from his `twistedmelonman` fork against
   the draft branch. Expected: the job fails at "Set up runner" with
   `DENIED ... (fork PR)`.

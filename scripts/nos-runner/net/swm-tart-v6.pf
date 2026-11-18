@@ -1,0 +1,1 @@
+block drop in quick on bridge101 inet6 from any to { fc00::/7, fe80::/10 }

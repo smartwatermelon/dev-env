@@ -22,9 +22,10 @@ _sign() {
 
 # app_jwt APP_ID: print an RS256 JWT (iat = now - 60, exp = now + 540).
 # The key is Keychain base64 text and never touches a file.
+# GH_APP_KEY_SERVICE and GH_APP_KEY_ACCOUNT pick the Keychain item; defaults are the NOS runner's.
 app_jwt() {
   local app_id="$1" now hdr pl sig keyb64
-  keyb64="$("${SECURITY_BIN:-security}" find-generic-password -s nos-runner-app-key -a nightowlstudiollc -w)" || return 1
+  keyb64="$("${SECURITY_BIN:-security}" find-generic-password -s "${GH_APP_KEY_SERVICE:-nos-runner-app-key}" -a "${GH_APP_KEY_ACCOUNT:-nightowlstudiollc}" -w)" || return 1
   now="$("${DATE_BIN:-date}" +%s)" || return 1
   hdr="$(printf '%s' '{"alg":"RS256","typ":"JWT"}' | _b64url)" || return 1
   pl="$(printf '{"iat":%s,"exp":%s,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "${app_id}" | _b64url)" || return 1

@@ -96,6 +96,11 @@ is_regular=0
 grep -q regular "${WORK}/openssl.keykind" && is_regular=1
 check "key_arg_not_regular_file" test "${is_regular}" -eq 0
 
+check "key_item_default" grep -qx 'find-generic-password -s nos-runner-app-key -a nightowlstudiollc -w' "${WORK}/security.argv"
+rm -f "${WORK}/security.argv"
+GH_APP_KEY_SERVICE=swm-runner-app-key GH_APP_KEY_ACCOUNT=smartwatermelon app_jwt 12345 >/dev/null
+check "key item override" grep -qx 'find-generic-password -s swm-runner-app-key -a smartwatermelon -w' "${WORK}/security.argv"
+
 tok="$(app_token 12345 678)"
 check "token_value_parsed" test "${tok}" = ghs_installtok
 check "token_request_is_post" grep -q -- '-X POST' "${WORK}/curl.argv"

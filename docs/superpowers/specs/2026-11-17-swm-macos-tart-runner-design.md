@@ -110,9 +110,11 @@ As with the NOS runner, nothing connects to MIMOLETTE from outside.
 
 - Tart VMs use `bridge101`, `192.168.65.0/24`, not the container bridge
   (`bridge100`, `192.168.64.0/24`), so the NOS rules do not cover them.
-- The VM's DNS resolver is the host's IPv6 link-local address on the bridge,
-  so the Linux rules' `fe80::/10` block would break DNS. The Tart rules pass
-  port 53 to the bridge's own addresses first.
+- The VM lists three resolvers: `192.168.65.1` and two host link-local IPv6
+  addresses. Build Task 0 (2026-11-17) found that a port-53 pass to the
+  link-local addresses does not match, so IPv6 DNS is blocked with the rest
+  of IPv6 LAN traffic. DNS works through `192.168.65.1`, which the IPv4 rules
+  pass. The spike rules below had the same effect.
 - Spike rules (anchor `com.apple/tart-spike`):
 
   ```text
@@ -125,8 +127,9 @@ As with the NOS runner, nothing connects to MIMOLETTE from outside.
 - The build extends the NOS root pf guard (`scripts/nos-runner/net/`) to load
   a Tart anchor at boot and every 300 s. The NOS rules avoid naming the
   interface because `bridge100` may not exist before the first container; the
-  same applies to `bridge101`, so the plan rewrites these rules by source
-  address where it can. The IPv6 DNS pass needs a test.
+  same applies to `bridge101`, so the IPv4 rules match by source address.
+  The IPv6 block names `bridge101`; Task 0 proved it loads while the
+  interface is absent and applies to each new `bridge101`.
 
 ### 5. Storage
 
@@ -213,8 +216,10 @@ the backup and the live keychain; 66 after).
 
 ## Undo
 
-Set `SWM_MACOS_RUNNER=macos-latest`, or delete the variable. Every job is back
-on GitHub-hosted runners at once.
+Set `SWM_MACOS_RUNNER=macos-26`. Every job is back on GitHub-hosted runners at
+once. Once the watchdog runs, unset and `macos-latest` are not holds: the
+watchdog switches back to `mimolette-macos` when the runner is healthy. Any
+other value is a hold the watchdog leaves alone.
 
 ## Spike results (2026-11-17)
 
@@ -223,7 +228,8 @@ Scratch files: `~andrewrich/.local/state/tart-spike/` on MIMOLETTE.
 ### Step 1: pull — PASS
 
 `macos-tahoe-base` (macOS 26.6.2, Homebrew 7.0.12): 27 GB download, 33 GB on
-disk, sparse 50 GB VM disk. Tart 2.41.1; licence FSL-1.1-ALv2 (read from the
+disk, sparse 50 GB VM disk. Tart 2.42.0 (installed 11:59 on 2026-11-17,
+before the TCC Allow; an earlier draft said 2.41.1); licence FSL-1.1-ALv2 (read from the
 copy on MIMOLETTE), which permits internal use with no size limit.
 
 ### Step 2: boot under launchd — PASS
@@ -274,3 +280,24 @@ Min free 34%, swap 4.9 to 6.6 GB, no critical pressure. The suite did not run:
   and run all worked under launchd with no further prompt.
 - The image is now on both disks (33 GB internal, 30 GB external); the plan
   removes the copy it does not use.
+
+## Build Task 0 results (2026-11-17, live on MIMOLETTE)
+
+- The spike anchor `com.apple/tart-spike` is flushed and its pf enable
+  reference released.
+- Both rule files load into probe anchors while `bridge101` does not exist.
+- Two VMs in turn (`probe-1`, `probe-2`): GitHub, npm and DNS work; every
+  IPv4 LAN probe from the spike table is blocked; host ssh over IPv6
+  link-local is blocked. The IPv6 rules apply to the second VM's new
+  `bridge101` with no reload.
+- Baseline with the IPv6 rules removed (`probe-3`): host ssh over IPv6
+  link-local is open, so the blocked result above comes from the rules.
+- IPv6 DNS: a pass for port 53, written as `to (bridge101)` or as
+  `from fe80::/10 to fe80::/10`, did not let DNS through (`probe-4`,
+  `probe-5`). DNS works through `192.168.65.1`. The build drops the IPv6 DNS
+  pass and blocks all IPv6 LAN traffic.
+- `df -Pk /Volumes/extra-vieille/Caches/tart` under a launchd `/bin/bash`
+  job returns at once (1.7 TB free); no TCC hang.
+- Base image digest:
+  `sha256:65c3133a633fda8753cf1f71f2d55727792d534a2125b0032466563dcc8e58fd`.
+- No spike LaunchAgent is loaded.
