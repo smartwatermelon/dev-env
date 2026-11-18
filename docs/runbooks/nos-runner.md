@@ -61,7 +61,9 @@ Run these in a terminal on MIMOLETTE, in a GUI login session.
    git clone https://github.com/smartwatermelon/dev-env ~/.local/share/dev-env
    ```
 
-2. Install the pf guard once, as root. It blocks job VMs from the LAN:
+2. Install the pf guard once, as root. It blocks job VMs from the LAN.
+   The guard runs every 60 s and loads the NOS anchors and the Tart anchors (`swm-tart.pf`, `swm-tart-v6.pf`)
+   for the smartwatermelon macOS runner:
 
    ```bash
    sudo /bin/bash ~/.local/share/dev-env/scripts/nos-runner/net/install-pf.sh
@@ -163,7 +165,8 @@ First deployed 2026-11-12.
 
 ## 8. Alerts
 
-All alerts go to the ntfy topic.
+All alerts go to the ntfy topic. The topic also carries the smartwatermelon macOS runner's alerts, which start with `macOS runner:`
+(`docs/runbooks/swm-macos-runner.md`).
 
 - **down.** The runner failed its checks. `NOS_RUNNER` is now `ubuntu-latest`. Runs stuck on `mimolette` are cancelled and re-run on GitHub.
 - **recovered.** `NOS_RUNNER` is back on `mimolette` after healthy checks.
