@@ -32,19 +32,22 @@ Each is open to veto at plan review.
    part 2 watchdog sees no online runner and switches. Nothing from the NOS
    `set_ubuntu` / `remote_failover` / `failover_idle` / planned-stop code is
    ported.
-3. **SIGTERM stops the VM, including a busy one.** A one-slot runner has no
-   other slot to adopt it. The job fails and can be re-run. There is no
-   auto-updater (YAGNI); install is by hand.
-4. **The image is built by the supervisor, under launchd**, because the TCC
+3. **SIGTERM stops the VM, including a busy one** (Andrew, 2026-11-17). A
+   one-slot runner has no other slot to adopt it. The job fails and Andrew
+   re-runs it.
+4. **Updates are automatic** (Andrew, 2026-11-17), as for the NOS runner
+   (Task 7). The updater waits while a job runs, so an update never stops
+   a job.
+5. **The image is built by the supervisor, under launchd**, because the TCC
    grant was proven only for launchd `tart`. `build-image.sh` is not run from
    ssh.
-5. **`bounded()` is copied**, not shared with the NOS supervisor, so the live
+6. **`bounded()` is copied**, not shared with the NOS supervisor, so the live
    NOS supervisor does not change. It is 15 lines.
-6. **Tests are plain bash `test-*.sh` with stub binaries**, the NOS pattern.
+7. **Tests are plain bash `test-*.sh` with stub binaries**, the NOS pattern.
    The spec says "bats"; the repo does not use bats.
-7. **Alerts reuse the NOS ntfy topic** (Andrew, 2026-11-17), read from
+8. **Alerts reuse the NOS ntfy topic** (Andrew, 2026-11-17), read from
    `~/.config/nos-runner/env`. Messages start with `macOS runner:`.
-8. **The pf guard runs every 60 s, not 300 s.** The supervisor waits for a
+9. **The pf guard runs every 60 s, not 300 s.** The supervisor waits for a
    fresh IPv6 ok file after the VM is up, so a slow guard is a slow job start.
 
 ## Global Constraints
@@ -255,7 +258,7 @@ block drop in quick on bridge101 inet6 from any to { fc00::/7, fe80::/10 }
 - [ ] **Step 5:** Commit `feat(nos-runner): load the Tart LAN-block anchor in the pf guard`.
 
 Andrew re-runs `sudo bash scripts/nos-runner/net/install-pf.sh` after merge
-(Task 7).
+(Task 8).
 
 ### Task 4: Runner image build
 
@@ -322,7 +325,8 @@ Andrew re-runs `sudo bash scripts/nos-runner/net/install-pf.sh` after merge
   `GH_APP_KEY_ACCOUNT=smartwatermelon`), `gh_api` with `NOS_TOKEN` set to the
   swm token, `config.sh`/`lib.sh`/`build-image.sh` (Task 4), ok files (Task 3).
 - Produces: `supervisor.sh run | once | test-alert`. State file
-  `${SWM_STATE_DIR}/slot`: `name=`, `id=`, `fails=`, `alert=`.
+  `${SWM_STATE_DIR}/slot`: `name=`, `id=`, `fails=`, `alert=`, `job=` (1
+  from the JIT handoff until the exec returns; Task 7 reads it).
 
 One pass (`once`):
 
@@ -401,7 +405,36 @@ fails, `recovered`). After 3 fails, sleep `SWM_BACKOFF_S=600` between passes.
   release; full stop; cleanup of the spike files and the internal image copy.
 - [ ] **Step 6:** Commit `feat(swm-macos-runner): add the installer, LaunchAgent and runbook`.
 
-### Task 7: Install and prove on MIMOLETTE
+### Task 7: Automatic updates
+
+**Files:**
+
+- Create: `scripts/swm-macos-runner/update.sh`,
+  `scripts/swm-macos-runner/launchd/com.smartwatermelon.swm-macos-runner-update.plist`
+- Modify: `scripts/swm-macos-runner/install.sh` (installs and loads the
+  updater too), `docs/runbooks/swm-macos-runner.md`
+- Test: `scripts/swm-macos-runner/tests/test-update.sh`
+
+**Interfaces:**
+
+- Consumes: `job=` in the slot state file (Task 5), `install.sh` (Task 6).
+- Produces: `update.sh`, run every 600 s, always exits 0. The NOS
+  `update.sh` is the pattern: `git pull --ff-only` in
+  `~/.local/share/dev-env` (a failed pull, for example the NOS updater's
+  lock, is logged and retried next run); the version is the last commit
+  touching `scripts/swm-macos-runner/` or `scripts/nos-runner/github-app.sh`;
+  mark file `${SWM_STATE_DIR}/installed`.
+
+- [ ] **Step 1: Failing tests** (stub `git`, `install.sh`): `no change → no
+  install`; `new commit, job=0 → install runs, mark updated`; `new commit,
+  job=1 → no install, mark unchanged, logged as waiting`; `pull fails → no
+  install, exit 0`; `install fails → mark unchanged, exit 0`; `github-app.sh
+  change counts as a new version`.
+- [ ] **Step 2:** Run in a Linux container → FAIL. **Step 3:** Implement.
+  **Step 4:** PASS, shellcheck clean.
+- [ ] **Step 5:** Commit `feat(swm-macos-runner): install new runner code automatically`.
+
+### Task 8: Install and prove on MIMOLETTE
 
 Andrew's OK before each step. No org variable changes in this task.
 
