@@ -42,6 +42,8 @@ check_re "base image is digest-pinned" "${base}" '@sha256:[0-9a-f]{64}$'
 check_re "runner sha256 is 64 hex" "$(cfg SWM_RUNNER_SHA256)" '^[0-9a-f]{64}$'
 check "defaults: cpus, memory, label, free space" test "$(cfg SWM_CPUS)/$(cfg SWM_MEMORY_MB)/$(cfg SWM_LABEL)/$(cfg SWM_MIN_FREE_GB)" = "4/6144/mimolette-macos/60"
 check "limits match the plan" test "$(cfg SWM_CLONE_LIMIT_S)/$(cfg SWM_RUN_LIMIT_S)/$(cfg SWM_IP_LIMIT_S)/$(cfg SWM_EXEC_LIMIT_S)/$(cfg SWM_STOP_LIMIT_S)/$(cfg SWM_DELETE_LIMIT_S)/$(cfg SWM_LIST_LIMIT_S)/$(cfg SWM_BUILD_LIMIT_S)" = "600/30/180/60/60/120/60/2700"
+check "supervisor waits match the plan" test "$(cfg SWM_READY_LIMIT_S)/$(cfg SWM_V6_LIMIT_S)/$(cfg SWM_JOB_MAX_S)/$(cfg SWM_BACKOFF_S)" = "90/150/21600/600"
+check "swm-runner App and org" test "$(cfg SWM_ORG)/$(cfg SWM_APP_ID)/$(cfg SWM_INSTALLATION_ID)" = "smartwatermelon/5807971/183107042"
 check "limit can be overridden" test "$(cfg SWM_CLONE_LIMIT_S SWM_CLONE_LIMIT_S=7)" = "7"
 check "TART_HOME is on the external volume" test "$(cfg TART_HOME)" = "/Volumes/extra-vieille/Caches/tart"
 

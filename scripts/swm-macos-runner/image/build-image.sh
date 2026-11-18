@@ -12,9 +12,7 @@ ROOT="$(CDPATH='' cd "${HERE}/.." && pwd)"
 
 : "${TART_BIN:=tart}"
 : "${RM_BIN:=rm}"
-: "${KILL_BIN:=kill}"
 TMP_VM=swm-build-tmp
-RUN_PID=""
 LIST_FILE="$(mktemp "${TMPDIR:-/tmp}/swm-build-list.XXXXXX")" || exit 1
 trap '"${RM_BIN}" -f "${LIST_FILE}"' EXIT
 
@@ -30,25 +28,6 @@ list_vms() {
   cat "${LIST_FILE}"
 }
 delete_vm() { t "${SWM_DELETE_LIMIT_S}" delete "$1" || log "could not delete $1"; }
-# wait_run: wait up to SWM_STOP_LIMIT_S for tart run to exit, else kill it; non-zero when killed.
-wait_run() {
-  local ticks=0
-  [[ -n "${RUN_PID}" ]] || return 0
-  while kill -0 "${RUN_PID}" 2>/dev/null; do
-    if [[ "${ticks}" -ge $((SWM_STOP_LIMIT_S * 10)) ]]; then
-      log "tart run did not exit within ${SWM_STOP_LIMIT_S} s; killing it"
-      "${KILL_BIN}" -9 "${RUN_PID}"
-      wait "${RUN_PID}" 2>/dev/null
-      RUN_PID=""
-      return 1
-    fi
-    sleep 0.1
-    ticks=$((ticks + 1))
-  done
-  wait "${RUN_PID}" 2>/dev/null
-  RUN_PID=""
-  return 0
-}
 fail() {
   log "image build failed: $1"
   t "${SWM_STOP_LIMIT_S}" stop "${TMP_VM}" || true
@@ -69,7 +48,7 @@ if grep -qx -- "${TMP_VM}" <<<"${vms}"; then delete_vm "${TMP_VM}"; fi
 log "building ${SWM_IMAGE}"
 t "${SWM_CLONE_LIMIT_S}" clone "${SWM_BASE_IMAGE}" "${TMP_VM}" || fail "clone"
 t "${SWM_DELETE_LIMIT_S}" set "${TMP_VM}" --cpu "${SWM_CPUS}" --memory "${SWM_MEMORY_MB}" || fail "set"
-# run stays up until the VM stops, so it is not bounded; the ip wait proves it started.
+# run stays up until the VM stops: the ip wait bounds its start, wait_run its end.
 "${TART_BIN}" run --no-graphics "${TMP_VM}" </dev/null >/dev/null 2>&1 &
 RUN_PID=$!
 t "${SWM_IP_LIMIT_S}" ip --wait "${SWM_IP_LIMIT_S}" "${TMP_VM}" || fail "ip"

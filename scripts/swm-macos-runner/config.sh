@@ -26,6 +26,24 @@ export TART_HOME
 : "${SWM_LIST_LIMIT_S:=60}"
 : "${SWM_BUILD_LIMIT_S:=2700}"
 
+# Supervisor waits and pauses, in seconds.
+: "${SWM_DF_LIMIT_S:=20}"
+: "${SWM_READY_LIMIT_S:=90}"
+: "${SWM_READY_STEP_S:=5}"
+: "${SWM_V6_LIMIT_S:=150}"
+: "${SWM_V6_STEP_S:=5}"
+: "${SWM_JOB_MAX_S:=21600}"
+: "${SWM_INTERVAL_S:=10}"
+: "${SWM_BACKOFF_S:=600}"
+
+# GitHub: org, runner App (swm-runner), and the pf guard's ok files.
+: "${SWM_ORG:=smartwatermelon}"
+: "${SWM_APP_ID:=5807971}"
+: "${SWM_INSTALLATION_ID:=183107042}"
+: "${SWM_PF_OK_FILE:=/var/run/swm-tart-pf.ok}"
+: "${SWM_PF_OK_FILE_V6:=/var/run/swm-tart-pf-v6.ok}"
+: "${SWM_DISK_PATH:=${TART_HOME}}"
+
 : "${NTFY_BASE:=https://ntfy.sh}"
 : "${SHA256SUM_BIN:=sha256sum}"
 : "${SHASUM_BIN:=shasum}"
