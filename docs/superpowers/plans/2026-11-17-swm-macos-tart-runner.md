@@ -18,7 +18,11 @@ curl, jq, Tart 2.42.0, launchd, pf.
 **Spec:** `docs/superpowers/specs/2026-11-17-swm-macos-tart-runner-design.md`
 
 **Part 2** (a separate plan, written after this one): the watchdog Worker
-deployment, the `swm-runner-watchdog` App, and the dotfiles pilot switch.
+deployment, the `swm-runner-watchdog` App, the dotfiles pilot switch, and an
+automatic re-run (at most once per job) of a job stopped by a runner restart
+(Andrew, 2026-11-17). The watchdog finds those jobs from GitHub data alone;
+how GitHub marks a job whose runner was stopped is not yet known and is
+proven live in part 2.
 
 ## Decisions this plan makes
 
