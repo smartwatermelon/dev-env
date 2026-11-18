@@ -218,6 +218,7 @@ wait_until() {
 
 # start_vm: clone and boot VM, wait for its IP, its guest agent and the IPv6 block.
 start_vm() {
+  local ip
   running || return 1
   # From here to the end of the job, SIGTERM ends the tart call in progress; teardown then runs.
   ABORT_OK=1
@@ -231,8 +232,14 @@ start_vm() {
   "${TART_BIN}" run --no-graphics "${VM}" </dev/null >/dev/null 2>&1 &
   RUN_PID=$!
   # A few seconds over the --wait, so tart's own limit fires first.
-  tt $((SWM_IP_LIMIT_S + 10)) ip --wait "${SWM_IP_LIMIT_S}" "${VM}" ||
+  SWM_OUT="${OUT_FILE}" tt $((SWM_IP_LIMIT_S + 10)) ip --wait "${SWM_IP_LIMIT_S}" "${VM}" ||
     set_fail start "no IP within ${SWM_IP_LIMIT_S} s" || return 1
+  # The pf rules cover only this subnet: any other address means the LAN block may not apply to this VM.
+  ip="$(tr -d '[:space:]' <"${OUT_FILE}")"
+  if [[ ! "${ip}" =~ ^192\.168\.65\.[0-9]+$ ]]; then
+    log "VM ${VM} has IP '${ip}', outside 192.168.65.0/24"
+    set_fail pf "VM ${VM} has IP '${ip}', not on the guarded 192.168.65.0/24" || return 1
+  fi
   wait_until "${SWM_READY_LIMIT_S}" "${SWM_READY_STEP_S}" ready ||
     set_fail start "tart exec not ready within ${SWM_READY_LIMIT_S} s" || return 1
   wait_until "${SWM_V6_LIMIT_S}" "${SWM_V6_STEP_S}" v6 ||

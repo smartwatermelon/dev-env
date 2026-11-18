@@ -77,7 +77,7 @@ case "${cmd}" in
   ip)
     echo "tart ip" >>"${S}/order.log"
     [[ -z "${STUB_NO_IP:-}" ]] || exit 1
-    echo 192.168.65.2 ;;
+    echo "${STUB_IP:-192.168.65.2}" ;;
   exec)
     if [[ "$1" == -i ]]; then
       echo "tart exec-i" >>"${S}/order.log"
@@ -387,6 +387,26 @@ check_is "no ip: no mint" 0 "$(mints)"
 check_is "no ip: fails=1" 1 "$(slot fails)"
 check_is "no ip: no alert before 3 fails" 0 "$(count . "${S}/ntfy.log")"
 check_is "no ip: name= cleared" "" "$(slot name)"
+
+echo "-- VM off the Tart subnet -> no handoff, VM deleted, pf alert"
+reset
+STUB_IP=192.168.66.5 sup once
+rc=$?
+vm="$(vm_name)"
+check "subnet: exit non-zero" test "${rc}" -ne 0
+check_is "subnet: no mint" 0 "$(mints)"
+check_is "subnet: no JIT request" 0 "$(jits)"
+check "subnet: VM deleted" grep -qx "delete ${vm}" "${S}/tart.argv"
+check "subnet: logged with the address" grep -q '192.168.66.5' "${S}/sup.err"
+check_is "subnet: fails=1" 1 "$(slot fails)"
+check_is "subnet: one pf alert" 1 "$(alerts 'pf LAN block')"
+check_is "subnet: alert=pf" pf "$(slot alert)"
+reset
+STUB_IP=10.0.0.5 sup once
+check_is "subnet: 10.0.0.5 refused" 0 "$(jits)"
+reset
+STUB_IP=192.168.65.77 sup once
+check_is "subnet: .65.x gets the handoff" 1 "$(jits)"
 
 echo "-- exec not ready in time -> VM deleted, no JIT request"
 reset
