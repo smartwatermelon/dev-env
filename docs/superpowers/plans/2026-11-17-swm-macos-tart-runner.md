@@ -454,6 +454,17 @@ Andrew's OK before each step. No org variable changes in this task.
   `runs-on: mimolette-macos` on `bash-tests` plus a step that runs the LAN
   probes and fails if any LAN target answers. Expected: tests pass, the log
   shows `job-started hook: allowed pull_request`, the probes are blocked.
+  Also in this step, two probes from inside the job VM:
+  - IPv6: run `curl -6 -m 5` and `nc -6 -w 5 -z` to MIMOLETTE's global IPv6
+    address on port 22 and to the router's global IPv6 address. Expected: no
+    answer. If any answers: block all VM inet6 on bridge101, update the
+    pf-guard rule count and the spec, and tell Andrew before go-live.
+  - Hook env: run a same-repo job whose workflow sets
+    `env: {JQ_BIN: /nonexistent, ALLOWED_OWNERS: nobody}`. Expected: the job
+    is allowed as normal (workflow env does not reach the hook). If the hook
+    denies, or behaves differently: harden the hook (hard-coded jq path and
+    owner list in the installed copy; no imported functions) before go-live,
+    and tell Andrew.
 - [ ] **Step 4:** Andrew opens a PR from his `twistedmelonman` fork against
   the draft branch. Expected: the job fails at "Set up runner" with
   `DENIED ... (fork PR)`.
