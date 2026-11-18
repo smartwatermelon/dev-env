@@ -62,6 +62,14 @@ for a in "$@"; do
 done
 exec /bin/rm "$@"
 STUB
+# curl stub: logs the arguments and stdin (the ntfy URL); fails on STUB_CURL_FAIL.
+cat >"${WORK}/bin/curl" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"${STUB_LOG}/curl"
+cat >>"${STUB_LOG}/curl.stdin"
+if [[ -n "${STUB_CURL_FAIL:-}" ]]; then exit 22; fi
+exit 0
+STUB
 chmod +x "${WORK}"/bin/*
 
 # run_update [NAME=value ...]: fresh dirs unless KEEP=1; sets S (state), L (log), OUT, RC.
@@ -77,7 +85,7 @@ run_update() {
     printf 'name=\nid=\nfails=0\nalert=\njob=0\n' >"${S}/slot"
   fi
   OUT="$(env HOME="${WORK}/home" SWM_STATE_DIR="${S}" SWM_CLONE="${WORK}/clone" STUB_LOG="${L}" STUB_REVS="${L}/revs" \
-    GIT_BIN="${WORK}/bin/git" RM_BIN="${WORK}/bin/rm" STUB_WORK="${WORK}" BASH_BIN="${WORK}/bin/bashstub" "$@" bash "${UPDATE}" 2>&1)"
+    GIT_BIN="${WORK}/bin/git" RM_BIN="${WORK}/bin/rm" STUB_WORK="${WORK}" BASH_BIN="${WORK}/bin/bashstub" CURL_BIN="${WORK}/bin/curl" "$@" bash "${UPDATE}" 2>&1)"
   RC=$?
 }
 # again [NAME=value ...]: run again in the same dirs.
@@ -203,5 +211,105 @@ again
 check "exit 0" test "${RC}" -eq 0
 check_not "no install" test -e "${L}/install"
 check "mark unchanged" test "$(cat "${S}/installed")" = REV1
+
+# fails N [NAME=value ...]: N more failed passes (git fetch fails) in the same dirs.
+fails() {
+  local i count="$1"
+  shift
+  for ((i = 0; i < count; i += 1)); do again STUB_PULL_FAIL=1 "$@"; done
+}
+alerts() { if [[ -e "${L}/curl" ]]; then grep -c . "${L}/curl"; else echo 0; fi; }
+
+echo "== alert after repeated failures"
+run_update
+fails 5 NTFY_TOPIC=topic-abc
+check "5 failures: count is 5" test "$(cat "${S}/update-fails")" = 5
+check "5 failures: no alert" test "$(alerts)" -eq 0
+fails 1 NTFY_TOPIC=topic-abc
+check "6th failure: one alert" test "$(alerts)" -eq 1
+check "alert names the runner" grep -q 'macOS runner: the updater has failed 6 passes' "${L}/curl"
+check "alert gives the last reason" grep -q 'Last failure: git update failed' "${L}/curl"
+check "alert marker written" test -e "${S}/update-alerted"
+check "topic via stdin" grep -q 'topic-abc' "${L}/curl.stdin"
+check_not "topic not in argv" grep -q 'topic-abc' "${L}/curl"
+check "exit 0" test "${RC}" -eq 0
+fails 1 NTFY_TOPIC=topic-abc
+check "7th failure: still one alert" test "$(alerts)" -eq 1
+check "count keeps rising" test "$(cat "${S}/update-fails")" = 7
+again NTFY_TOPIC=topic-abc
+check "success after alert: recovery alert (two in all)" test "$(alerts)" -eq 2
+check "recovery text" grep -q 'macOS runner: the updater works again' "${L}/curl"
+check_not "count cleared" test -e "${S}/update-fails"
+check_not "marker cleared" test -e "${S}/update-alerted"
+again NTFY_TOPIC=topic-abc
+check "next success is quiet" test "$(alerts)" -eq 2
+fails 6 NTFY_TOPIC=topic-abc
+check "a new run of failures alerts again" test "$(alerts)" -eq 3
+
+echo "== success without an alert"
+run_update
+fails 3 NTFY_TOPIC=topic-abc
+again NTFY_TOPIC=topic-abc
+check "no alert and no recovery" test "$(alerts)" -eq 0
+check_not "count cleared" test -e "${S}/update-fails"
+
+echo "== a job-waiting pass is not a failure"
+run_update
+fails 2 NTFY_TOPIC=topic-abc
+newrev
+printf 'name=mimolette-macos-1\nid=7\nfails=0\nalert=\njob=1\n' >"${S}/slot"
+again NTFY_TOPIC=topic-abc
+check "waiting leaves the count" test "$(cat "${S}/update-fails")" = 2
+again NTFY_TOPIC=topic-abc
+check "waiting twice still leaves the count" test "$(cat "${S}/update-fails")" = 2
+check "waiting sends nothing" test "$(alerts)" -eq 0
+run_update
+newrev
+printf 'name=mimolette-macos-1\nid=7\nfails=0\nalert=\njob=1\n' >"${S}/slot"
+fails 5 NTFY_TOPIC=topic-abc
+newrev
+again NTFY_TOPIC=topic-abc STUB_PULL_FAIL=
+check "waiting between failures does not reach the threshold" test "$(alerts)" -eq 0
+
+echo "== install failure counts"
+run_update
+newrev
+for _ in 1 2 3 4 5 6; do again NTFY_TOPIC=topic-abc STUB_INSTALL_FAIL=1; done
+check "6 install failures: one alert" test "$(alerts)" -eq 1
+check "alert gives the install reason" grep -q 'Last failure: install.sh failed' "${L}/curl"
+
+echo "== unreadable revision counts"
+run_update
+: >"${L}/revs"
+for _ in 1 2 3 4 5 6; do again NTFY_TOPIC=topic-abc; done
+check "6 unreadable revisions: one alert" test "$(alerts)" -eq 1
+check "alert gives the revision reason" grep -q 'cannot read the scripts/swm-macos-runner revision' "${L}/curl"
+
+echo "== threshold from the environment"
+run_update
+fails 2 NTFY_TOPIC=topic-abc SWM_UPDATE_ALERT_AFTER=3
+check "below a threshold of 3: no alert" test "$(alerts)" -eq 0
+fails 1 NTFY_TOPIC=topic-abc SWM_UPDATE_ALERT_AFTER=3
+check "threshold of 3: alert on the 3rd" test "$(alerts)" -eq 1
+run_update
+fails 6 NTFY_TOPIC=topic-abc SWM_UPDATE_ALERT_AFTER=bogus
+check "a bad threshold falls back to 6" test "$(alerts)" -eq 1
+check "bad threshold is logged" grep -q 'not a positive number' <<<"${OUT}"
+
+echo "== no topic"
+run_update
+fails 6
+check "no curl without NTFY_TOPIC" test "$(alerts)" -eq 0
+check "warning logged" grep -q 'NTFY_TOPIC is unset' <<<"${OUT}"
+check "exit 0" test "${RC}" -eq 0
+check_not "no marker without a delivered alert" test -e "${S}/update-alerted"
+
+echo "== failed delivery is retried"
+run_update
+fails 6 NTFY_TOPIC=topic-abc STUB_CURL_FAIL=1
+check "delivery failure logged" grep -q 'ntfy delivery failed' <<<"${OUT}"
+check_not "no marker after a failed delivery" test -e "${S}/update-alerted"
+fails 1 NTFY_TOPIC=topic-abc
+check "the next failure sends it" test -e "${S}/update-alerted"
 
 exit "${fail}"

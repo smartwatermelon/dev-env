@@ -55,6 +55,9 @@ else
   echo "install: warning: no NTFY_TOPIC in ${ENV_FILE}; alerts will not be sent" >&2
 fi
 
+# The updater plist gets the topic only (its alerts); the supervisor knobs below are not for it.
+upd_env="${ntfy_env}"
+
 # SWM_<NAME>_S=<secs> env-file lines go into the plist; other SWM_ lines are refused.
 if [[ -f "${ENV_FILE}" ]]; then
   knob_keys=" "
@@ -73,13 +76,13 @@ x_libexec="$(xml_esc "${LIBEXEC}")"
 x_home="$(xml_esc "${HOME}")"
 x_tart="$(xml_esc "${tart_home}")"
 
-# render TEMPLATE OUT: fill the @TOKEN@ placeholders.
+# render TEMPLATE OUT [ENV]: fill the @TOKEN@ placeholders; ENV (default: the topic and knobs) replaces @NTFY_ENV@.
 render() {
-  local line
+  local line env="${3-${ntfy_env}}"
   : >"$2"
   while IFS= read -r line || [[ -n "${line}" ]]; do
     if [[ "${line}" == "@NTFY_ENV@" ]]; then
-      if [[ -n "${ntfy_env}" ]]; then printf '%s\n' "${ntfy_env}" >>"$2"; fi
+      if [[ -n "${env}" ]]; then printf '%s\n' "${env}" >>"$2"; fi
       continue
     fi
     line="${line//@LIBEXEC@/${x_libexec}}"
@@ -94,7 +97,7 @@ trap '"${RM_BIN}" -rf "${rendered:?}"' EXIT
 
 render "${HERE}/launchd/${LABEL}.plist" "${rendered}/${LABEL}.plist" || die "cannot render ${LABEL}.plist"
 if grep -q '@[A-Z_]*@' "${rendered}/${LABEL}.plist"; then die "an unfilled placeholder is left in ${LABEL}.plist"; fi
-render "${HERE}/launchd/${UPD_LABEL}.plist" "${rendered}/${UPD_LABEL}.plist" || die "cannot render ${UPD_LABEL}.plist"
+render "${HERE}/launchd/${UPD_LABEL}.plist" "${rendered}/${UPD_LABEL}.plist" "${upd_env}" || die "cannot render ${UPD_LABEL}.plist"
 if grep -q '@[A-Z_]*@' "${rendered}/${UPD_LABEL}.plist"; then die "an unfilled placeholder is left in ${UPD_LABEL}.plist"; fi
 
 domain="gui/${uid}"
