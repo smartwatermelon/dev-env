@@ -38,6 +38,10 @@ clone)
   [[ -f "${ST}/sleep-clone" ]] && exec sleep 30
   [[ -f "${ST}/fail-clone" ]] && exit 1
   echo "$2" >>"${ST}/vms" ;;
+run)
+  echo "$$" >"${ST}/run-pid"
+  [[ -f "${ST}/sleep-run" ]] && exec sleep 30 ;;
+stop) [[ -f "${ST}/fail-stop" ]] && exit 1 ;;
 exec)
   if [[ "$1" == "-i" ]]; then
     last="${*: -1}"
@@ -63,7 +67,15 @@ for a in "$@"; do
   case "${a}" in -*) ;; "${TMPDIR}"/*) /bin/rm -f "${a}" ;; *) echo "rm stub: refused ${a}" >&2 ;; esac
 done
 STUB
-chmod +x "${WORK}/bin/tart" "${WORK}/bin/rm"
+# kill stub: logs; signals only the pid the stub tart recorded for its own run.
+cat >"${WORK}/bin/kill" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"${ST}/kills"
+for a in "$@"; do
+  if [[ -f "${ST}/run-pid" && "${a}" == "$(cat "${ST}/run-pid")" ]]; then kill "$@"; fi
+done
+STUB
+chmod +x "${WORK}/bin/tart" "${WORK}/bin/rm" "${WORK}/bin/kill"
 
 # run_build [ENV=VALUE...]: fresh state with two old-style VMs and an unrelated one; sets RC, ST, ERR.
 run_build() {
@@ -73,7 +85,7 @@ run_build() {
   printf '%s\nother-vm\n' "${OLD}" >"${ST}/vms"
   [[ -z "${PRE_STATE:-}" ]] || for f in ${PRE_STATE}; do : >"${ST}/${f}"; done
   ERR="${ST}/stderr"
-  env "ST=${ST}" "TMPDIR=${WORK}/tmp" "TART_BIN=${WORK}/bin/tart" "RM_BIN=${WORK}/bin/rm" "SWM_IMAGE=${IMG}" "$@" bash "${SCRIPT}" 2>"${ERR}"
+  env "ST=${ST}" "TMPDIR=${WORK}/tmp" "TART_BIN=${WORK}/bin/tart" "RM_BIN=${WORK}/bin/rm" "KILL_BIN=${WORK}/bin/kill" "SWM_IMAGE=${IMG}" "$@" bash "${SCRIPT}" 2>"${ERR}"
   RC=$?
 }
 # order: tart subcommands in call order, minus list/delete/run (run is async, its log line lands late).
@@ -123,11 +135,28 @@ check "old image kept" grep -qx "${OLD}" "${ST}/vms"
 check "other-vm kept" grep -qx other-vm "${ST}/vms"
 check "nothing after clone but cleanup" test "$(order)" = "clone stop "
 
+echo "-- stop fails while tart run keeps running"
+PRE_STATE="sleep-run fail-stop" run_build SWM_STOP_LIMIT_S=1
+check "exit 1" test "${RC}" -eq 1
+check "run pid killed through KILL_BIN" grep -qx -- "-9 $(cat "${ST}/run-pid")" "${ST}/kills"
+check "kill logged" grep -q "tart run did not exit" "${ERR}"
+check "swm-build-tmp deleted" test "$(deleted)" = "swm-build-tmp"
+check "old image kept" grep -qx "${OLD}" "${ST}/vms"
+
+echo "-- stop works but tart run keeps running"
+PRE_STATE="sleep-run" run_build SWM_STOP_LIMIT_S=1
+check "exit 1" test "${RC}" -eq 1
+check "run pid killed through KILL_BIN" grep -qx -- "-9 $(cat "${ST}/run-pid")" "${ST}/kills"
+check "failure logged" grep -q "image build failed: run did not exit" "${ERR}"
+check "no rename, stop retried in cleanup" test "$(order)" = "clone set ip copy copy copy install stop stop "
+check "swm-build-tmp deleted" test "$(deleted)" = "swm-build-tmp"
+check "old image kept" grep -qx "${OLD}" "${ST}/vms"
+
 echo "-- image already built"
 mkdir -p "${WORK}/st2"
 ST="${WORK}/st2"
 printf '%s\n%s\nother-vm\n' "${IMG}" "${OLD}" >"${ST}/vms"
-env "ST=${ST}" "TMPDIR=${WORK}/tmp" "TART_BIN=${WORK}/bin/tart" "RM_BIN=${WORK}/bin/rm" "SWM_IMAGE=${IMG}" bash "${SCRIPT}" 2>/dev/null
+env "ST=${ST}" "TMPDIR=${WORK}/tmp" "TART_BIN=${WORK}/bin/tart" "RM_BIN=${WORK}/bin/rm" "KILL_BIN=${WORK}/bin/kill" "SWM_IMAGE=${IMG}" bash "${SCRIPT}" 2>/dev/null
 RC=$?
 check "exit 0 when SWM_IMAGE exists" test "${RC}" -eq 0
 check_not "no clone" grep -q "^clone" "${ST}/calls"

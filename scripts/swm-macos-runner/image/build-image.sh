@@ -12,6 +12,7 @@ ROOT="$(CDPATH='' cd "${HERE}/.." && pwd)"
 
 : "${TART_BIN:=tart}"
 : "${RM_BIN:=rm}"
+: "${KILL_BIN:=kill}"
 TMP_VM=swm-build-tmp
 RUN_PID=""
 LIST_FILE="$(mktemp "${TMPDIR:-/tmp}/swm-build-list.XXXXXX")" || exit 1
@@ -29,10 +30,29 @@ list_vms() {
   cat "${LIST_FILE}"
 }
 delete_vm() { t "${SWM_DELETE_LIMIT_S}" delete "$1" || log "could not delete $1"; }
+# wait_run: wait up to SWM_STOP_LIMIT_S for tart run to exit, else kill it; non-zero when killed.
+wait_run() {
+  local ticks=0
+  [[ -n "${RUN_PID}" ]] || return 0
+  while kill -0 "${RUN_PID}" 2>/dev/null; do
+    if [[ "${ticks}" -ge $((SWM_STOP_LIMIT_S * 10)) ]]; then
+      log "tart run did not exit within ${SWM_STOP_LIMIT_S} s; killing it"
+      "${KILL_BIN}" -9 "${RUN_PID}"
+      wait "${RUN_PID}" 2>/dev/null
+      RUN_PID=""
+      return 1
+    fi
+    sleep 0.1
+    ticks=$((ticks + 1))
+  done
+  wait "${RUN_PID}" 2>/dev/null
+  RUN_PID=""
+  return 0
+}
 fail() {
   log "image build failed: $1"
   t "${SWM_STOP_LIMIT_S}" stop "${TMP_VM}" || true
-  if [[ -n "${RUN_PID}" ]]; then wait "${RUN_PID}" 2>/dev/null || true; RUN_PID=""; fi
+  wait_run || true
   delete_vm "${TMP_VM}"
   exit 1
 }
@@ -58,8 +78,7 @@ for f in install-runner.sh run-job.sh job-started.sh; do
 done
 t "${SWM_BUILD_LIMIT_S}" exec "${TMP_VM}" /bin/bash /tmp/install-runner.sh "${SWM_RUNNER_VERSION}" "${SWM_RUNNER_SHA256}" || fail "install"
 t "${SWM_STOP_LIMIT_S}" stop "${TMP_VM}" || fail "stop"
-wait "${RUN_PID}" 2>/dev/null || true
-RUN_PID=""
+wait_run || fail "run did not exit"
 t "${SWM_DELETE_LIMIT_S}" rename "${TMP_VM}" "${SWM_IMAGE}" || fail "rename"
 
 # Only now are old images safe to remove.
