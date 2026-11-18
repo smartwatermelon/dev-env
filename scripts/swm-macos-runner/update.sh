@@ -1,5 +1,5 @@
 #!/bin/bash
-# Updater LaunchAgent job (every 600 s): pull the clone and run install.sh when the runner code changed and no job runs. Always exits 0.
+# Updater LaunchAgent job (every 600 s): update the clone and run install.sh when the runner code changed and no job runs. Always exits 0.
 set -uo pipefail
 unset CDPATH
 
@@ -20,9 +20,11 @@ log() {
 }
 
 main() {
-  # A pull failure (network down, the NOS updater holding the clone's lock) is not an error: retry next interval.
-  if ! "${GIT_BIN}" -C "${CLONE}" pull --ff-only >/dev/null 2>&1; then
-    log "git pull failed; will retry"
+  # Not `git pull`: the NOS updater runs in the same second, and two pulls
+  # collide on FETCH_HEAD. Any failure retries.
+  if ! "${GIT_BIN}" -C "${CLONE}" fetch --quiet --no-write-fetch-head origin >/dev/null 2>&1 ||
+    ! "${GIT_BIN}" -C "${CLONE}" merge --quiet --ff-only origin/main >/dev/null 2>&1; then
+    log "git update failed; will retry"
     return 0
   fi
 

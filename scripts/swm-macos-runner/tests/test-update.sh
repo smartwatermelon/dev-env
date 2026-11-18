@@ -24,14 +24,15 @@ mkdir -p "${WORK}/bin"
 # WORK is under TMPDIR, never a real clone or state dir.
 trap 'rm -rf "${WORK:?}"' EXIT
 
-# git stub: pull fails on STUB_PULL_FAIL; log prints the rev of the first matching "<path> <rev>" line.
+# git stub: fetch fails on STUB_PULL_FAIL, merge on STUB_MERGE_FAIL; log prints the rev of the first matching "<path> <rev>" line.
 cat >"${WORK}/bin/git" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/git"
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i += 1)); do
   case "${args[i]}" in
-    pull) if [[ -n "${STUB_PULL_FAIL:-}" ]]; then exit 1; fi; exit 0 ;;
+    fetch) if [[ -n "${STUB_PULL_FAIL:-}" ]]; then exit 1; fi; exit 0 ;;
+    merge) if [[ -n "${STUB_MERGE_FAIL:-}" ]]; then exit 1; fi; exit 0 ;;
     log)
       while read -r p r; do
         for a in "${args[@]}"; do
@@ -86,7 +87,9 @@ newrev() { printf '%s\n' "scripts/swm-macos-runner REV2" >"${L}/revs"; }
 echo "== no change"
 run_update
 check "exit 0" test "${RC}" -eq 0
-check "pulled the clone" grep -q -- "-C ${WORK}/clone pull --ff-only" "${L}/git"
+check "fetched without FETCH_HEAD" grep -q -- "-C ${WORK}/clone fetch --quiet --no-write-fetch-head origin" "${L}/git"
+check "fast-forwarded to origin/main" grep -q -- "-C ${WORK}/clone merge --quiet --ff-only origin/main" "${L}/git"
+check_not "never git pull (it races the NOS updater)" grep -q -- " pull" "${L}/git"
 check_not "no install" test -e "${L}/install"
 check "mark unchanged" test "$(cat "${S}/installed")" = REV1
 
@@ -166,7 +169,16 @@ again STUB_PULL_FAIL=1
 check "exit 0" test "${RC}" -eq 0
 check_not "no install" test -e "${L}/install"
 check "mark unchanged" test "$(cat "${S}/installed")" = REV1
-check "logged" grep -q 'pull failed' <<<"${OUT}"
+check "logged" grep -q 'git update failed' <<<"${OUT}"
+
+echo "== merge fails"
+run_update
+newrev
+again STUB_MERGE_FAIL=1
+check "exit 0" test "${RC}" -eq 0
+check_not "no install" test -e "${L}/install"
+check "mark unchanged" test "$(cat "${S}/installed")" = REV1
+check "logged" grep -q 'git update failed' <<<"${OUT}"
 
 echo "== install fails"
 run_update
