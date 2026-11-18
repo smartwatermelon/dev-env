@@ -72,9 +72,33 @@ if ! grep -q '^Status: Enabled' <<<"${info}"; then
   grep -q '^Status: Enabled' <<<"${info}" || pf_fail "pf is not enabled"
 fi
 
+# Anchors work only while the main ruleset has com.apple/*. Read once; a miss fails both sets.
+main="$("${PFCTL_BIN}" -s rules 2>/dev/null)" || main=""
+if [[ -z "${main}" ]]; then
+  fail_nos "cannot read the main ruleset" || true
+  fail_swm "cannot read the main ruleset" || true
+  exit 1
+fi
+if ! grep -q '^anchor "com.apple/\*"' <<<"${main}"; then
+  fail_nos "main ruleset has no anchor \"com.apple/*\"" || true
+  fail_swm "main ruleset has no anchor \"com.apple/*\"" || true
+  exit 1
+fi
+
+# IPv4 listing check for both sets: $1 anchor, $2 fail function. Expect 2 pass (udp, tcp) and 1 block.
+check_v4_anchor() {
+  local rules pass_n block_n total_n
+  rules="$("${PFCTL_BIN}" -a "$1" -s rules 2>/dev/null)" || { "$2" "cannot read anchor $1"; return 1; }
+  pass_n="$(grep -c '^pass in quick inet ' <<<"${rules}")"
+  block_n="$(grep -c '^block drop in quick inet ' <<<"${rules}")"
+  total_n="$(grep -cE '^(pass|block) ' <<<"${rules}")"
+  [[ "${pass_n}" -eq 2 && "${block_n}" -eq 1 && "${total_n}" -eq 3 ]] ||
+    { "$2" "anchor $1 lists pass=${pass_n} block=${block_n} total=${total_n}, want 2/1/3"; return 1; }
+}
+
 check_nos() {
   [[ -r "${NOS_PF_RULES}" ]] || { fail_nos "rules file missing: ${NOS_PF_RULES}"; return 1; }
-  local before rules main pass_n block_n total_n
+  local before
   before="$("${PFCTL_BIN}" -a "${ANCHOR}" -s rules 2>/dev/null)" || before=""
   [[ -n "${before}" ]] || echo "pf-guard: anchor ${ANCHOR} was empty before this load" >&2
   "${PFCTL_BIN}" -a "${ANCHOR}" -f "${NOS_PF_RULES}" >/dev/null 2>&1 || { fail_nos "cannot load rules into anchor ${ANCHOR}"; return 1; }
@@ -83,36 +107,17 @@ check_nos() {
   "${PFCTL_BIN}" -a "${ANCHOR_V6}" -f "${NOS_PF_RULES_V6}" >/dev/null 2>&1 ||
     echo "pf-guard: warning: v6 rules not loaded into ${ANCHOR_V6} (bridge100 missing?)" >&2
 
-  rules="$("${PFCTL_BIN}" -a "${ANCHOR}" -s rules 2>/dev/null)" || { fail_nos "cannot read anchor ${ANCHOR}"; return 1; }
-  # The file expands to 2 pass rules (udp, tcp) and 1 block rule (IPv4).
-  pass_n="$(grep -c '^pass in quick inet ' <<<"${rules}")"
-  block_n="$(grep -c '^block drop in quick inet ' <<<"${rules}")"
-  total_n="$(grep -cE '^(pass|block) ' <<<"${rules}")"
-  [[ "${pass_n}" -eq 2 && "${block_n}" -eq 1 && "${total_n}" -eq 3 ]] ||
-    { fail_nos "anchor ${ANCHOR} lists pass=${pass_n} block=${block_n} total=${total_n}, want 2/1/3"; return 1; }
-
-  # The anchor rules apply only while the main ruleset still evaluates com.apple/* (another pfctl -f could drop it).
-  main="$("${PFCTL_BIN}" -s rules 2>/dev/null)" || { fail_nos "cannot read the main ruleset"; return 1; }
-  grep -q '^anchor "com.apple/\*"' <<<"${main}" || { fail_nos "main ruleset has no anchor \"com.apple/*\""; return 1; }
+  check_v4_anchor "${ANCHOR}" fail_nos || return 1
 
   write_ok "${NOS_PF_OK_FILE}" "${OK_TMP}" || { fail_nos "cannot replace ${NOS_PF_OK_FILE}"; return 1; }
 }
 
 check_swm() {
   [[ -r "${SWM_PF_RULES}" ]] || { fail_swm "rules file missing: ${SWM_PF_RULES}"; return 1; }
-  local rules rules6 main pass_n block_n total_n
+  local rules6 pass_n block_n total_n
   "${PFCTL_BIN}" -a "${SWM_ANCHOR}" -f "${SWM_PF_RULES}" >/dev/null 2>&1 || { fail_swm "cannot load rules into anchor ${SWM_ANCHOR}"; return 1; }
 
-  rules="$("${PFCTL_BIN}" -a "${SWM_ANCHOR}" -s rules 2>/dev/null)" || { fail_swm "cannot read anchor ${SWM_ANCHOR}"; return 1; }
-  # The file expands to 2 pass rules (udp, tcp) and 1 block rule (IPv4).
-  pass_n="$(grep -c '^pass in quick inet ' <<<"${rules}")"
-  block_n="$(grep -c '^block drop in quick inet ' <<<"${rules}")"
-  total_n="$(grep -cE '^(pass|block) ' <<<"${rules}")"
-  [[ "${pass_n}" -eq 2 && "${block_n}" -eq 1 && "${total_n}" -eq 3 ]] ||
-    { fail_swm "anchor ${SWM_ANCHOR} lists pass=${pass_n} block=${block_n} total=${total_n}, want 2/1/3"; return 1; }
-
-  main="$("${PFCTL_BIN}" -s rules 2>/dev/null)" || { fail_swm "cannot read the main ruleset"; return 1; }
-  grep -q '^anchor "com.apple/\*"' <<<"${main}" || { fail_swm "main ruleset has no anchor \"com.apple/*\""; return 1; }
+  check_v4_anchor "${SWM_ANCHOR}" fail_swm || return 1
 
   write_ok "${SWM_PF_OK_FILE}" "${SWM_OK_TMP}" || { fail_swm "cannot replace ${SWM_PF_OK_FILE}"; return 1; }
 
