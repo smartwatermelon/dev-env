@@ -82,7 +82,8 @@ cat >"${WORK}/bin/git" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"${STUB_LOG}/git"
 case " $* " in
-*" pull "*) exit "${STUB_PULL_RC:-0}" ;;
+*" fetch "*) exit "${STUB_PULL_RC:-0}" ;;
+*" merge "*) exit "${STUB_MERGE_RC:-0}" ;;
 *" log "*) echo "${STUB_REV:-rev1}" ;;
 esac
 STUB
@@ -424,7 +425,9 @@ rc=0
 STUB_REV=rev1 run_update || rc=$?
 check "update_skips_install_when_no_change: exit 0" test "${rc}" -eq 0
 check_not "update_skips_install_when_no_change: install not run" test -e "${WORK}/log/install-run"
-check "update pulls with --ff-only" grep -qF -- 'pull --ff-only' "${WORK}/log/git"
+check "update fetches without FETCH_HEAD" grep -qF -- 'fetch --quiet --no-write-fetch-head origin' "${WORK}/log/git"
+check "update fast-forwards to origin/main" grep -qF -- 'merge --quiet --ff-only origin/main' "${WORK}/log/git"
+check_not "update never runs git pull (it races the swm updater)" grep -qF -- ' pull' "${WORK}/log/git"
 rc=0
 STUB_REV=rev2 run_update || rc=$?
 check "update_runs_install_on_change: exit 0" test "${rc}" -eq 0
@@ -436,8 +439,12 @@ check_not "update does not rerun install for a recorded rev" test -e "${WORK}/lo
 rc=0
 STUB_PULL_RC=1 STUB_REV=rev3 run_update || rc=$?
 check "update_pull_failure_exits_0" test "${rc}" -eq 0
-check "update_pull_failure_logs" grep -qF -- 'git pull failed' "${WORK}/err"
+check "update_pull_failure_logs" grep -qF -- 'git update failed' "${WORK}/err"
 check_not "update_pull_failure_skips_install" test -e "${WORK}/log/install-run"
+rc=0
+STUB_MERGE_RC=1 STUB_REV=rev3 run_update || rc=$?
+check "update_merge_failure_exits_0" test "${rc}" -eq 0
+check_not "update_merge_failure_skips_install" test -e "${WORK}/log/install-run"
 rc=0
 STUB_INSTALL_RC=1 STUB_REV=rev4 run_update || rc=$?
 check "update_install_failure_exits_0" test "${rc}" -eq 0

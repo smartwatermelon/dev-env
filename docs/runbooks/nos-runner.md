@@ -223,4 +223,4 @@ Key lines to look for:
 - `no IPv4 address in container ls yet`: a VM has no IP yet. Normal for a few seconds after a start.
 - `ntfy delivery failed`: an alert did not send. Check the topic and the network.
 - `updater plist changed`: run `install.sh` by hand.
-- `git pull failed; will retry` (update log): the clone is behind. The updater retries.
+- `git update failed; will retry` (update log): the fetch or the fast-forward failed, so the clone is behind. The updater retries. If it repeats, run `git -C ~/.local/share/dev-env fetch origin` and `git -C ~/.local/share/dev-env merge --ff-only origin/main` by hand to see the error.

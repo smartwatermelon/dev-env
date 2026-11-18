@@ -1,5 +1,5 @@
 #!/bin/bash
-# Updater LaunchAgent job (every 600 s): pull the clone, run install.sh when scripts/nos-runner/ changed. Always exits 0.
+# Updater LaunchAgent job (every 600 s): update the clone, run install.sh when scripts/nos-runner/ changed. Always exits 0.
 set -uo pipefail
 unset CDPATH
 
@@ -15,9 +15,11 @@ log() {
   printf '%s update: %s\n' "${ts}" "$*" >&2
 }
 
-# A pull failure (network down, diverged clone) is not an error: log it and try again next interval.
-if ! "${GIT_BIN}" -C "${CLONE}" pull --ff-only >/dev/null 2>&1; then
-  log "git pull failed; will retry"
+# Not `git pull`: the swm updater runs in the same second, and two pulls
+# collide on FETCH_HEAD. Any failure retries.
+if ! "${GIT_BIN}" -C "${CLONE}" fetch --quiet --no-write-fetch-head origin >/dev/null 2>&1 ||
+  ! "${GIT_BIN}" -C "${CLONE}" merge --quiet --ff-only origin/main >/dev/null 2>&1; then
+  log "git update failed; will retry"
   exit 0
 fi
 

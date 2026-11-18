@@ -76,7 +76,8 @@ Drill the alert path (touches no VM):
 
 The updater job runs `update.sh` at load and every 600 s. It always exits 0.
 
-- It runs `git pull --ff-only` in `~/.local/share/dev-env`. A failed pull (network down, or the NOS updater holding the clone's lock) is logged and tried again on the next run.
+- It runs `git fetch --no-write-fetch-head origin` and `git merge --ff-only origin/main` in `~/.local/share/dev-env`. A failure (network down, or a lost race with the NOS updater) is logged as `git update failed; will retry` and tried again on the next run.
+- Not `git pull`: launchd starts this job and the NOS updater in the same second. Two pulls then both fail with `Cannot rebase onto multiple branches`, because each fetch appends to the shared `FETCH_HEAD`. That stalled both updaters on every pass on 2026-11-18.
 - The version is the last commit that touched `scripts/swm-macos-runner/` or `scripts/nos-runner/github-app.sh`.
   The installed version is in `~/.local/state/swm-macos-runner/installed`.
 - A hand run of `install.sh` records the version it installs, so the updater's first run does not restart the supervisor a second time.
