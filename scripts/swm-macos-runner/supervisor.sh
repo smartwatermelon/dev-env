@@ -37,6 +37,8 @@ SLOT_FILE="${SWM_STATE_DIR}/slot"
 NOS_API_STATUS_FILE="${SWM_STATE_DIR}/api.status"
 OUT_FILE="${SWM_STATE_DIR}/tart.out"
 START_MARK="${SWM_STATE_DIR}/vm-start"
+# update.sh writes this while it holds a new version back for a busy slot.
+UPDATE_PENDING="${SWM_STATE_DIR}/update-pending"
 NOS_TOKEN=""
 TOKEN_AT=0
 SL_NAME=""
@@ -162,6 +164,31 @@ sweep() {
     SL_ID=""
   fi
   slot_save
+}
+
+# update_wait: wait up to SWM_UPDATE_WAIT_S for update.sh to install; SIGTERM ends it.
+update_wait() {
+  local deadline t
+  [[ -e "${UPDATE_PENDING}" ]] || return 0
+  t="$(now)"
+  deadline=$((t + SWM_UPDATE_WAIT_S))
+  log "update pending; waiting up to ${SWM_UPDATE_WAIT_S} s for update.sh to install it"
+  while running; do
+    if [[ ! -e "${UPDATE_PENDING}" ]]; then
+      log "update installed or withdrawn; continuing"
+      return 0
+    fi
+    t="$(now)"
+    if [[ "${t}" -ge "${deadline}" ]]; then
+      log "update still pending after ${SWM_UPDATE_WAIT_S} s; continuing"
+      return 0
+    fi
+    sleep "${SWM_UPDATE_POLL_S}" &
+    SLEEP_PID=$!
+    wait "${SLEEP_PID}" 2>/dev/null
+    SLEEP_PID=""
+  done
+  return 1
 }
 
 pf_ok_fresh() {
@@ -340,7 +367,7 @@ cmd_once() {
   HUNG=0
   VM=""
   slot_load
-  if sweep && running && self_checks && start_vm && run_job; then ok=0; fi
+  if sweep && running && update_wait && self_checks && start_vm && run_job; then ok=0; fi
   teardown
   if [[ "${STOP}" -eq 1 ]]; then
     log "stopped mid-pass; slot cleaned up"

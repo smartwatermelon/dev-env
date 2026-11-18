@@ -52,6 +52,15 @@ echo "$* from_updater=${SWM_FROM_UPDATER:-}" >>"${STUB_LOG}/install"
 if [[ -n "${STUB_INSTALL_FAIL:-}" ]]; then exit 1; fi
 exit 0
 STUB
+# rm stub: logs; removes only files inside this test's WORK dir.
+cat >"${WORK}/bin/rm" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"${STUB_LOG}/rm"
+for a in "$@"; do
+  case "${a}" in -*) ;; "${STUB_WORK}"/*) ;; *) echo "stub rm: outside WORK: ${a}" >&2; exit 9 ;; esac
+done
+exec /bin/rm "$@"
+STUB
 chmod +x "${WORK}"/bin/*
 
 # run_update [NAME=value ...]: fresh dirs unless KEEP=1; sets S (state), L (log), OUT, RC.
@@ -67,7 +76,7 @@ run_update() {
     printf 'name=\nid=\nfails=0\nalert=\njob=0\n' >"${S}/slot"
   fi
   OUT="$(env HOME="${WORK}/home" SWM_STATE_DIR="${S}" SWM_CLONE="${WORK}/clone" STUB_LOG="${L}" STUB_REVS="${L}/revs" \
-    GIT_BIN="${WORK}/bin/git" BASH_BIN="${WORK}/bin/bashstub" "$@" bash "${UPDATE}" 2>&1)"
+    GIT_BIN="${WORK}/bin/git" RM_BIN="${WORK}/bin/rm" STUB_WORK="${WORK}" BASH_BIN="${WORK}/bin/bashstub" "$@" bash "${UPDATE}" 2>&1)"
   RC=$?
 }
 # again [NAME=value ...]: run again in the same dirs.
@@ -105,6 +114,36 @@ printf 'name=\nid=\nfails=0\nalert=\njob=0\n' >"${S}/slot"
 again
 check "next run installs" test -s "${L}/install"
 check "mark updated then" test "$(cat "${S}/installed")" = REV2
+
+echo "== update-pending marker"
+run_update
+check_not "no change: no marker" test -e "${S}/update-pending"
+printf 'stale\n' >"${S}/update-pending"
+again
+check_not "no change clears a stale marker" test -e "${S}/update-pending"
+run_update
+newrev
+printf 'name=mimolette-macos-1\nid=7\nfails=0\nalert=\njob=1\n' >"${S}/slot"
+again
+check "job=1 and a new version writes the marker" test -e "${S}/update-pending"
+check_not "the marker is not an install" test -e "${L}/install"
+again
+check "still waiting keeps the marker" test -e "${S}/update-pending"
+printf 'name=\nid=\nfails=0\nalert=\njob=0\n' >"${S}/slot"
+again
+check "install ran" test -s "${L}/install"
+check_not "a successful install clears the marker" test -e "${S}/update-pending"
+run_update
+newrev
+printf 'x\n' >"${S}/update-pending"
+again STUB_INSTALL_FAIL=1
+check "a failed install keeps the marker" test -e "${S}/update-pending"
+run_update
+newrev
+printf 'name=mimolette-macos-1\nid=7\nfails=0\nalert=\njob=1\n' >"${S}/slot"
+again STUB_PULL_FAIL=1
+check_not "a failed pull writes no marker" test -e "${S}/update-pending"
+check_not "a failed pull installs nothing" test -e "${L}/install"
 
 echo "== no slot file"
 run_update

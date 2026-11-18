@@ -35,6 +35,9 @@ export TART_HOME
 : "${SWM_JOB_MAX_S:=21600}"
 : "${SWM_INTERVAL_S:=10}"
 : "${SWM_BACKOFF_S:=600}"
+# Pass waits for a pending update:
+: "${SWM_UPDATE_WAIT_S:=900}"
+: "${SWM_UPDATE_POLL_S:=5}"
 
 # GitHub: org, runner App (swm-runner), and the pf guard's ok files.
 : "${SWM_ORG:=smartwatermelon}"

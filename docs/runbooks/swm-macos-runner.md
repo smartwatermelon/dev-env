@@ -59,7 +59,10 @@ It then renders `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner.pli
 - The plist sets `TART_HOME=/Volumes/extra-vieille/Caches/tart`, `RunAtLoad`, `KeepAlive` and `ExitTimeOut` 300.
   A stop takes at most about 230 s (stop 60, delete 120, runner DELETE 30, ntfy 20), so 300 leaves margin.
 - `install.sh` refuses a topic with characters outside `A-Za-z0-9_.-`. It warns, and sends no alerts, when there is no topic.
-- Run it again after any change under `scripts/swm-macos-runner/`. The log is `~/Library/Logs/swm-macos-runner.log`.
+- The updater (section 3a) installs a change under `scripts/swm-macos-runner/` by itself. Run `install.sh` by hand only when the change touches the updater's own plist.
+  The log is `~/Library/Logs/swm-macos-runner.log`.
+- Optional env-file lines `SWM_<NAME>_S=<seconds>` (for example `SWM_CLONE_LIMIT_S=1` for the hang drill) go into the supervisor plist on the next `install.sh` run.
+  `install.sh` refuses any other `SWM_` line, and a knob set twice, before it installs anything.
 
 `install.sh` also installs `update.sh` and loads a second job, `com.smartwatermelon.swm-macos-runner-update` (section 3a).
 
@@ -78,7 +81,11 @@ The updater job runs `update.sh` at load and every 600 s. It always exits 0.
   The installed version is in `~/.local/state/swm-macos-runner/installed`.
 - A hand run of `install.sh` records the version it installs, so the updater's first run does not restart the supervisor a second time.
 - On a new version it runs `install.sh`, which restarts the supervisor. It waits while the slot file `~/.local/state/swm-macos-runner/slot` says `job=1`, so a running job is never cut short.
-  It logs `a job is running; waiting` and tries again in 600 s.
+  `job=1` means the JIT config was handed over: the runner may be idle or busy. An idle JIT runner holds `job=1` for up to `SWM_JOB_MAX_S` (6 h).
+  The updater logs `a job is running; waiting`, writes `~/.local/state/swm-macos-runner/update-pending` and tries again in 600 s.
+- The supervisor looks for `update-pending` at the start of each pass, before it clones a VM. While the file exists it waits (at most `SWM_UPDATE_WAIT_S`, 900 s) for the updater to install.
+  The updater removes the file after a good install, or when there is no new version.
+  So an update installs within one cycle: at most `SWM_JOB_MAX_S` + 600 s after the merge, and sooner when a job ends.
 - If `install.sh` fails, the version stays unmarked and the next run tries again.
 - The updater never reloads itself. When a change touches its own plist, run `install.sh` by hand.
 - The log is `~/Library/Logs/swm-macos-runner-update.log`.
@@ -88,6 +95,8 @@ Stop the updater (the supervisor keeps running):
 ```bash
 launchctl bootout gui/$(id -u)/com.smartwatermelon.swm-macos-runner-update
 ```
+
+With the updater stopped, delete `~/.local/state/swm-macos-runner/update-pending` if it exists, or each supervisor pass waits 900 s.
 
 `install.sh` loads it again. To remove it for good, delete `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner-update.plist` after the bootout.
 
@@ -162,7 +171,8 @@ All alerts go to the NOS ntfy topic and start with `macOS runner:`:
 
 The log is `~/Library/Logs/swm-macos-runner.log`. Key lines:
 
-- `runner ... handed its JIT config`: a job started.
+- `runner ... handed its JIT config`: the runner may be idle or busy; it is waiting for a job or running one (`job=1`).
+- `update pending; waiting ...` / `update installed or withdrawn` / `update still pending after ...`: the supervisor held a pass for the updater.
 - `runner ... finished its job`: a job ended.
 - `pass failed (<kind>, try N): ...`: a failed pass and why.
 - `fails in a row; next pass in N s`: the supervisor is backing off.

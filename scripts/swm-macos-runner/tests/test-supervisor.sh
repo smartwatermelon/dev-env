@@ -408,6 +408,52 @@ reset
 STUB_IP=192.168.65.77 sup once
 check_is "subnet: .65.x gets the handoff" 1 "$(jits)"
 
+echo "-- update pending -> the pass waits before the clone"
+PEND="${S}/state/update-pending"
+reset
+mkdir -p "${S}/state"
+: >"${PEND}"
+SWM_UPDATE_POLL_S=0.1 SWM_UPDATE_WAIT_S=30 sup once &
+pid=$!
+wait_for "${S}/order.log"
+sleep 0.6
+check_is "pending: swept first, then no clone while the marker exists" "tart list|" "$(order)"
+check_is "pending: no mint while waiting" 0 "$(mints)"
+check_is "pending: job=0 while waiting" 0 "$(slot job)"
+/bin/rm -f "${PEND}"
+wait "${pid}"
+rc=$?
+check "pending: pass runs once the marker is gone" test "${rc}" -eq 0
+check_is "pending: JIT handed over after the wait" 1 "$(jits)"
+check "pending: wait logged" grep -q 'update pending' "${S}/sup.err"
+check "pending: end of wait logged" grep -q 'update installed or withdrawn' "${S}/sup.err"
+reset
+mkdir -p "${S}/state"
+: >"${PEND}"
+SECONDS=0
+SWM_UPDATE_POLL_S=0.1 SWM_UPDATE_WAIT_S=1 sup once
+rc=$?
+check "pending bound: pass continues after the bound" test "${rc}" -eq 0
+check "pending bound: did not wait forever" test "${SECONDS}" -lt 8
+check_is "pending bound: JIT handed over" 1 "$(jits)"
+check "pending bound: give-up logged" grep -q 'still pending after' "${S}/sup.err"
+reset
+mkdir -p "${S}/state"
+: >"${PEND}"
+bg_run SWM_UPDATE_POLL_S=0.1 SWM_UPDATE_WAIT_S=60
+wait_for "${S}/order.log"
+sleep 0.5
+SECONDS=0
+end_pid TERM
+check "pending sigterm: exited within 10 s, exit 0" test "${exited}${rc}" = 00
+check "pending sigterm: ended the wait at once" test "${SECONDS}" -lt 5
+check_is "pending sigterm: no clone" 0 "$(clones)"
+check_is "pending sigterm: no JIT request" 0 "$(jits)"
+check_is "pending sigterm: not a failure" 0 "$(slot fails)"
+reset
+sup once
+check_not "no marker: no wait logged" grep -q 'update pending' "${S}/sup.err"
+
 echo "-- exec not ready in time -> VM deleted, no JIT request"
 reset
 # 2 s, not 1: the deadline has 1 s granularity, so 1 s can allow a single try.

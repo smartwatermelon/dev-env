@@ -5,10 +5,13 @@ unset CDPATH
 
 GIT_BIN="${GIT_BIN:-git}"
 BASH_BIN="${BASH_BIN:-/bin/bash}"
+RM_BIN="${RM_BIN:-rm}"
 CLONE="${SWM_CLONE:-${HOME}/.local/share/dev-env}"
 STATE_DIR="${SWM_STATE_DIR:-${HOME}/.local/state/swm-macos-runner}"
 MARK="${STATE_DIR}/installed"
 SLOT_FILE="${STATE_DIR}/slot"
+# Tells an idle supervisor to hold off starting a VM until this install is done.
+PENDING="${STATE_DIR}/update-pending"
 
 log() {
   local ts
@@ -31,7 +34,10 @@ main() {
     return 0
   fi
   have="$(cat "${MARK}" 2>/dev/null)" || have=""
-  if [[ "${rev}" == "${have}" ]]; then return 0; fi
+  if [[ "${rev}" == "${have}" ]]; then
+    "${RM_BIN}" -f "${PENDING}"
+    return 0
+  fi
 
   # install.sh restarts the supervisor, which would end a running job. Wait for job=0 (no slot file: no job).
   job=0
@@ -42,6 +48,7 @@ main() {
   fi
   if [[ "${job}" != 0 ]]; then
     log "new version ${rev} but a job is running; waiting"
+    (umask 077 && mkdir -p "${STATE_DIR}" && : >"${PENDING}") || log "cannot write ${PENDING}"
     return 0
   fi
 
@@ -49,6 +56,7 @@ main() {
   # SWM_FROM_UPDATER: install.sh must not bootout this job from inside itself.
   if SWM_FROM_UPDATER=1 "${BASH_BIN}" "${CLONE}/scripts/swm-macos-runner/install.sh"; then
     (umask 077 && mkdir -p "${STATE_DIR}" && printf '%s\n' "${rev}" >"${MARK}") || log "cannot write ${MARK}"
+    "${RM_BIN}" -f "${PENDING}"
   else
     log "install.sh failed; will retry"
   fi
