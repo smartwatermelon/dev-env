@@ -212,6 +212,12 @@ check_not "knobs: no literal newline escape in the plist" grep -qF '\n' "${H}/${
 check "knobs: topic still in the plist" grep -q 'drill-topic_1.x' "${H}/${P}"
 check "updater plist gets the topic" grep -q '<string>drill-topic_1.x</string>' "${H}/${U}"
 check_not "knobs: not in the updater plist" grep -q 'SWM_CLONE_LIMIT_S' "${H}/${U}"
+ENV_BODY=$'NTFY_TOPIC=drill-topic_1.x\nSWM_CLONE_LIMIT_S=1\nSWM_UPDATE_PENDING_ALERT_S=60' run_install
+check "knobs: pending-alert knob installs" test "${RC}" -eq 0
+check "knobs: SWM_UPDATE_PENDING_ALERT_S in the updater plist" \
+  awk -v k=SWM_UPDATE_PENDING_ALERT_S -v v='<string>60</string>' "${PLIST_AWK}" "${H}/${U}"
+check "knobs: updater plist keeps the topic" grep -q '<string>drill-topic_1.x</string>' "${H}/${U}"
+check_not "knobs: other knobs still not in the updater plist" grep -q 'SWM_CLONE_LIMIT_S' "${H}/${U}"
 ENV_BODY=$'SWM_CLONE_LIMIT_S=1' run_install
 check "knobs: knob alone (no topic) still installs" test "${RC}" -eq 0
 check "knobs: knob alone lands in the plist" grep -q '<key>SWM_CLONE_LIMIT_S</key>' "${H}/${P}"

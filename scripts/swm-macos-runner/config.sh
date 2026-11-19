@@ -38,6 +38,8 @@ export TART_HOME
 # Pass waits for a pending update:
 : "${SWM_UPDATE_WAIT_S:=900}"
 : "${SWM_UPDATE_POLL_S:=5}"
+# While a runner waits for a job with an update pending: how often to try to end it (DELETE refused while busy).
+: "${SWM_UPDATE_IDLE_CHECK_S:=300}"
 
 # GitHub: org, runner App (swm-runner), and the pf guard's ok files.
 : "${SWM_ORG:=smartwatermelon}"

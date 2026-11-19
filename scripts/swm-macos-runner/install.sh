@@ -55,7 +55,7 @@ else
   echo "install: warning: no NTFY_TOPIC in ${ENV_FILE}; alerts will not be sent" >&2
 fi
 
-# The updater plist gets the topic only (its alerts); the supervisor knobs below are not for it.
+# The updater plist gets the topic (its alerts) and only SWM_UPDATE_PENDING_ALERT_S of the knobs below.
 upd_env="${ntfy_env}"
 
 # SWM_<NAME>_S=<secs> env-file lines go into the plist; other SWM_ lines are refused.
@@ -68,7 +68,10 @@ if [[ -f "${ENV_FILE}" ]]; then
     [[ "${line}" =~ ^(SWM_[A-Z_]+_S)=([0-9]+)$ ]] || die "${ENV_FILE}: '${line}' is not SWM_<NAME>_S=<seconds>"
     [[ "${knob_keys}" != *" ${BASH_REMATCH[1]} "* ]] || die "${ENV_FILE}: ${BASH_REMATCH[1]} is set twice"
     knob_keys="${knob_keys}${BASH_REMATCH[1]} "
-    ntfy_env="${ntfy_env:+${ntfy_env}$'\n'}$(printf '    <key>%s</key>\n    <string>%s</string>' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")"
+    knob_xml="$(printf '    <key>%s</key>\n    <string>%s</string>' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")"
+    ntfy_env="${ntfy_env:+${ntfy_env}$'\n'}${knob_xml}"
+    # The one knob update.sh reads: its pending-update alert age.
+    if [[ "${BASH_REMATCH[1]}" == SWM_UPDATE_PENDING_ALERT_S ]]; then upd_env="${upd_env:+${upd_env}$'\n'}${knob_xml}"; fi
   done <"${ENV_FILE}"
 fi
 

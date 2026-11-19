@@ -54,6 +54,10 @@ STOP=0
 ABORT_OK=0
 SLEEP_PID=""
 API_CODE=000
+# 1 once this pass's update_wait gave up: the update is stuck, so do not end idle runners for it.
+UPDATE_GAVE_UP=0
+# 1 when bounded_check ended an idle runner for a pending update.
+IDLE_ENDED=0
 
 running() { [[ "${STOP}" -eq 0 ]]; }
 now() { date +%s; }
@@ -181,6 +185,7 @@ update_wait() {
     t="$(now)"
     if [[ "${t}" -ge "${deadline}" ]]; then
       log "update still pending after ${SWM_UPDATE_WAIT_S} s; continuing"
+      UPDATE_GAVE_UP=1
       return 0
     fi
     sleep "${SWM_UPDATE_POLL_S}" &
@@ -273,6 +278,22 @@ start_vm() {
     set_fail pf "IPv6 ok file ${SWM_PF_OK_FILE_V6} not renewed within ${SWM_V6_LIMIT_S} s of the VM start" || return 1
 }
 
+# bounded_check: with an update pending, DELETE the runner (422 if busy). 0 = 2xx: end the VM. 404 can mean no access.
+bounded_check() {
+  [[ -e "${UPDATE_PENDING}" && "${UPDATE_GAVE_UP}" -eq 0 && -n "${SL_ID}" ]] || return 1
+  running || return 1
+  API_CODE=000
+  if delete_runner "${SL_ID}" && [[ "${API_CODE}" != 404 ]]; then
+    log "update pending and runner ${SL_ID} idle (DELETE: HTTP ${API_CODE}); ending VM ${VM} so the update installs"
+    SL_ID=""
+    slot_save
+    IDLE_ENDED=1
+    return 0
+  fi
+  log "update pending but runner ${SL_ID} not deleted (HTTP ${API_CODE}; 422 = it runs a job); waiting for the job"
+  return 1
+}
+
 # run_job: mint last, so a VM that never boots leaves no registration behind. The JIT reaches tart on fd 3 (a pipe).
 run_job() {
   local body resp jit id rc=0
@@ -298,12 +319,19 @@ run_job() {
   exec 3< <(printf '%s' "${jit}")
   jit=""
   ABORT_OK=1
-  running && SWM_IN=/dev/fd/3 bounded "${SWM_JOB_MAX_S}" "${TART_BIN}" exec -i "${VM}" /bin/bash "${GUEST_JOB}" || rc=$?
+  IDLE_ENDED=0
+  running && BOUNDED_CHECK_S="${SWM_UPDATE_IDLE_CHECK_S}" SWM_IN=/dev/fd/3 \
+    bounded "${SWM_JOB_MAX_S}" "${TART_BIN}" exec -i "${VM}" /bin/bash "${GUEST_JOB}" || rc=$?
   ABORT_OK=0
   exec 3<&-
   SL_JOB=0
   slot_save
   if [[ "${STOP}" -eq 1 ]]; then return 1; fi
+  # Ended idle for a pending update: neutral, like the SWM_JOB_MAX_S case below.
+  if [[ "${IDLE_ENDED}" -eq 1 ]]; then
+    log "runner ${VM} ended idle for the pending update; not counted"
+    return 0
+  fi
   # An idle JIT runner reaches SWM_JOB_MAX_S every 6 h: neutral, so it never counts as a fail or a recovery.
   if [[ "${rc}" -eq 124 ]]; then
     log "runner ${VM} reached SWM_JOB_MAX_S (${SWM_JOB_MAX_S} s); not counted"
@@ -366,6 +394,7 @@ cmd_once() {
   REASON=""
   HUNG=0
   VM=""
+  UPDATE_GAVE_UP=0
   slot_load
   if sweep && running && update_wait && self_checks && start_vm && run_job; then ok=0; fi
   teardown

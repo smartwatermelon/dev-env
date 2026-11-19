@@ -16,6 +16,10 @@ check_not() {
   shift
   if "$@"; then _fail "${name}"; else _pass "${name}"; fi
 }
+# check_is NAME WANT GOT: pass when GOT equals WANT.
+check_is() {
+  if [[ "$3" == "$2" ]]; then _pass "$1"; else _fail "$1 (got '$3', want '$2')"; fi
+}
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UPDATE="${HERE}/../update.sh"
@@ -303,6 +307,66 @@ check "no curl without NTFY_TOPIC" test "$(alerts)" -eq 0
 check "warning logged" grep -q 'NTFY_TOPIC is unset' <<<"${OUT}"
 check "exit 0" test "${RC}" -eq 0
 check_not "no marker without a delivered alert" test -e "${S}/update-alerted"
+
+echo "== pending-update backstop"
+busy() { printf 'name=mimolette-macos-1\nid=7\nfails=0\nalert=\njob=1\n' >"${S}/slot"; }
+pend_alerts() { if [[ -e "${L}/curl" ]]; then grep -c 'an update has been pending' "${L}/curl"; else echo 0; fi; }
+run_update
+newrev
+busy
+again NTFY_TOPIC=topic-abc
+first="$(cat "${S}/update-pending")"
+check "marker holds the epoch it was written" grep -qE '^[0-9]{10,}$' "${S}/update-pending"
+again NTFY_TOPIC=topic-abc
+check_is "a second waiting pass keeps the first epoch" "${first}" "$(cat "${S}/update-pending")"
+check_is "young marker: no alert" 0 "$(pend_alerts)"
+printf '%s\n' $(($(date +%s) - 21000)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc
+check_is "just under 6 h: no alert" 0 "$(pend_alerts)"
+printf '%s\n' $(($(date +%s) - 21700)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc
+check_is "over 6 h: one alert" 1 "$(pend_alerts)"
+check "alert text" grep -q 'macOS runner: an update has been pending for 6 h' "${L}/curl"
+check "alert marker written" test -e "${S}/update-pending-alerted"
+again NTFY_TOPIC=topic-abc
+again NTFY_TOPIC=topic-abc
+check_is "later waiting passes stay quiet" 1 "$(pend_alerts)"
+printf 'name=\nid=\nfails=0\nalert=\njob=0\n' >"${S}/slot"
+again NTFY_TOPIC=topic-abc
+check_not "install clears the pending marker" test -e "${S}/update-pending"
+check_not "install clears the alert marker" test -e "${S}/update-pending-alerted"
+printf '%s\n' "scripts/swm-macos-runner REV3" >"${L}/revs"
+busy
+again NTFY_TOPIC=topic-abc
+printf '%s\n' $(($(date +%s) - 21700)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc
+check_is "a new pending period alerts again" 2 "$(pend_alerts)"
+run_update
+newrev
+printf '%s\n' $(($(date +%s) - 21700)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc STUB_INSTALL_FAIL=1
+check_is "failed install with an old marker: alerts" 1 "$(pend_alerts)"
+run_update
+newrev
+busy
+printf '%s\n' $(($(date +%s) - 100)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc SWM_UPDATE_PENDING_ALERT_S=60
+check_is "limit from the environment" 1 "$(pend_alerts)"
+run_update
+newrev
+busy
+printf '%s\n' $(($(date +%s) - 21700)) >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc STUB_CURL_FAIL=1
+check_not "failed delivery: no alert marker" test -e "${S}/update-pending-alerted"
+again NTFY_TOPIC=topic-abc
+check "failed delivery: the next pass sends it" test -e "${S}/update-pending-alerted"
+run_update
+newrev
+busy
+printf 'x\n' >"${S}/update-pending"
+again NTFY_TOPIC=topic-abc
+check "an old empty-style marker gets an epoch" grep -qE '^[0-9]{10,}$' "${S}/update-pending"
+check_is "and does not alert at once" 0 "$(pend_alerts)"
 
 echo "== failed delivery is retried"
 run_update
