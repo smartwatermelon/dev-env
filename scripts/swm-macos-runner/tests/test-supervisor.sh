@@ -84,7 +84,8 @@ case "${cmd}" in
       cat >>"${S}/exec-stdin"
       echo >>"${S}/exec-stdin"
       cat "${S}/state/slot" >"${S}/slot-during-job"
-      : >"${S}/in-job"
+      # One line, so wait_for (which counts lines) sees it at once.
+      echo in >"${S}/in-job"
       [[ -z "${STUB_JOB_HANG:-}" ]] || hang
       [[ -z "${STUB_JOB_FAIL:-}" ]] || exit 1
     else
@@ -142,7 +143,10 @@ case "${method} ${url}" in
   "POST "*/actions/runners/generate-jitconfig)
     reply '{"runner":{"id":4242,"name":"x"},"encoded_jit_config":"JITSECRET-4242"}' 201 ;;
   "DELETE "*/actions/runners/*)
-    if [[ -n "${STUB_DELETE_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; else reply '' 204; fi ;;
+    if [[ -n "${STUB_DELETE_FAIL:-}" ]]; then reply '{"message":"boom"}' 500
+    elif [[ -n "${STUB_DELETE_BUSY:-}" ]]; then reply '{"message":"Bad request - Runner \"x\" is still running a job\""}' 422
+    elif [[ -n "${STUB_DELETE_GONE:-}" ]]; then reply '{"message":"Not Found"}' 404
+    else reply '' 204; fi ;;
   *) reply '{"message":"unexpected"}' 500 ;;
 esac
 STUB
@@ -453,6 +457,80 @@ check_is "pending sigterm: not a failure" 0 "$(slot fails)"
 reset
 sup once
 check_not "no marker: no wait logged" grep -q 'update pending' "${S}/sup.err"
+
+echo "-- update pending while the runner idles -> runner DELETEd, VM ended, next pass waits"
+dels() { count '^DELETE .*/actions/runners/4242 ' "${S}/requests.log"; }
+reset
+SECONDS=0
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 sup once &
+pid=$!
+wait_for "${S}/in-job"
+: >"${PEND}"
+wait "${pid}"
+rc=$?
+took="${SECONDS}"
+vm="$(vm_name)"
+check "idle end: exit 0" test "${rc}" -eq 0
+check "idle end: ended long before SWM_JOB_MAX_S" test "${took}" -lt 10
+check_is "idle end: runner DELETEd before the VM stop" "tart exec-i|curl DELETE 4242|tart stop|tart delete|" \
+  "$(sed -n '/exec-i/,$p' "${S}/order.log" | tr '\n' '|')"
+check "idle end: VM deleted" grep -qx "delete ${vm}" "${S}/tart.argv"
+check "idle end: logged" grep -q 'update pending and runner 4242 idle (DELETE: HTTP 204)' "${S}/sup.err"
+check "idle end: not counted logged" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check_not "idle end: did not reach SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_is "idle end: slot cleared, not a failure" "//0/0" "$(slot name)/$(slot id)/$(slot job)/$(slot fails)"
+check_is "idle end: no alert" 0 "$(count . "${S}/ntfy.log")"
+/bin/rm -f "${S}/order.log"
+SWM_UPDATE_POLL_S=0.1 SWM_UPDATE_WAIT_S=30 sup once &
+pid=$!
+wait_for "${S}/order.log"
+sleep 0.6
+check_is "idle end: next pass waits for the update before a clone" "tart list|" "$(order)"
+/bin/rm -f "${PEND}"
+wait "${pid}"
+check "idle end: next pass runs once the update is in" grep -q 'update installed or withdrawn' "${S}/sup.err"
+
+echo "-- update pending but GitHub refuses the DELETE (busy) -> job keeps running"
+reset
+STUB_JOB_HANG=1 STUB_DELETE_BUSY=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_JOB_MAX_S=4 sup once &
+pid=$!
+wait_for "${S}/in-job"
+: >"${PEND}"
+wait "${pid}"
+check "busy: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "busy: not ended idle" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check "busy: DELETE tried more than once during the job" test "$(dels)" -ge 3
+check "busy: refusal logged" grep -q 'runner 4242 not deleted (HTTP 422' "${S}/sup.err"
+check_is "busy: VM stopped only after the job exec ended" "tart stop" \
+  "$(sed -n '/exec-i/,$p' "${S}/order.log" | grep -v 'curl DELETE' | sed -n 2p)"
+check_is "busy: id= kept for the next sweep" 4242 "$(slot id)"
+
+echo "-- update pending and DELETE answers 404 -> not proof of idle, job wait goes on"
+reset
+STUB_JOB_HANG=1 STUB_DELETE_GONE=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_JOB_MAX_S=3 sup once &
+pid=$!
+wait_for "${S}/in-job"
+: >"${PEND}"
+wait "${pid}"
+check "404: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "404: not ended idle" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check "404: logged as not deleted" grep -q 'runner 4242 not deleted (HTTP 404' "${S}/sup.err"
+check_is "404: id= cleared by teardown" "" "$(slot id)"
+
+echo "-- no update pending -> no DELETE during the job"
+reset
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_JOB_MAX_S=3 sup once
+check "no pending: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_is "no pending: only the teardown DELETE" 1 "$(dels)"
+
+echo "-- update_wait gave up this pass -> the stuck update ends no runner"
+reset
+mkdir -p "${S}/state"
+: >"${PEND}"
+STUB_JOB_HANG=1 SWM_UPDATE_POLL_S=0.1 SWM_UPDATE_WAIT_S=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_JOB_MAX_S=3 sup once
+check "gave up: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "gave up: not ended idle" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check_is "gave up: only the teardown DELETE" 1 "$(dels)"
 
 echo "-- exec not ready in time -> VM deleted, no JIT request"
 reset

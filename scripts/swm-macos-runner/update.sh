@@ -19,6 +19,9 @@ PENDING="${STATE_DIR}/update-pending"
 FAILS="${STATE_DIR}/update-fails"
 ALERTED="${STATE_DIR}/update-alerted"
 ALERT_AFTER="${SWM_UPDATE_ALERT_AFTER:-6}"
+# PENDING holds the epoch it was first written; one alert once it is older than this, marked by PENDING_ALERTED.
+PENDING_ALERT_S="${SWM_UPDATE_PENDING_ALERT_S:-21600}"
+PENDING_ALERTED="${STATE_DIR}/update-pending-alerted"
 
 log() {
   local ts
@@ -73,6 +76,37 @@ pass_ok() {
   fi
 }
 
+# pending_since: the epoch in PENDING; writes the current one when the file is missing or holds no number.
+pending_since() {
+  local s
+  s="$(cat "${PENDING}" 2>/dev/null)" || s=""
+  if [[ ! "${s}" =~ ^[0-9]+$ ]]; then
+    s="$(date +%s)"
+    (umask 077 && mkdir -p "${STATE_DIR}" && printf '%s\n' "${s}" >"${PENDING}") || log "cannot write ${PENDING}"
+  fi
+  printf '%s' "${s}"
+}
+
+# pending_backstop: after every pass. One alert when PENDING is older than the limit; its marker goes with PENDING.
+pending_backstop() {
+  local since t age limit="${PENDING_ALERT_S}"
+  if [[ ! -e "${PENDING}" ]]; then
+    if [[ -e "${PENDING_ALERTED}" ]]; then "${RM_BIN}" -f "${PENDING_ALERTED}"; fi
+    return 0
+  fi
+  if [[ ! "${limit}" =~ ^[0-9]+$ ]] || [[ "${limit}" -lt 1 ]]; then
+    log "SWM_UPDATE_PENDING_ALERT_S is not a positive number; using 21600"
+    limit=21600
+  fi
+  since="$(pending_since)"
+  t="$(date +%s)"
+  age=$((t - since))
+  if [[ "${age}" -ge "${limit}" && ! -e "${PENDING_ALERTED}" ]]; then
+    notify "macOS runner: an update has been pending for $((age / 3600)) h $((age % 3600 / 60)) min and has not installed. See the supervisor and updater logs."
+    if [[ "${NOTIFY_OK}" -eq 1 ]]; then (umask 077 && : >"${PENDING_ALERTED}") || log "cannot write ${PENDING_ALERTED}"; fi
+  fi
+}
+
 main() {
   # Not `git pull`: the NOS updater runs in the same second, and two pulls
   # collide on FETCH_HEAD. Any failure retries.
@@ -106,7 +140,8 @@ main() {
   if [[ "${job}" != 0 ]]; then
     # Waiting is neither a failure nor a success: the failure count stays as it is.
     log "new version ${rev} but a job is running; waiting"
-    (umask 077 && mkdir -p "${STATE_DIR}" && : >"${PENDING}") || log "cannot write ${PENDING}"
+    # Written once, so its epoch tells the backstop how long the wait is.
+    pending_since >/dev/null
     return 0
   fi
 
@@ -123,4 +158,4 @@ main() {
 }
 
 # One line, so bash has parsed it all before install.sh can replace this file.
-main; exit 0
+main; pending_backstop; exit 0

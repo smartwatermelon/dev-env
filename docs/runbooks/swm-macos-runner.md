@@ -87,6 +87,16 @@ The updater job runs `update.sh` at load and every 600 s. It always exits 0.
 - The supervisor looks for `update-pending` at the start of each pass, before it clones a VM. While the file exists it waits (at most `SWM_UPDATE_WAIT_S`, 900 s) for the updater to install.
   The updater removes the file after a good install, or when there is no new version.
   So an update installs within one cycle: at most `SWM_JOB_MAX_S` + 600 s after the merge, and sooner when a job ends.
+- **An idle runner gives way to an update.** While the supervisor waits on a runner, it looks for `update-pending` every `SWM_UPDATE_IDLE_CHECK_S` (300 s).
+  When it finds the file, it deletes the runner registration through the API. GitHub refuses (HTTP 422) to delete a runner that runs a job.
+  On a 2xx it logs `update pending and runner N idle ...`, ends the VM, and the next pass waits for the install.
+  On a refusal it logs `update pending but runner N not deleted (HTTP 422 ...); waiting for the job` and tries again later.
+  A 404 also keeps the wait: GitHub answers 404 for a missing permission too, so it does not prove the runner is idle.
+  `SWM_UPDATE_IDLE_CHECK_S=0` turns the check off.
+  It does not end runners in a pass whose `update_wait` gave up, so an update that keeps failing to install does not end every runner.
+- **A long-pending update alerts.** `update-pending` holds the epoch when it was first written. When it is older than `SWM_UPDATE_PENDING_ALERT_S` (21600 s, 6 h),
+  the updater sends one `macOS runner: an update has been pending for ...` alert and writes `update-pending-alerted`. That marker goes when `update-pending` goes.
+  `SWM_UPDATE_PENDING_ALERT_S` is the one env-file knob that `install.sh` also writes into the updater plist.
 - If `install.sh` fails, the version stays unmarked and the next run tries again.
 - The updater never reloads itself. When a change touches its own plist, run `install.sh` by hand.
 - **Failed updates alert.** A pass fails when the git fetch or fast-forward fails, the revision cannot be read, or `install.sh` fails.
@@ -95,7 +105,7 @@ The updater job runs `update.sh` at load and every 600 s. It always exits 0.
   At 6 (one hour) it sends one `macOS runner: the updater has failed 6 passes in a row. Last failure: ...` alert and writes `update-alerted`; later failures stay quiet.
   The first good pass after that sends `macOS runner: the updater works again.` and clears both files.
   `SWM_UPDATE_ALERT_AFTER` overrides the threshold, but `install.sh` does not carry it into the plist: a hand edit of the plist lasts only until the next `install.sh`. A failed ntfy delivery is retried on the next failed or good pass.
-  The updater needs `NTFY_TOPIC` in its plist, which `install.sh` now writes from the env file (the topic only, not the supervisor knobs).
+  The updater needs `NTFY_TOPIC` in its plist, which `install.sh` now writes from the env file (the topic and `SWM_UPDATE_PENDING_ALERT_S`, not the supervisor knobs).
   The updater cannot reload its own plist, so one hand run of `install.sh` is needed to turn the alert on.
   Until then the updater logs `NTFY_TOPIC is unset` and sends nothing.
 - The log is `~/Library/Logs/swm-macos-runner-update.log`.
@@ -183,6 +193,7 @@ The log is `~/Library/Logs/swm-macos-runner.log`. Key lines:
 
 - `runner ... handed its JIT config`: the runner may be idle or busy; it is waiting for a job or running one (`job=1`).
 - `update pending; waiting ...` / `update installed or withdrawn` / `update still pending after ...`: the supervisor held a pass for the updater.
+- `update pending and runner N idle ...` / `runner ... ended idle for the pending update`: an idle runner made way for an update.
 - `runner ... finished its job`: a job ended.
 - `pass failed (<kind>, try N): ...`: a failed pass and why.
 - `fails in a row; next pass in N s`: the supervisor is backing off.

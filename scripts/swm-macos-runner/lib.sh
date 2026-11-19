@@ -36,13 +36,21 @@ notify_ok() { [[ "${NOTIFY_OK:-0}" -eq 1 ]]; }
 
 # bounded SECS CMD...: kill CMD after SECS (status 124).
 # stdin is SWM_IN, stdout SWM_OUT (default /dev/null). BOUNDED_PID names CMD while it runs.
+# With BOUNDED_CHECK_S=N, the caller's bounded_check runs every N s; when it returns 0, CMD is killed (status 125).
 bounded() {
-  local secs="$1" pid ticks=0 rc=0
+  local secs="$1" pid ticks=0 rc=0 every=0
   shift
+  if [[ "${BOUNDED_CHECK_S:-}" =~ ^[1-9][0-9]*$ ]]; then every=$((BOUNDED_CHECK_S * 10)); fi
   "$@" <"${SWM_IN:-/dev/null}" >"${SWM_OUT:-/dev/null}" &
   pid=$!
   BOUNDED_PID="${pid}"
   while kill -0 "${pid}" 2>/dev/null; do
+    if [[ "${every}" -gt 0 && "${ticks}" -gt 0 && $((ticks % every)) -eq 0 ]] && bounded_check; then
+      kill -9 "${pid}" 2>/dev/null
+      wait "${pid}" 2>/dev/null
+      BOUNDED_PID=""
+      return 125
+    fi
     if [[ "${ticks}" -ge $((secs * 10)) ]]; then
       kill -9 "${pid}" 2>/dev/null
       wait "${pid}" 2>/dev/null
