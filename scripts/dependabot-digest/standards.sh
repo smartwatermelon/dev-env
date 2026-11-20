@@ -151,6 +151,37 @@ else .protection as $p | $p.required_status_checks as $rsc
 end
 JQ
 
+# Rulesets can require the check too. Input: slurped rules/branches pages;
+# $cs/$cd: classic verdict. A malformed rule is unreadable.
+read -r -d '' rules_verdict <<'JQ'
+def std: . == "run-standards-check" or endswith(" / run-standards-check");
+def rsc_ok: (.parameters | type) == "object"
+  and (.parameters.required_status_checks | type) == "array"
+  and all(.parameters.required_status_checks[]; type == "object" and (.context | type) == "string");
+if type != "array" or (all(.[]; type == "array") | not) then "unreadable\tthe ruleset rules response is malformed"
+else [.[][]] as $r
+  | if all($r[]; type == "object" and (.type | type) == "string"
+           and (.type != "required_status_checks" or rsc_ok)) | not
+    then "unreadable\tthe ruleset rules response is malformed"
+    else [$r[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] as $ctx
+      | if any($ctx[]; std) then "required\t"
+        elif $cs == "unreadable" or ($r | length) == 0 then $cs + "\t" + $cd
+        elif $cs == "unprotected" then
+          if ($ctx | length) == 0
+          then "protected-no-standards\tprotected by rulesets, but they require no status checks"
+          else "protected-no-standards\trulesets require only: " + ($ctx | unique | join(", "))
+          end
+        elif ($ctx | length) == 0 then $cs + "\t" + $cd
+        elif ($cco | length) == 0 then $cs + "\trulesets require only: " + ($ctx | unique | join(", "))
+        else $cs + "\trequires only: " + ($cco + $ctx | unique | join(", "))
+        end
+    end
+end
+JQ
+# The 403 body for rulesets on a private repo of a free plan (live
+# capture 2026-11-20, smartwatermelon/claude-config-backup).
+RS_NO_PLAN='Upgrade to GitHub Pro or make this repository public to enable this feature.'
+
 # Unprotected by decision, so counted, not flagged. Classes, not repo names.
 # Each reason carries its decision date; the digest prints it.
 declare -A EXEMPT_REASON=(
@@ -186,15 +217,52 @@ set_prot() {
 
 # Sets PROT_JSON for one repo. Never fails: a failed read is a state.
 probe_protection() {
-  local nwo="$1" branch="$2" fork="$3" private="$4" body verdict state detail cls=""
+  local nwo="$1" branch="$2" fork="$3" private="$4" body="" verdict state detail cls="" rules why cco
   if ! body="$(api "repos/${nwo}/branches/${branch}")"; then
-    detail="$(last_err "no detail")"
-    set_prot unreadable "cannot read branch ${branch}: ${detail}"
-    return 0
+    state=unreadable
+    detail="cannot read branch ${branch}: $(last_err "no detail")"
+  else
+    verdict="$(jq -r "${prot_verdict}" <<<"${body}" 2>/dev/null)"
+    state="${verdict%%$'\t'*}"
+    detail="${verdict#*$'\t'}"
   fi
-  verdict="$(jq -r "${prot_verdict}" <<<"${body}" 2>/dev/null)"
-  state="${verdict%%$'\t'*}"
-  detail="${verdict#*$'\t'}"
+  case "${state}" in
+    required) ;;
+    unprotected | protected-no-standards | unreadable)
+      # Classic protection is not the whole answer: read the rulesets too.
+      # Only metadata: read is needed. A failed read never clears a gap.
+      if ! rules="$(api --paginate --slurp "repos/${nwo}/rules/branches/${branch}?per_page=100")"; then
+        why="$(last_err "no detail")"
+        # A private repo on a free plan cannot have rulesets: the classic
+        # verdict is the whole answer. Both signals, as for CodeQL.
+        if [[ "${why}" == *"(HTTP 403)"* && "${private}" == "true" ]] \
+          && jq -e --arg m "${RS_NO_PLAN}" '(if type == "array" then .[0] else . end)
+               | type == "object" and .message == $m' >/dev/null 2>&1 <<<"${rules}"; then
+          :
+        elif [[ "${state}" != "unreadable" ]]; then
+          state=unreadable
+          detail="cannot read ruleset rules for ${branch}: ${why}"
+        fi
+      else
+        # The checks classic protection enforces, so one list names both.
+        cco="$(jq -c 'if .protection.enabled == true
+            and .protection.required_status_checks.enforcement_level != "off"
+          then [.protection.required_status_checks.contexts[] | strings] else [] end' \
+          <<<"${body}" 2>/dev/null)"
+        [[ "${state}" == "protected-no-standards" && -n "${cco}" ]] || cco='[]'
+        verdict="$(jq -r --arg cs "${state}" --arg cd "${detail}" --argjson cco "${cco}" \
+          "${rules_verdict}" <<<"${rules}" 2>/dev/null)"
+        if [[ "${verdict}" == *$'\t'* ]]; then
+          state="${verdict%%$'\t'*}"
+          detail="${verdict#*$'\t'}"
+        else
+          state=unreadable
+          detail="the ruleset rules response is malformed"
+        fi
+      fi
+      ;;
+    *) ;;
+  esac
   case "${state}" in
     required | protected-no-standards | unreadable) ;;
     unprotected)
