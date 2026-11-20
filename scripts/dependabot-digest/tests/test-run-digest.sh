@@ -6,6 +6,9 @@
 set -uo pipefail
 unset CDPATH
 unset BASH_ENV GH_TOKEN GH_HOST GITHUB_TOKEN
+# Inside a Claude Code session gh can be an exported function, which a child
+# bash runs instead of the stub on PATH (dev-env#215).
+unset -f gh
 
 HERE="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${HERE}/.."

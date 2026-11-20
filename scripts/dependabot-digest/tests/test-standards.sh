@@ -39,9 +39,10 @@ path="${path%%\?*}"
 file="${STUB_FIX}/${path//\//_}.json"
 [[ "${path}" == "installation/repositories" ]] && file="${file}.${STUB_OWNER}"
 # <name>.403.json: a refusal with a body, written to both streams as real gh does.
+# With --slurp, real gh wraps the body in an array (2026-11-20 capture).
 if [[ -f "${file%.json}.403.json" ]]; then
   cat "${file%.json}.403.json"
-  echo "gh: $(jq -r '.message' "${file%.json}.403.json") (HTTP 403)" >&2
+  echo "gh: $(jq -r 'if type == "array" then .[0].message else .message end' "${file%.json}.403.json") (HTTP 403)" >&2
   exit 1
 fi
 # <name>.404.json: a 404 with a body; gh prints its message
@@ -290,6 +291,40 @@ if [[ "${dev_env}" == "unreadable required" ]]; then
 else
   _fail "the protection result depends on the standards read (got '${dev_env}')"
 fi
+
+# Rulesets (owner s). rs-required, rs-nochecks: live 2026-11-20 captures
+# (amelia-boone, aomo). The rest change one field.
+sout="${WORK}/s.ndjson"
+survey s >"${sout}" 2>"${WORK}/s.err" || _fail "standards.sh exited non-zero for owner s"
+_rs() { # _rs <repo> <want state> <detail substring, or - for none> <label>
+  local st det
+  st="$(jq -r --arg r "$1" 'select(.repo == $r) | .protection.state // "none"' "${sout}")"
+  det="$(jq -r --arg r "$1" 'select(.repo == $r) | .protection.detail // "-"' "${sout}")"
+  if [[ "${st}" == "$2" ]] && { [[ "$3" == "-" && "${det}" == "-" ]] \
+    || [[ "$3" != "-" && "${det}" == *"$3"* ]]; }; then
+    _pass "$4"
+  else
+    _fail "$4 (protection: '${st}: ${det}', want '$2' with detail '$3')"
+  fi
+}
+_rs s/rs-required required - \
+  "KNOWN-BAD: a check required only by a ruleset is required, not flagged"
+_rs s/rs-nochecks protected-no-standards "no required check is enforced" \
+  "rulesets with no status-check rule leave the repo flagged"
+_rs s/rs-refused unreadable "cannot read ruleset rules for main: gh: Resource not accessible by integration (HTTP 403)" \
+  "a refused rules read is unreadable, never flagged or clean"
+_rs s/rs-malformed unreadable "ruleset rules response is malformed" \
+  "a status-check rule with no check list is unreadable, not required or flagged"
+_rs s/rs-unprot protected-no-standards "protected by rulesets, but they require no status checks" \
+  "a branch with only ruleset rules is protected, not unprotected"
+_rs s/rs-other protected-no-standards "rulesets require only: build" \
+  "a ruleset requiring other checks is flagged and names them"
+_rs s/rs-both protected-no-standards "requires only: build, test" \
+  "checks required by classic protection and by rulesets are named in one list"
+_rs s/rs-paywall-private unprotected "the default branch has no protection" \
+  "a private repo whose plan has no rulesets keeps its classic verdict"
+_rs s/rs-paywall-public unreadable "Upgrade to GitHub Pro" \
+  "KNOWN-BAD: the plan 403 on a public repo is unreadable, not 'no rulesets'"
 
 pbody="${WORK}/prot.md"
 : | bash "${DIR}/render.sh" --standards "${prot}" >"${pbody}" 2>/dev/null
