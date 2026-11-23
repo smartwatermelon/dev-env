@@ -103,7 +103,7 @@ The updater LaunchAgent runs every 600 s. It pulls the clone and runs `install.s
 - **Any other SIGTERM** (`launchctl bootout` by hand, a logout) fails over to `ubuntu-latest`, then recovers:
   the supervisor's "set to ubuntu-latest … Reason: supervisor stopped" alert, then the watchdog's "recovered" alert.
   During a hold, the supervisor leaves the variable alone. Recovery can take up to about 160 minutes.
-  To end it sooner, set `NOS_RUNNER` back to `mimolette` by hand.
+  To end it sooner, see "After a manual fix" in section 6.
 - **Updater plist change.** A job cannot reload itself. The updater logs
   "updater plist changed; run install.sh by hand" and sends one alert. Run `install.sh` by hand (section 4, step 3).
 - **Failed updates alert.** A pass fails when the git fetch or fast-forward fails, the revision cannot be read, or `install.sh` fails.
@@ -129,6 +129,19 @@ The supervisor also leaves a hold alone: a self-check failure or a SIGTERM does 
 
 **Release.** Set `NOS_RUNNER` to `ubuntu-latest`.
 The watchdog moves it back to `mimolette` after healthy checks.
+
+**After a manual fix.** After you repair the runner by hand, do not wait for the watchdog to recover. Do this:
+
+1. Confirm both slots are up. The supervisor log shows `started mimolette-N-…` for each slot,
+   or the org runners page lists 2 idle `mimolette` runners.
+2. Run this in your own terminal. Agents cannot write org variables:
+
+   ```bash
+   gh variable set NOS_RUNNER --org nightowlstudiollc --body mimolette
+   ```
+
+3. Expect no "recovered" alert, because the watchdog sees a change it did not make and resets its counts.
+   If the runners are unhealthy, the watchdog fails over again after 2 bad checks (about 20 minutes).
 
 **Full stop.** Do all three, in this order:
 
