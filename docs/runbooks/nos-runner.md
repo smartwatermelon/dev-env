@@ -140,7 +140,7 @@ The watchdog moves it back to `mimolette` after healthy checks.
    gh variable set NOS_RUNNER --org nightowlstudiollc --body mimolette
    ```
 
-3. Expect no "recovered" alert, because the watchdog sees a change it did not make and resets its counts.
+3. Expect no "recovered" alert, because the watchdog sees a change it did not make and resets its miss and good counts.
    If the runners are unhealthy, the watchdog fails over again after 2 bad checks (about 20 minutes).
 
 **Full stop.** Do all three, in this order:

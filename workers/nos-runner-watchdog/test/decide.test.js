@@ -316,6 +316,9 @@ test("manual flip to mimolette with healthy runners stays mimolette", () => {
   const r = decide(prev, good("mimolette"));
   assert.equal(r.setVar, null);
   assert.equal(r.next.lastVar, "mimolette");
+  assert.equal(r.notify, null);
+  assert.equal(r.next.goods, 1);
+  assert.equal(r.next.misses, 0);
 });
 
 test("manual flip to mimolette with no runners needs a second miss to fail over", () => {
@@ -323,4 +326,7 @@ test("manual flip to mimolette with no runners needs a second miss to fail over"
   const r = decide(prev, bad("mimolette"));
   assert.equal(r.next.misses, 1);
   assert.equal(r.setVar, null);
+  const r2 = decide(prevOf(r), bad("mimolette"));
+  assert.equal(r2.setVar, "ubuntu-latest");
+  assert.equal(r2.notify, "down");
 });
