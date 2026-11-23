@@ -24,7 +24,7 @@
 The spec does not settle these. They are stated here so Andrew can overrule them before execution:
 
 1. **`NOS_IDLE_MAX_S` default 3600 (1 hour). Confirmed by Andrew 2026-11-23.** A restart of an idle VM costs one JIT mint and one VM boot, so a short limit is cheap. On a quiet night each slot restarts about once an hour. The 2026-11-20 hang (51 h) would have ended within an hour.
-2. **Delete the runner before stopping its VM.** Once GitHub has deleted the runner, it cannot hand that runner a job, so the stop cannot kill a job. The remaining race is a job assigned between the `busy=false` read and the DELETE. It is not proven whether GitHub refuses to DELETE a busy runner.
+2. **Delete the runner before stopping its VM.** Once GitHub has deleted the runner, it cannot hand that runner a job, so the stop cannot kill a job. GitHub refuses to DELETE a busy runner: it answers 422 "currently running a job and cannot be deleted" (proven live 2026-11-18; `scripts/swm-macos-runner/supervisor.sh` `bounded_check` relies on it). So a runner that takes a job after the `busy=false` read makes the DELETE fail with 422, and the restart is skipped with the VM left running. The only race left is a job assigned to the runner before GitHub reports it busy, at the moment of the DELETE. Andrew accepted that race on 2026-11-18.
 3. **No ntfy alert for idle restarts.** They are routine on quiet nights, so an alert would be noise. Restarts are logged. The watchdog still alerts on a real outage.
 4. **dev-env#298 takes option 2 (manual recovery, runbook only).** It adds no URL to the Worker, keeping `workers_dev = false`. `decide()` already resets its counters when the variable changes from outside.
 5. **dev-env#294: fix 3 items plus comments, defer the rest** (list in Task 3).
@@ -33,7 +33,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 
 1. A slot whose runner is busy past `NOS_IDLE_MAX_S` (a long real job) must never be restarted. Test: `idle_restart_skips_busy`.
 2. A failed or unreadable busy check (HTTP 500, no token) counts as busy and does not restart. Test: `idle_restart_skips_unknown`.
-3. A DELETE that fails must leave the VM running and the slot unchanged, to retry on the next pass. Test: `idle_restart_delete_fails_keeps_vm`.
+3. A DELETE that fails must leave the VM running and the slot unchanged, to retry on the next pass. A 422 (the runner took a job after the busy read) is such a failure. Tests: `idle_restart_delete_fails_keeps_vm`, `idle_restart_delete_422_keeps_vm`.
 4. A stop that fails after a good DELETE must not start a third VM. The `dropped-N` marker makes a later pass stop it. Test: `idle_restart_stop_fails_marks_dropped`.
 5. A restart must not count as a failed start, since a count of 3 fails the pool over. Test: `idle_restart_not_a_fail`.
 6. Both slots past the limit in the same pass must not both go offline: the watchdog counts zero online runners as a miss. Restart at most one slot per pass. Test: `idle_restart_one_slot_per_pass`.
@@ -54,7 +54,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 - Consumes: `slot_load`/`slot_put`, `runner_idle ID`, `delete_runner ID`, `stop_slot N`, `now`, `log`, the `dropped-N` marker and `reconcile`'s handling of it (all in `supervisor.sh`).
 - Produces: `restart_stale_slots` (no args, returns 0); config `NOS_IDLE_MAX_S` (seconds, default 3600; `0` disables). Log line: `slot N: runner ID idle for S s (limit L s); restarting`.
 
-- [ ] **Step 1: Add a stub flag.** In the curl stub's `"GET "*/actions/runners/*` branch, reply `'{"message":"boom"}' 500` when `STUB_RUNNER_GET_FAIL` is set.
+- [ ] **Step 1: Add two stub flags.** In the curl stub's `"GET "*/actions/runners/*` branch, reply `'{"message":"boom"}' 500` when `STUB_RUNNER_GET_FAIL` is set. In its `"DELETE "*/actions/runners/*` branch, before the `STUB_DELETE_FAIL` check, reply `'{"message":"Runner \"x\" is currently running a job and cannot be deleted."}' 422` when `STUB_DELETE_BUSY` is set. This is the reply GitHub gives for a busy runner.
 
 - [ ] **Step 2: Write the failing tests** in `test-supervisor.sh`, after the existing busy cases. Each starts with `reset; sup once` (2 slots, runners 101 and 102). It then ages slot 1 by rewriting its `started=` to `$(( $(date +%s) - 7200 ))` in `${S}/state/slot-1`, and runs `NOS_IDLE_MAX_S=3600 sup once`.
   - `idle_restart_replaces_old_idle_slot`: `DELETE .../runners/101` appears in `order.log` before `stop mimolette-1-`; `sup.err` contains `slot 1: runner 101 idle for`; after a third `sup once`, `runs` is 3 (one new VM).
@@ -62,6 +62,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
   - `idle_restart_skips_busy`: aged, `echo 101 >"${S}/busy"` → no DELETE of 101, no stop of slot 1.
   - `idle_restart_skips_unknown`: aged, `STUB_RUNNER_GET_FAIL=1` → no DELETE of 101.
   - `idle_restart_delete_fails_keeps_vm`: aged, `STUB_DELETE_FAIL=1` → no `stop mimolette-1-`; `slot-1` still has `name=mimolette-1-`.
+  - `idle_restart_delete_422_keeps_vm`: aged, `STUB_DELETE_BUSY=1` (the runner took a job after the busy read) → no `stop mimolette-1-`; no `dropped-1`; `slot-1` still has `name=mimolette-1-` and `id=101`; `sup.err` contains `HTTP 422`.
   - `idle_restart_stop_fails_marks_dropped`: aged; make the container stub's `stop` fail (add `STUB_STOP_FAIL` if the stub lacks one) → `${S}/state/dropped-1` exists; `runs` stays 2 after the pass.
   - `idle_restart_not_a_fail`: after a restart, `slot-1` has `fails=0`.
   - `idle_restart_disabled_at_zero`: aged, `NOS_IDLE_MAX_S=0` → no DELETE of 101.
@@ -72,7 +73,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
   Expected: one `FAIL` line per `idle_restart_*` assertion that needs the new code. The `skips_*` and `disabled` cases may already pass.
 
 - [ ] **Step 4: Implement.** In `config.sh`, add `: "${NOS_IDLE_MAX_S:=3600}"`. In `supervisor.sh`, add `restart_stale_slots`. For each slot with `SL_NAME` and `SL_ID` set and `NOS_IDLE_MAX_S > 0`, where `now - SL_STARTED >= NOS_IDLE_MAX_S` and `runner_idle "${SL_ID}"` holds:
-  1. `delete_runner`. If that fails, log and continue.
+  1. `delete_runner`. If that fails, log and continue; the VM keeps running. A 422 lands here: the runner took a job after the busy read, so it is busy, and the restart is skipped.
   2. Touch `dropped-N`, log the line above, then `stop_slot N`.
   3. Leave `id=` and `fails=` as they are: `deregister_pending` clears `id=` on a later pass, and a 404 is fine there.
   4. Return after the first restart in a pass (one slot per pass).
