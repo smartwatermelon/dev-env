@@ -338,6 +338,28 @@ delete_runner() {
   log "runner $1: delete failed (HTTP ${API_CODE}); will retry"
   return 1
 }
+# Restart one idle-too-long slot per pass. Delete before stop: a runner that took a job meanwhile gets HTTP 422 and keeps its VM.
+restart_stale_slots() {
+  local n id name started age
+  [[ "${NOS_IDLE_MAX_S}" -gt 0 ]] || return 0
+  for ((n = 1; n <= NOS_SLOTS; n += 1)); do
+    slot_load "${n}"
+    name="${SL_NAME}"
+    id="${SL_ID}"
+    started="${SL_STARTED}"
+    [[ -n "${name}" && -n "${id}" && "${started}" =~ ^[0-9]+$ ]] || continue
+    age=$(($(now) - started))
+    ((age >= NOS_IDLE_MAX_S)) || continue
+    runner_idle "${id}" || continue
+    delete_runner "${id}" || continue
+    : >"${NOS_STATE_DIR}/dropped-${n}"
+    log "slot ${n}: runner ${id} idle for ${age} s (limit ${NOS_IDLE_MAX_S} s); restarting"
+    stop_slot "${n}" || true
+    return 0
+  done
+  return 0
+}
+
 # deregister_pending: delete runners whose VM is gone (name= empty, id= set). A failed DELETE keeps id= for retry.
 
 # After a VM exit, the slot's fail count resets: 2xx and 404 both follow a finished job (see the comment inside).
@@ -526,6 +548,7 @@ cmd_once() {
     return 1
   fi
   deregister_pending
+  restart_stale_slots
   running || return 1
   if ! slots_ok; then
     log "self-check failed: a slot failed 3 starts in a row"
