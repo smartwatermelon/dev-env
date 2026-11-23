@@ -528,6 +528,15 @@ age_slot 1
 NOS_IDLE_MAX_S=0 sup once
 check_eq "idle_restart_disabled_at_zero: no delete" 0 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
 
+echo "-- idle_restart_refreshes_vm_list"
+reset
+sup once
+age_slot 1
+# Slot 2 is empty but a stray mimolette VM still shows in the pass's first ls: a stale list blocks the start (2 listed).
+printf 'name=\nid=\nfails=0\nstarted=0\n' >"${S}/state/slot-2"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_refreshes_vm_list: empty slot 2 starts in the same pass" 1 count '^mimolette-2-' "${S}/running"
+
 echo "-- idle_restart_one_slot_per_pass"
 reset
 sup once

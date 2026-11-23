@@ -339,6 +339,7 @@ delete_runner() {
   return 1
 }
 # Restart one idle-too-long slot per pass. Delete before stop: a runner that took a job meanwhile gets HTTP 422 and keeps its VM.
+# Remaining race: a job assigned before GitHub reports busy=true is lost (accepted 2026-11-18).
 restart_stale_slots() {
   local n id name started age
   [[ "${NOS_IDLE_MAX_S}" -gt 0 ]] || return 0
@@ -354,7 +355,7 @@ restart_stale_slots() {
     delete_runner "${id}" || continue
     : >"${NOS_STATE_DIR}/dropped-${n}"
     log "slot ${n}: runner ${id} idle for ${age} s (limit ${NOS_IDLE_MAX_S} s); restarting"
-    stop_slot "${n}" || true
+    if stop_slot "${n}"; then refresh_ls; fi
     return 0
   done
   return 0
