@@ -137,6 +137,7 @@ case "\${method} \${url}" in
     if [[ -n "\${STUB_TOKEN_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; else reply '{"token":"ghs_stubtok"}' 201; fi
     ;;
   "GET "*/actions/runners/*)
+    if [[ -n "\${STUB_RUNNER_GET_FAIL:-}" ]]; then reply '{"message":"boom"}' 500; exit 0; fi
     id="\${url##*/}"
     if grep -qx "\${id}" "\${S}/busy" 2>/dev/null; then b=true; else b=false; fi
     reply "{\"id\":\${id},\"busy\":\${b}}" 200
@@ -161,7 +162,9 @@ case "\${method} \${url}" in
     ;;
   "POST "*/actions/variables) setvar; reply '' 201 ;;
   "DELETE "*/actions/runners/*)
-    if [[ -n "\${STUB_DELETE_FAIL:-}" ]]; then
+    if [[ -n "\${STUB_DELETE_BUSY:-}" ]]; then
+      reply '{"message":"Runner \\"x\\" is currently running a job and cannot be deleted."}' 422
+    elif [[ -n "\${STUB_DELETE_FAIL:-}" ]]; then
       reply '{"message":"boom"}' 500
     elif grep -qx "\${url##*/}" "\${S}/gone" 2>/dev/null; then
       reply '{"message":"Not Found"}' 404
@@ -440,6 +443,110 @@ check_not "sigterm_stops_idle_keeps_busy: busy slot 2 left" grep -qE '^stop mimo
 check "sigterm_stops_idle_keeps_busy: runner 101 deleted" grep -qE '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
 check_not "sigterm_stops_idle_keeps_busy: runner 102 kept" grep -qE '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
 check "sigterm_stops_idle_keeps_busy: slot 2 state kept" grep -qE '^name=mimolette-2-' "${S}/state/slot-2"
+
+# age_slot N: make slot N's VM look 2 hours old.
+age_slot() {
+  local old
+  old="$(( $(date +%s || true) - 7200 ))"
+  sed "s/^started=.*/started=${old}/" "${S}/state/slot-$1" >"${S}/state/slot-$1.new" && mv "${S}/state/slot-$1.new" "${S}/state/slot-$1"
+}
+
+echo "-- idle_restart_replaces_old_idle_slot"
+reset
+sup once
+age_slot 1
+NOS_IDLE_MAX_S=3600 sup once
+del_at="$(grep -n '^curl DELETE .*/runners/101' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+stop_at="$(grep -n '^container stop mimolette-1-' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+check "idle_restart_replaces_old_idle_slot: delete before stop" test -n "${del_at}" -a -n "${stop_at}" -a "${del_at:-0}" -lt "${stop_at:-0}"
+check "idle_restart_replaces_old_idle_slot: logged" grep -q 'slot 1: runner 101 idle for' "${S}/sup.err"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_replaces_old_idle_slot: one new VM" 3 runs
+
+echo "-- idle_restart_skips_young_slot"
+reset
+sup once
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_skips_young_slot: no delete" 0 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_not "idle_restart_skips_young_slot: no stop" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+
+echo "-- idle_restart_skips_busy"
+reset
+sup once
+age_slot 1
+echo 101 >"${S}/busy"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_skips_busy: no delete" 0 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_not "idle_restart_skips_busy: no stop" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+
+echo "-- idle_restart_skips_unknown"
+reset
+sup once
+age_slot 1
+STUB_RUNNER_GET_FAIL=1 NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_skips_unknown: no delete" 0 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+check_not "idle_restart_skips_unknown: no stop" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+
+echo "-- idle_restart_delete_fails_keeps_vm"
+reset
+sup once
+age_slot 1
+STUB_DELETE_FAIL=1 NOS_IDLE_MAX_S=3600 sup once
+check_not "idle_restart_delete_fails_keeps_vm: no stop" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check "idle_restart_delete_fails_keeps_vm: slot keeps VM" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+
+echo "-- idle_restart_delete_422_keeps_vm"
+reset
+sup once
+age_slot 1
+STUB_DELETE_BUSY=1 NOS_IDLE_MAX_S=3600 sup once
+check_not "idle_restart_delete_422_keeps_vm: no stop" grep -qE '^stop mimolette-1-' "${S}/container.argv"
+check_not "idle_restart_delete_422_keeps_vm: no dropped marker" test -e "${S}/state/dropped-1"
+check "idle_restart_delete_422_keeps_vm: slot keeps VM" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+check "idle_restart_delete_422_keeps_vm: slot keeps id" grep -qx 'id=101' "${S}/state/slot-1"
+check "idle_restart_delete_422_keeps_vm: logs HTTP 422" grep -q 'HTTP 422' "${S}/sup.err"
+
+echo "-- idle_restart_stop_fails_marks_dropped"
+reset
+sup once
+age_slot 1
+STUB_STOP_FAIL=1 NOS_IDLE_MAX_S=3600 sup once
+check "idle_restart_stop_fails_marks_dropped: marker" test -e "${S}/state/dropped-1"
+check_eq "idle_restart_stop_fails_marks_dropped: nothing started" 2 runs
+
+echo "-- idle_restart_not_a_fail"
+reset
+sup once
+age_slot 1
+NOS_IDLE_MAX_S=3600 sup once
+check "idle_restart_not_a_fail: fails=0" grep -qx 'fails=0' "${S}/state/slot-1"
+
+echo "-- idle_restart_disabled_at_zero"
+reset
+sup once
+age_slot 1
+NOS_IDLE_MAX_S=0 sup once
+check_eq "idle_restart_disabled_at_zero: no delete" 0 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+
+echo "-- idle_restart_refreshes_vm_list"
+reset
+sup once
+age_slot 1
+# Slot 2 is empty but a stray mimolette VM still shows in the pass's first ls: a stale list blocks the start (2 listed).
+printf 'name=\nid=\nfails=0\nstarted=0\n' >"${S}/state/slot-2"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_refreshes_vm_list: empty slot 2 starts in the same pass" 1 count '^mimolette-2-' "${S}/running"
+
+echo "-- idle_restart_one_slot_per_pass"
+reset
+sup once
+age_slot 1
+age_slot 2
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_one_slot_per_pass: one delete this pass" 1 count '^DELETE .*/actions/runners/10[12] ' "${S}/requests.log"
+check_eq "idle_restart_one_slot_per_pass: other slot untouched this pass" 0 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_one_slot_per_pass: other slot restarted next pass" 1 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
 
 echo "-- sigterm_mid_pass_starts_no_vm"
 reset

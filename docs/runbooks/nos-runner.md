@@ -114,6 +114,7 @@ The updater LaunchAgent runs every 600 s. It pulls the clone and runs `install.s
   The updater needs `NTFY_TOPIC` in its plist, which `install.sh` now writes from the env file.
   The updater cannot reload its own plist, so one hand run of `install.sh` (section 4, step 3) is needed to turn the alert on.
   Until then the updater logs `NTFY_TOPIC is unset` and sends nothing.
+- On a quiet night the supervisor restarts each slot about hourly (`NOS_IDLE_MAX_S`). That is normal.
 - A pf rule change needs `install-pf.sh` again with sudo. The updater never touches root files.
 
 ## 6. Hold, release and full stop
@@ -222,6 +223,9 @@ Key lines to look for:
 
 - `was still registered after its VM exited; deleted`: normal after a job. GitHub keeps a JIT runner listed for a while,
   so the supervisor deletes it. A VM exit is not a failed start: a runner that dies before its job is not detected yet.
+- `slot N: runner ID idle for S s (limit L s); restarting`: the runner waited longer than `NOS_IDLE_MAX_S` (default 3600, `0` disables)
+  for a job, so the supervisor deleted it and stops the VM. A fresh VM starts in its place. One slot restarts per pass.
+  A `delete failed (HTTP 422)` line instead means the runner had just taken a job; the VM keeps running.
 - `container run failed`: a failed start. Three in a row fail over.
 - `NOS_RUNNER set to ubuntu-latest`: the supervisor failed over. The reason follows.
 - `stopping: switching NOS_RUNNER`: the supervisor got SIGTERM.

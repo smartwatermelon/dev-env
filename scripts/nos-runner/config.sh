@@ -14,6 +14,9 @@ _nos_conf_dir="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${NOS_INTERVAL:=30}"
 : "${NOS_CONTAINER_TIMEOUT:=60}"
 
+# Seconds a runner may wait idle for a job before its slot is restarted; 0 disables. A JIT runner idle too long goes stale (dev-env#297).
+: "${NOS_IDLE_MAX_S:=3600}"
+
 # Worst-case seconds from SIGTERM to exit. Task 5 sets the plist ExitTimeOut above this.
 : "${NOS_SHUTDOWN_MAX_S:=1030}"
 
