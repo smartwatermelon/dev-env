@@ -322,6 +322,14 @@ check_is "orphan: no clone while id= is still registered" 0 "$(clones)"
 check_is "orphan: id= kept for retry" 999 "$(slot id)"
 check_is "orphan: fails=1" 1 "$(slot fails)"
 
+echo "-- a non-numeric id= in the state file is never put in a URL"
+reset
+mkdir -p "${S}/state"
+printf 'name=\nid=../x\nfails=0\nalert=\njob=0\n' >"${S}/state/slot"
+sup once
+check_not "bad id: no request URL contains ../x" grep -qF -- '../x' "${S}/requests.log"
+check "bad id: log names the bad id" grep -qF -- '../x' "${S}/sup.err"
+
 echo "-- pf ok stale -> no mint, one pf alert"
 reset
 touch -t 200001010000 "${S}/pf.ok"
