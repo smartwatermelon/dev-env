@@ -1,7 +1,7 @@
 # Fleet rollout of the MIMOLETTE runners (draft)
 
-**Status: draft, 2026-11-23. D1 (A+C), D2 (B), D3 (A), D4 (out of scope), D5 (A), D6 (A) and D7 (A) decided. No implementation plan
-until they are answered.**
+**Status: draft, 2026-11-23. D1 (A+C), D2 (B), D3 (A), D4 (out of scope), D5 (A), D6 (A) and D7 (A) decided. D8 (outside writers) is
+open. Part 1 plan: `docs/superpowers/plans/2026-11-23-runner-fleet-rollout-part1.md`.**
 
 ## Goal
 
@@ -87,8 +87,9 @@ Not every job is a test. Each class needs its own decision.
    getting jobs halves Linux capacity until a human sees it. Fix it before
    adding load.
 4. **A `runner` input on every reusable workflow** in github-workflows that a
-   class-1 or class-2 caller uses. That means dependabot-auto-merge,
-   semgrep-scan and netlify-site-checks, each released canary first.
+   class-1 caller uses. After D2 and D3 that is semgrep-scan only
+   (standards-check has one). dependabot-auto-merge stays hosted (D2) and
+   netlify-site-checks is class 3 (D3). Released canary first.
 5. ~~twistedmelonman access~~: dropped by D4.
 
 ## Decisions for Andrew
@@ -101,8 +102,11 @@ MIMOLETTE, Linux and macOS, because GitHub-hosted PR runs are slow. No one
 else's code runs on his infrastructure. Three layers:
 
 1. **Routing (C).** Workflows select MIMOLETTE for pushes and same-repo PRs.
-   Fork PRs select a GitHub-hosted runner. Only Andrew and his Apps have
-   write access, so same-repo PRs are his.
+   Fork PRs select a GitHub-hosted runner. Same-repo PRs come from people
+   with write access. **Correction (measured 2026-11-23):** that is only
+   Andrew in 37 of 39 repos, but `nightowlstudiollc/amelia-boone` also has
+   `arboone` and `nightowlstudiollc/tnjcleaning` has `tandjscleaningpf`
+   (client accounts, push access). See D8.
 2. **Runner guard (A).** A Linux runner pool for public repos, with the macOS
    runner's job-started fork guard (fail-closed) in its image. Routing alone
    is not enough: a fork PR can edit the workflow to name the self-hosted
@@ -203,14 +207,27 @@ unknown event, a missing field or a missing `jq` all deny. Fork-PR approval
 (layer 3) is a second barrier in front of it. The plan must add the guard's
 tests for each pool that uses it, and repeat the fork drill on each pool.
 
+**D7 implementation note.** Both writers of `NOS_RUNNER` send
+`"visibility":"private"`: the supervisor's `VAR_BODY` (`supervisor.sh:25`)
+and the watchdog (`workers/nos-runner-watchdog/src/github.js:122`). Each
+write would hide the variable from the public repos again, which would then
+silently run hosted. Part 4 must change both writers, and any runbook
+`gh variable set` command, to the new visibility.
+
+**D8. Outside writers (OPEN).** Two public NOS client repos give a client
+account push access. A same-repo branch from that account passes the fork
+guard and would run on MIMOLETTE. Before part 4 and part 5, re-measure
+collaborators on every in-scope repo. Options: keep those two repos hosted;
+add an actor allowlist to the guard; or remove the clients' push access.
+
 ## Draft phases (after D1 to D7)
 
 1. Fix the existing pools: dev-env#297 (stuck slot), dev-env#298 (check now
    after a manual fix), the still-valid items of dev-env#294.
 2. swm macOS plan part 2: the watchdog and the dotfiles pilot. Then
    homebrew-tap and mac-server-setup.
-3. github-workflows: a `runner` input on each reusable workflow, released
-   canary first.
+3. github-workflows: a `runner` input on semgrep-scan (see prerequisite 4),
+   released canary first.
 4. NOS private repos: switch the class-1 jobs repo by repo. These repos
    already reach `NOS_RUNNER`.
 5. Per D1: the public Linux pool, or nothing.

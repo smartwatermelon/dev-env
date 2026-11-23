@@ -27,7 +27,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 2. **Delete the runner before stopping its VM.** Once GitHub has deleted the runner, it cannot hand that runner a job, so the stop cannot kill a job. The remaining race is a job assigned between the `busy=false` read and the DELETE. It is not proven whether GitHub refuses to DELETE a busy runner.
 3. **No ntfy alert for idle restarts.** They are routine on quiet nights, so an alert would be noise. Restarts are logged. The watchdog still alerts on a real outage.
 4. **dev-env#298 takes option 2 (manual recovery, runbook only).** It adds no URL to the Worker, keeping `workers_dev = false`. `decide()` already resets its counters when the variable changes from outside.
-5. **dev-env#294: fix 5 items, defer the rest** (list in Task 3).
+5. **dev-env#294: fix 3 items plus comments, defer the rest** (list in Task 3).
 
 ## Review Focus
 
@@ -36,6 +36,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 3. A DELETE that fails must leave the VM running and the slot unchanged, to retry on the next pass. Test: `idle_restart_delete_fails_keeps_vm`.
 4. A stop that fails after a good DELETE must not start a third VM. The `dropped-N` marker makes a later pass stop it. Test: `idle_restart_stop_fails_marks_dropped`.
 5. A restart must not count as a failed start, since a count of 3 fails the pool over. Test: `idle_restart_not_a_fail`.
+6. Both slots past the limit in the same pass must not both go offline: the watchdog counts zero online runners as a miss. Restart at most one slot per pass. Test: `idle_restart_one_slot_per_pass`.
 
 ---
 
@@ -64,6 +65,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
   - `idle_restart_stop_fails_marks_dropped`: aged; make the container stub's `stop` fail (add `STUB_STOP_FAIL` if the stub lacks one) → `${S}/state/dropped-1` exists; `runs` stays 2 after the pass.
   - `idle_restart_not_a_fail`: after a restart, `slot-1` has `fails=0`.
   - `idle_restart_disabled_at_zero`: aged, `NOS_IDLE_MAX_S=0` → no DELETE of 101.
+  - `idle_restart_one_slot_per_pass`: age both slots → this pass DELETEs exactly one of 101 and 102 (`count '^DELETE .*/actions/runners/10[12] ' requests.log` is 1); the next pass restarts the other.
 
 - [ ] **Step 3: Run the tests and confirm they fail.**
   Run: `bash scripts/nos-runner/tests/test-supervisor.sh 2>&1 | grep -E 'FAIL: idle_restart'`
@@ -73,6 +75,7 @@ The spec does not settle these. They are stated here so Andrew can overrule them
   1. `delete_runner`. If that fails, log and continue.
   2. Touch `dropped-N`, log the line above, then `stop_slot N`.
   3. Leave `id=` and `fails=` as they are: `deregister_pending` clears `id=` on a later pass, and a 404 is fine there.
+  4. Return after the first restart in a pass (one slot per pass).
 
   Call it in `cmd_once` right after `deregister_pending` (line 528) and before `slots_ok`. Comment the race named in decision 2.
 
@@ -82,7 +85,9 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 
 - [ ] **Step 6: Runbook.** In `docs/runbooks/nos-runner.md` section 9, add the log line and its meaning. In section 5 or 8, add one sentence: a quiet night restarts each slot about hourly, and that is normal.
 
-- [ ] **Step 7: Commit** (message `fix(nos-runner): restart a slot whose runner waits too long for a job`, body `Closes #297`).
+- [ ] **Step 7: Commit** (message `fix(nos-runner): restart a slot whose runner waits too long for a job`, body `Advances #297`; the live proof closes it).
+
+- [ ] **Step 8: Live proof after merge.** The updater deploys `main` to MIMOLETTE. Wait for the first idle hour after the update. Read the supervisor log through the `agentro` account (`docs/runbooks/agent-ro.md`, read-only). Expected: a `slot N: runner ID idle for … restarting` line, then `slot N: started mimolette-N-…`. The org runners list must show 2 `mimolette` runners online. Then close dev-env#297 with the log lines quoted. If a restart leaves fewer than 2 runners online, report it to Andrew at once. The fix is a revert PR; agents do not edit MIMOLETTE.
 
 ### Task 2: Runbook: recover at once after a manual fix (dev-env#298)
 
@@ -113,8 +118,8 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 
 **Files:**
 
-- Modify: `scripts/swm-macos-runner/supervisor.sh` (`slot_load`, line 70), `scripts/swm-macos-runner/lib.sh` (the `kill -9` paths, lines 49-80), `scripts/swm-macos-runner/image/build-image.sh`, `scripts/swm-macos-runner/config.sh`, `scripts/nos-runner/net/pf-guard.sh` (`warn_swm_v6`, line 40)
-- Test: `scripts/swm-macos-runner/tests/test-supervisor.sh`, `test-build-image.sh`, `scripts/nos-runner/tests/test-pf-guard.sh`
+- Modify: `scripts/swm-macos-runner/supervisor.sh` (`slot_load`, line 70), `scripts/swm-macos-runner/lib.sh` (the `kill -9` paths, lines 49-80), `scripts/swm-macos-runner/image/build-image.sh`, `scripts/swm-macos-runner/config.sh`
+- Test: `scripts/swm-macos-runner/tests/test-supervisor.sh`, `test-build-image.sh`
 
 **Interfaces:**
 
@@ -124,11 +129,11 @@ The spec does not settle these. They are stated here so Andrew can overrule them
 Check each item against `main` first; #289 to #293 may have fixed some. Skip any that are already fixed, and say so in the PR body.
 
 - [ ] **Step 1: Slot id validation (Task 5 finding).** Test `slot_id_not_numeric_is_not_sent`: a state file with `id=../x` gives no request whose URL contains `../x`, and the log names the bad id. Implement: in `slot_load`, clear `SL_ID` unless it matches `^[0-9]+$`, and log.
-- [ ] **Step 2: TERM before KILL for the build (Task 5 finding).** Test in `test-build-image.sh` or `test-supervisor.sh`: on SIGTERM during a build, the stub build first receives TERM, and KILL only after a grace period. Implement in `lib.sh`'s bounded kill (send `"${KILL_BIN}" -TERM`, wait a few seconds, then `-9`), so the build's EXIT trap can delete `swm-build-tmp`. This changes every bounded command, not only the build; the tests for bounded timeouts must still pass.
-- [ ] **Step 3: v6 warning rate (Task 3 finding).** In `pf-guard.sh` `warn_swm_v6`, log only when the v6 state changes, not every 60 s. Test in `test-pf-guard.sh`: two runs with the same failed v6 load give one warning line. This also changes `scripts/nos-runner/`, so run its suite too.
+- [ ] **Step 2: TERM before KILL for the build (Task 5 finding).** Test in `test-build-image.sh` or `test-supervisor.sh`: on SIGTERM during a build, the stub build first receives TERM, and KILL only after a grace period. Change only `abort_bounded` in `lib.sh` (the TERM-trap path, line 68): send `-TERM`, wait up to 5 s, then `-9`. Leave the timeout kills in `bounded` unchanged. First add up the worst-case shutdown time with the 5 s added, and compare it with the plist `ExitTimeOut`. The #294 note says teardown is already about 300 s, equal to `ExitTimeOut`. If the 5 s does not fit, skip this step and list it as deferred.
+- [ ] **Step 3: v6 warning rate: deferred.** `pf-guard.sh` is installed root-owned by `install-pf.sh` (to `/usr/local/libexec/nos-runner/`), and the updater never touches root files. A fix needs Andrew to run `install-pf.sh` with sudo. Leave it in the deferred list, and batch it with the next sudo step (part 4 or 5 changes pf too).
 - [ ] **Step 4: Comments only.** Fix the stale `build-image.sh:81` "not bounded" comment. Add a pointer comment on `_swm_image_hash` saying it copies `_nos_image_hash`. Document in `config.sh` that the IP bound (`SWM_IP_LIMIT_S + 10 = 190`) exceeds 180 on purpose.
-- [ ] **Step 5: Run** `bash scripts/swm-macos-runner/tests/run-tests.sh` and `bash scripts/nos-runner/tests/run-tests.sh` (expected exit 0, no `FAIL`) and `shellcheck -S info` on each changed script (expected no output).
-- [ ] **Step 6: Commit** (`fix(swm-macos-runner): part 1 review follow-ups`, body `Advances #294`). Comment on #294 listing what was fixed, what was already fixed, and what is deferred: test-label naming, stdout vs stderr, the missing-head test cases, the `pf_fail` placement, the okseen probe, the delete-limit reuse, the `ip --wait` race, the readiness-probe overshoot and the shared pf dedupe.
+- [ ] **Step 5: Run** `bash scripts/swm-macos-runner/tests/run-tests.sh` (expected exit 0, no `FAIL`) and `shellcheck -S info` on each changed script (expected no output).
+- [ ] **Step 6: Commit** (`fix(swm-macos-runner): part 1 review follow-ups`, body `Advances #294`). Comment on #294 listing what was fixed, what was already fixed, and what is deferred: the v6 warning rate (needs sudo), test-label naming, stdout vs stderr, the missing-head test cases, the `pf_fail` placement, the okseen probe, the delete-limit reuse, the `ip --wait` race, the readiness-probe overshoot and the shared pf dedupe.
 
 ---
 
@@ -137,8 +142,8 @@ Check each item against `main` first; #289 to #293 may have fixed some. Skip any
 | Part | Spec phase | Content |
 |---|---|---|
 | 2 | 2 + D5 | Generalize `nos-runner-watchdog` to all pools (per-pool state, label, fallback, App key). Then macOS plan part 2: `swm-runner-watchdog` App, re-runs, dotfiles pilot, then homebrew-tap, mac-server-setup |
-| 3 | 3 | github-workflows: `runner` input on dependabot-auto-merge, semgrep-scan, netlify-site-checks; canary first |
-| 4 | 4 + D7 | NOS: the fork guard in the NOS image (`ALLOWED_OWNERS=nightowlstudiollc`), group allows public repos, `NOS_RUNNER` visible to the 4 public repos, fork drill; then switch class-1 jobs repo by repo; move the kebab-tax deploy job back to hosted |
+| 3 | 3 | github-workflows: `runner` input on semgrep-scan (the others stay hosted per D2/D3); canary first |
+| 4 | 4 + D7 + D8 | NOS: the fork guard in the NOS image (`ALLOWED_OWNERS=nightowlstudiollc`), group allows public repos, `NOS_RUNNER` visible to the 4 public repos (change both writers' `visibility`: `supervisor.sh:25`, watchdog `github.js:122`), D8 applied, fork drill; then switch class-1 jobs repo by repo; move the kebab-tax deploy job back to hosted |
 | 5 | 5 + D1 | swm Linux pool (`SWM_RUNNER`) with the fork guard, on MIMOLETTE's existing RAM budget; fork drill; switch swm repos |
 | 6 | 6 + D6 | Templates, NOS bootstrap (dev-env#264), standards-check drift warning |
 
