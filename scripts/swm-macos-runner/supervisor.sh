@@ -78,7 +78,13 @@ slot_load() {
   while IFS='=' read -r k v; do
     case "${k}" in
       name) SL_NAME="${v}" ;;
-      id) SL_ID="${v}" ;;
+      id)
+        if [[ -z "${v}" || "${v}" =~ ^[0-9]+$ ]]; then
+          SL_ID="${v}"
+        else
+          log "ignoring non-numeric runner id '${v}' in ${SLOT_FILE}"
+        fi
+        ;;
       fails) [[ "${v}" =~ ^[0-9]+$ ]] && SL_FAILS="${v}" ;;
       alert) SL_ALERT="${v}" ;;
       job) SL_JOB="${v:-0}" ;;

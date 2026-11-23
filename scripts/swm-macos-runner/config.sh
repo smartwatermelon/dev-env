@@ -19,6 +19,8 @@ export TART_HOME
 # Per-call limits in seconds for the tart commands.
 : "${SWM_CLONE_LIMIT_S:=600}"
 : "${SWM_RUN_LIMIT_S:=30}"
+# The supervisor bounds the ip call at SWM_IP_LIMIT_S + 10 (190 s), above 180 on purpose:
+# tart ip --wait gets the full limit to give up first.
 : "${SWM_IP_LIMIT_S:=180}"
 : "${SWM_EXEC_LIMIT_S:=60}"
 : "${SWM_STOP_LIMIT_S:=60}"
@@ -58,7 +60,7 @@ _swm_sha256() {
   if command -v "${SHA256SUM_BIN}" >/dev/null 2>&1; then "${SHA256SUM_BIN}" "$@"; else "${SHASUM_BIN}" -a 256 "$@"; fi
 }
 
-# _swm_image_hash DIR: 12 hex over file digests plus the base digest (as NOS _nos_image_hash).
+# _swm_image_hash DIR: 12 hex over file digests plus the base digest (copy of _nos_image_hash, nos-runner/config.sh; change both).
 _swm_image_hash() {
   local files f d list=""
   files="$(cd "$1" && find . -type f)" || return 1
