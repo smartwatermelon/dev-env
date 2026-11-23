@@ -143,8 +143,8 @@ Check each item against `main` first; #289 to #293 may have fixed some. Skip any
 |---|---|---|
 | 2 | 2 + D5 | Generalize `nos-runner-watchdog` to all pools (per-pool state, label, fallback, App key). Then macOS plan part 2: `swm-runner-watchdog` App, re-runs, dotfiles pilot, then homebrew-tap, mac-server-setup |
 | 3 | 3 | github-workflows: `runner` input on semgrep-scan (the others stay hosted per D2/D3); canary first |
-| 4 | 4 + D7 + D8 | NOS: the fork guard in the NOS image (`ALLOWED_OWNERS=nightowlstudiollc`), group allows public repos, `NOS_RUNNER` visible to the 4 public repos (change both writers' `visibility`: `supervisor.sh:25`, watchdog `github.js:122`), D8 applied, fork drill; then switch class-1 jobs repo by repo; move the kebab-tax deploy job back to hosted |
+| 4 | 4 + D7 + D8 | NOS: the fork guard in the NOS image (`ALLOWED_OWNERS=nightowlstudiollc`), group allows public repos, `NOS_RUNNER` visible to the public NOS repos without outside writers (`.github`, jordan-paddock-pitch; D8 keeps client sites hosted) by changing both writers' `visibility` (`supervisor.sh:25`, watchdog `github.js:122`), fork drill; then switch class-1 jobs repo by repo; move the kebab-tax deploy job back to hosted |
 | 5 | 5 + D1 | swm Linux pool (`SWM_RUNNER`) with the fork guard, on MIMOLETTE's existing RAM budget; fork drill; switch swm repos |
-| 6 | 6 + D6 | Templates, NOS bootstrap (dev-env#264), standards-check drift warning |
+| 6 | 6 + D6 + D8 | Templates (client-site templates default to hosted), NOS bootstrap (dev-env#264), standards-check drift warning (client sites exempt), digest flag for a pool-targeting repo with outside writers |
 
 Every part routes `runs-on` the same way: a fork PR or `dependabot[bot]` gets the hosted label, and otherwise the pool's variable is used, falling back to the hosted label.

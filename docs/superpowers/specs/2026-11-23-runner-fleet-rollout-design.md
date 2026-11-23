@@ -1,7 +1,6 @@
 # Fleet rollout of the MIMOLETTE runners (draft)
 
-**Status: draft, 2026-11-23. D1 (A+C), D2 (B), D3 (A), D4 (out of scope), D5 (A), D6 (A) and D7 (A) decided. D8 (outside writers) is
-open. Part 1 plan: `docs/superpowers/plans/2026-11-23-runner-fleet-rollout-part1.md`.**
+**Status: draft, 2026-11-23. D1 (A+C), D2 (B), D3 (A), D4 (out of scope), D5 (A), D6 (A), D7 (A) and D8 (A, standing rule) decided. Part 1 plan: `docs/superpowers/plans/2026-11-23-runner-fleet-rollout-part1.md`.**
 
 ## Goal
 
@@ -214,11 +213,18 @@ write would hide the variable from the public repos again, which would then
 silently run hosted. Part 4 must change both writers, and any runbook
 `gh variable set` command, to the new visibility.
 
-**D8. Outside writers (OPEN).** Two public NOS client repos give a client
-account push access. A same-repo branch from that account passes the fork
-guard and would run on MIMOLETTE. Before part 4 and part 5, re-measure
-collaborators on every in-scope repo. Options: keep those two repos hosted;
-add an actor allowlist to the guard; or remove the clients' push access.
+**D8. Outside writers. DECIDED 2026-11-23: A, as a standing rule.** Two
+public NOS client repos give a client account push access. A same-repo
+branch from that account passes the fork guard and would run on MIMOLETTE.
+
+- amelia-boone and tnjcleaning stay on GitHub-hosted runners.
+- Standing rule (Andrew): assume the same for every client site, now and
+  in the future. Any repo where an account other than `twistedmelonman`
+  has push access stays hosted.
+- Re-measure collaborators before parts 4 and 5.
+- Part 6 makes it checkable: client-site templates default to hosted, and
+  the standards-check drift warning does not flag them. The digest flags
+  any repo that targets a pool while an outside account has push access.
 
 ## Draft phases (after D1 to D7)
 
