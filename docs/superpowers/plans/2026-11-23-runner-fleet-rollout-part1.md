@@ -23,7 +23,7 @@
 
 The spec does not settle these. They are stated here so Andrew can overrule them before execution:
 
-1. **`NOS_IDLE_MAX_S` default 3600 (1 hour).** A restart of an idle VM costs one JIT mint and one VM boot, so a short limit is cheap. On a quiet night each slot restarts about once an hour. The 2026-11-20 hang (51 h) would have ended within an hour.
+1. **`NOS_IDLE_MAX_S` default 3600 (1 hour). Confirmed by Andrew 2026-11-23.** A restart of an idle VM costs one JIT mint and one VM boot, so a short limit is cheap. On a quiet night each slot restarts about once an hour. The 2026-11-20 hang (51 h) would have ended within an hour.
 2. **Delete the runner before stopping its VM.** Once GitHub has deleted the runner, it cannot hand that runner a job, so the stop cannot kill a job. The remaining race is a job assigned between the `busy=false` read and the DELETE. It is not proven whether GitHub refuses to DELETE a busy runner.
 3. **No ntfy alert for idle restarts.** They are routine on quiet nights, so an alert would be noise. Restarts are logged. The watchdog still alerts on a real outage.
 4. **dev-env#298 takes option 2 (manual recovery, runbook only).** It adds no URL to the Worker, keeping `workers_dev = false`. `decide()` already resets its counters when the variable changes from outside.
