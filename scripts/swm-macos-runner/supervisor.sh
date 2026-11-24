@@ -354,6 +354,9 @@ run_job() {
   IDLE_WHY=""
   IDLE_REFUSAL_LOGGED=0
   JIT_AT="$(now)"
+  if [[ ! "${SWM_IDLE_MAX_S}" =~ ^[0-9]+$ ]]; then
+    log "SWM_IDLE_MAX_S='${SWM_IDLE_MAX_S}' is not whole seconds; no idle limit for runner ${VM}"
+  fi
   running && BOUNDED_CHECK_S="${SWM_UPDATE_IDLE_CHECK_S}" SWM_IN=/dev/fd/3 \
     bounded "${SWM_JOB_MAX_S}" "${TART_BIN}" exec -i "${VM}" /bin/bash "${GUEST_JOB}" || rc=$?
   ABORT_OK=0

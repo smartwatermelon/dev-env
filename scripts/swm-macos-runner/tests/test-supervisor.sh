@@ -608,6 +608,12 @@ check "idle+update: ended for the update" grep -q 'ended idle for the pending up
 check_not "idle+update: no idle-max message" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
 /bin/rm -f "${PEND}"
 
+echo "-- idle_max_non_numeric_logged: a bad SWM_IDLE_MAX_S is logged, never silent"
+reset
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=1h SWM_JOB_MAX_S=2 sup once
+check "idle bad: logged" grep -q "SWM_IDLE_MAX_S='1h' is not whole seconds" "${S}/sup.err"
+check_not "idle bad: not ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+
 echo "-- idle_max_young_runner_untouched: a runner younger than SWM_IDLE_MAX_S is left alone"
 reset
 STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=60 SWM_JOB_MAX_S=3 sup once
