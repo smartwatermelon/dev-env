@@ -33,7 +33,16 @@ export const jobFor = (pool, over = {}) => ({
   ...over,
 });
 
+// The lost-runner phase lists failed runs from 6 hours before the tick. Built here, not imported, so a wrong URL fails.
+export const failedUrlFor = (pool, r, now = NOW) => {
+  const since = new Date(now - 6 * 3600000)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
+  return `GET ${repoUrlFor(pool, r)}?status=failure&created=>=${since}&per_page=20&exclude_pull_requests=true`;
+};
+
 // Same shape as world(): repos/inProgress {name: [{id, age, jobs?, attempt?}]}; jobs default to one pool-label job.
+// failed {name: [{run, jobs}]} are the failed runs a rerunLost pool lists; such a pool gets an empty list for every other repo.
 export function worldFor(
   pool,
   {
@@ -41,11 +50,17 @@ export function worldFor(
     runners = [runnerFor(pool, "a", false), runnerFor(pool, "b", false)],
     repos = {},
     inProgress = {},
+    failed = {},
+    now = NOW,
     extra = {},
   } = {},
 ) {
   const names = [
-    ...new Set([...Object.keys(repos), ...Object.keys(inProgress)]),
+    ...new Set([
+      ...Object.keys(repos),
+      ...Object.keys(inProgress),
+      ...Object.keys(failed),
+    ]),
   ];
   const routes = {
     [runnersKey(pool)]: { json: { runners } },
@@ -89,6 +104,19 @@ export function worldFor(
   for (const r of names) {
     addRuns(r, repos[r] ?? [], "queued");
     addRuns(r, inProgress[r] ?? [], "in_progress");
+    if (!pool.rerunLost) continue;
+    const list = failed[r] ?? [];
+    routes[failedUrlFor(pool, r, now)] = {
+      json: { workflow_runs: list.map((x) => x.run) },
+    };
+    for (const x of list) {
+      routes[`GET ${repoUrlFor(pool, r)}/${x.run.id}/jobs?per_page=100`] = {
+        json: { jobs: x.jobs },
+      };
+      routes[`POST ${repoUrlFor(pool, r)}/${x.run.id}/rerun-failed-jobs`] = {
+        status: 201,
+      };
+    }
   }
   return { ...routes, ...extra };
 }

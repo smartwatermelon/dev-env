@@ -1,6 +1,12 @@
 import { decide } from "./decide.js";
 import * as gh from "./github.js";
 import { APPS, POOLS, poolForCron, appEnv } from "./pools.js";
+import {
+  LOST_WINDOW_MS,
+  lostCandidate,
+  lostRunner,
+  pruneChecked,
+} from "./lost.js";
 
 // Free plan allows 50 subrequests a run; KV calls are counted too, for headroom.
 export const CAP = 40;
@@ -17,6 +23,12 @@ const TOKEN_TTL = 3000;
 const SKIP_ALERT = 3;
 // Sends per alert. A tick sends at most two alerts, so retries fit in the CAP headroom.
 const NTFY_TRIES = 3;
+// Lost-runner phase, per probe: the jobs GET, the lostChecked put, the rerun POST, and the last lostChecked put.
+const PROBE_COST = 4;
+// Left free by the scan on a rerunLost pool: the lostChecked get, one failed-runs list, one probe.
+const LOST_SHARE = 1 + 1 + PROBE_COST;
+// lostChecked also holds the lost-phase repo cursor under this key; a "<repo>#<runId>" key can never equal it.
+const CURSOR_KEY = "_cursor";
 
 // Logs name the failed call and status only, never a URL, token or topic.
 const describe = (e) =>
@@ -148,7 +160,10 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
     prev.lastVar === null ||
     (prev.misses ?? 0) >= 1;
   const scanReserve =
-    RESERVE_REQUIRED + (skips ? 2 : 0) + (sweepLikely ? OPTIONAL_SHARE : 0);
+    RESERVE_REQUIRED +
+    (skips ? 2 : 0) +
+    (sweepLikely ? OPTIONAL_SHARE : 0) +
+    (pool.rerunLost ? LOST_SHARE : 0);
   let observed;
   let scan;
   let repoOldest;
@@ -320,6 +335,69 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
   for (const p of planned) {
     await optional((t) => gh.cancelRun(t, p.repo, p.runId, fetchFn), 0);
   }
+
+  // Lost runners, after the cancels so the sweep keeps its budget. NOS has no rerunLost, so its tick ends above.
+  if (!pool.rerunLost || scan.all.length === 0) return;
+  if (stopped || !budget.canAfford(LOST_SHARE)) return;
+  const loaded = parseOr(await kv.get("lostChecked"), {}, "lostChecked");
+  const { [CURSOR_KEY]: savedCursor, ...entries } = loaded ?? {};
+  const lostChecked = pruneChecked(entries, now);
+  let dirty = Object.keys(lostChecked).length !== Object.keys(entries).length;
+  const sinceIso = new Date(now - LOST_WINDOW_MS).toISOString();
+  // Runs the pending list re-runs (a down-sweep run can fail first) are left to it, so no run gets two re-runs.
+  const pendingKeys = new Set([...pending, ...toWrite].map(runKey));
+  // Own cursor: the next tick starts after the last repo listed. Mod n, so a changed repo count is safe.
+  const n = scan.all.length;
+  const prevCursor = Number.isInteger(savedCursor) ? savedCursor : 0;
+  const start = ((prevCursor % n) + n) % n;
+  let cursor = start;
+  const save = () =>
+    kv.put(
+      "lostChecked",
+      JSON.stringify({ ...lostChecked, [CURSOR_KEY]: cursor }),
+    );
+  let out = false;
+  for (let i = 0; i < n && !out; i += 1) {
+    const repo = scan.all[(start + i) % n];
+    const list = await optional(
+      (t) => gh.listFailedRuns(t, repo, sinceIso, fetchFn),
+      PROBE_COST,
+    );
+    if (list.skipped) break;
+    // Listed (or failed): the next tick starts after this repo, even if its probes are cut short.
+    cursor = (start + i + 1) % n;
+    if (!list.ok) continue;
+    for (const run of list.value) {
+      const k = `${repo}#${run.id}`;
+      if (k in lostChecked || pendingKeys.has(k) || !lostCandidate(run))
+        continue;
+      const jobs = await optional(
+        (t) => gh.getJobs(t, repo, run.id, fetchFn),
+        PROBE_COST - 1,
+      );
+      if (jobs.skipped) {
+        out = true;
+        break;
+      }
+      // A failed jobs GET is not marked, so a later tick probes the run again.
+      if (!jobs.ok) continue;
+      lostChecked[k] = now;
+      dirty = true;
+      if (!lostRunner(run, jobs.value, pool)) continue;
+      // Marked before the POST: a crash after it can never re-run the run twice.
+      await save();
+      dirty = false;
+      const rr = await optional(
+        (t) => gh.rerunFailed(t, repo, run.id, fetchFn),
+        RESERVE_FINAL,
+      );
+      // No alert (plan decision 9): re-runs after a restart are routine.
+      log(
+        rr.ok ? `lost runner re-run: ${k}` : `lost runner re-run failed: ${k}`,
+      );
+    }
+  }
+  if ((dirty || cursor !== prevCursor) && budget.canAfford(1)) await save();
 }
 
 // A run we cancelled is re-run; a failure only when the down sweep cancelled it (a hung job can fail first).

@@ -1,0 +1,69 @@
+{
+  "source": "GET /repos/smartwatermelon/dotfiles/actions/runs/44395263750 and /jobs, captured 2026-11-23, redacted to the fields the predicate reads",
+  "note": "Cancelled by smartwatermelon-agent[bot] during Run bash test suite, not by a runner restart.",
+  "run": {
+    "actor": {
+      "login": "smartwatermelon-agent[bot]"
+    },
+    "conclusion": "cancelled",
+    "event": "pull_request",
+    "head_repository": {
+      "full_name": "smartwatermelon/dotfiles"
+    },
+    "id": 44395263750,
+    "repository": {
+      "full_name": "smartwatermelon/dotfiles"
+    },
+    "run_attempt": 1
+  },
+  "jobs": [
+    {
+      "conclusion": "cancelled",
+      "labels": ["mimolette-macos"],
+      "runner_name": "mimolette-macos-1795034845",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Set up runner"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install bash 5"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install linters the lint tests exercise"
+        },
+        {
+          "conclusion": "success",
+          "name": "Clone github-workflows for the upstream config comparison"
+        },
+        {
+          "conclusion": "success",
+          "name": "Show bash version"
+        },
+        {
+          "conclusion": "cancelled",
+          "name": "Run bash test suite"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Checkout"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    }
+  ]
+}

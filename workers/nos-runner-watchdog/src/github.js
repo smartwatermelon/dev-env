@@ -166,6 +166,22 @@ export async function listRuns(token, repo, status, fetchFn) {
   }));
 }
 
+/** Failed runs created since sinceIso, newest first, with the run fields lostCandidate() reads. */
+export async function listFailedRuns(token, repo, sinceIso, fetchFn) {
+  const since = sinceIso.replace(/\.\d{3}Z$/, "Z");
+  const path = `/repos/${repo}/actions/runs?status=failure&created=>=${since}&per_page=20&exclude_pull_requests=true`;
+  const out = await call(token, "GET", path, "runs failure", fetchFn);
+  return (out.workflow_runs ?? []).map((r) => ({
+    id: r.id,
+    // No default: a run without run_attempt is never re-run.
+    run_attempt: r.run_attempt,
+    conclusion: r.conclusion,
+    head_repository: { full_name: r.head_repository?.full_name ?? null },
+    repository: { full_name: r.repository?.full_name ?? null },
+    actor: { login: r.actor?.login ?? null },
+  }));
+}
+
 export async function getJobs(token, repo, runId, fetchFn) {
   const out = await call(
     token,
