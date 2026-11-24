@@ -4,6 +4,7 @@ Private nightowlstudiollc CI jobs run on MIMOLETTE, in one Apple container VM pe
 The `NOS_RUNNER` org variable picks the runner label: `mimolette` or `ubuntu-latest`.
 A supervisor on MIMOLETTE keeps two runner slots up. A Cloudflare Worker, the watchdog,
 checks every 10 minutes and moves the variable to `ubuntu-latest` when the runner is down.
+The same Worker also watches the smartwatermelon macOS pool, on its own cron (section 7).
 Design: `docs/superpowers/specs/2026-11-10-nos-self-hosted-runner-design.md`.
 
 ## 1. The two GitHub Apps
@@ -14,10 +15,14 @@ Andrew creates both in the GitHub UI and installs them on nightowlstudiollc only
 |---|---|---|
 | `nos-runner` (App ID 5703224, installation 180668548) | org: Self-hosted runners write, Variables write | MIMOLETTE login Keychain |
 | `nos-runner-watchdog` | org: Self-hosted runners read, Variables write; repos: Actions write | Worker secret |
+| `swm-runner-watchdog` (smartwatermelon, for the macOS pool) | org: Self-hosted runners read, Variables write; repos: Actions write | Worker secrets `SWM_*` |
+
+`swm-runner-watchdog` has the same permissions as `nos-runner-watchdog`, and no more.
+It is installed on smartwatermelon, not nightowlstudiollc. Its setup is in `docs/runbooks/swm-macos-runner.md` (section 10).
 
 A leaked key reaches only that App's permissions.
 
-Install `nos-runner-watchdog` on **All repositories**. With a smaller selection,
+Install each watchdog App on **All repositories** of its org. With a smaller selection,
 the watchdog sees fewer repos and reports no error.
 
 ## 2. Store the supervisor key in the Keychain
@@ -40,15 +45,25 @@ The item holds the PEM as base64 text, on one line.
    The supervisor reads it under launchd, where a prompt would block it with no window (not yet verified).
 5. Verify the Keychain again, then delete the PEM file.
 
-## 3. Prepare the watchdog key
+## 3. Prepare the watchdog keys
 
-The Worker needs the key as PKCS8. Convert the PEM once:
+The Worker needs each key as PKCS8. Convert each PEM once.
+
+NOS:
 
 ```bash
 openssl pkcs8 -topk8 -nocrypt -in nos-runner-watchdog.pem -out nos-runner-watchdog.pkcs8.pem
 ```
 
-Set the contents as the Worker secret `APP_KEY_PKCS8` (section 7). Delete both files afterward.
+smartwatermelon (macOS pool):
+
+```bash
+openssl pkcs8 -topk8 -nocrypt -in swm-runner-watchdog.*.pem -out swm-runner-watchdog.pkcs8.pem
+op document create swm-runner-watchdog.pkcs8.pem --title swm-runner-watchdog-pkcs8 --vault Automation
+```
+
+Set the contents as the Worker secret `APP_KEY_PKCS8` (NOS) or `SWM_APP_KEY_PKCS8` (macOS) (section 7).
+Keep the PEM until the secret works, then delete both files.
 
 ## 4. First install on MIMOLETTE
 
@@ -157,15 +172,27 @@ The watchdog moves it back to `mimolette` after healthy checks.
 
 ## 7. Deploy the watchdog Worker
 
+One Worker watches both pools. Each pool has its own cron, so each tick gets its own subrequest and CPU budget:
+
+| Pool | Cron | Variable | KV keys | App secrets |
+|---|---|---|---|---|
+| NOS | `*/10 * * * *` | `NOS_RUNNER` | unprefixed: `state`, `token`, `pendingReruns`, `skips`, `drill` | `APP_ID`, `INSTALLATION_ID`, `APP_KEY_PKCS8` |
+| smartwatermelon macOS | `5,15,25,35,45,55 * * * *` | `SWM_MACOS_RUNNER` | prefixed `swm-macos:` | `SWM_APP_ID`, `SWM_INSTALLATION_ID`, `SWM_APP_KEY_PKCS8` |
+
+`NTFY_TOPIC` and `NTFY_TOKEN` are shared. The macOS pool's alert texts start with `macOS runner:`.
+The two crons never fire in the same minute. `scheduled()` picks the pool from `event.cron` and matches it exactly.
+A tick with no cron (a manual run) is the NOS pool. A cron that no pool owns logs `unknown cron` and does nothing.
+
 Deploy with wrangler (it calls the Cloudflare API), never the dashboard. Run each command
 from `workers/nos-runner-watchdog/`, logged in to the nightowlstudio account (`npx wrangler@4 whoami`).
-First deployed 2026-11-12.
+First deployed 2026-11-12. The macOS pool was added after that.
 
 1. The KV namespace `nos-runner-watchdog-state` exists. Its ID is in `wrangler.toml`, binding `STATE`.
    To make a new one: `npx wrangler@4 kv namespace create nos-runner-watchdog-state`, then update the ID.
-2. Upload the Worker and its cron: `npx wrangler@4 deploy`. The cron `*/10 * * * *` comes from `wrangler.toml`.
-   `workers_dev = false`, so the Worker has no public URL.
-3. Set the five secrets from 1Password, piped so they never print:
+2. Check the account's Cron Trigger count before the first deploy with two crons: the Free plan allows 5 across the account.
+   This Worker now uses 2. Count the others in the dashboard (Workers and Pages). It must be 4 or fewer before the deploy.
+3. Set the secrets before the deploy when you add a pool, so the old code ignores them.
+   Set the five NOS secrets from 1Password, piped so they never print:
 
    ```bash
    printf '%s' <app-id> | npx wrangler@4 secret put APP_ID
@@ -180,15 +207,41 @@ First deployed 2026-11-12.
    Without it, ntfy.sh counts Worker posts against one quota shared by all of Cloudflare and returns 429.
    Even with it, ntfy.sh drops about half of the connections from Workers (HTTP 522 after about 20 s),
    so the Worker tries each alert up to 3 times (measured 2026-11-12).
-4. Check a scheduled run: `npx wrangler@4 kv key list --binding STATE --remote` lists `state` after the first tick.
-   Never `kv key get token`: that key holds a live installation token.
-5. To stop the watchdog (full stop), set `crons = []` in `wrangler.toml` and run `npx wrangler@4 triggers deploy`.
-   Restore `crons = ["*/10 * * * *"]` and run it again to start. (Not yet tested.)
+
+   Set the three macOS secrets:
+
+   ```bash
+   printf '%s' <app-id> | npx wrangler@4 secret put SWM_APP_ID
+   printf '%s' <installation-id> | npx wrangler@4 secret put SWM_INSTALLATION_ID
+   op document get swm-runner-watchdog-pkcs8 --vault Automation | npx wrangler@4 secret put SWM_APP_KEY_PKCS8
+   ```
+
+   A macOS pool with any of its three secrets missing stays silent: it logs `pool swm-macos not configured`,
+   makes no KV write and sends no alert. So a partial set, or a deploy before the secrets, is safe but also does nothing.
+   Only the macOS pool is quiet this way. The NOS pool keeps its alert path, so a lost NOS secret still shows as `watchdog skipping`.
+4. Upload the Worker and both crons: `npm test && npx wrangler@4 deploy`.
+   The output lists both crons under the triggers. They come from `wrangler.toml`.
+   `workers_dev = false`, so the Worker has no public URL.
+5. Check both pools after 20 minutes: `npx wrangler@4 kv key list --binding STATE --remote` lists `state` and `swm-macos:state`.
+   - Never `kv key get token` or `kv key get swm-macos:token`: those keys hold live installation tokens.
+   - **NOS tick at a `:x0` minute.** After a deploy that changes the crons, check that a NOS tick at a `:00`, `:10`, ... minute still runs and updates `state`
+     (watch `npx wrangler@4 tail` through one such minute, then check that `kv key get state --binding STATE --remote` shows the current `lastVar`).
+     Cron dispatch matches `event.cron` exactly, and a mismatch would make the NOS pool fall silent.
+   - If `SWM_MACOS_RUNNER` is unset, about 20 minutes after the deploy the watchdog creates it as `mimolette-macos`
+     and sends `macOS runner: online ...`. That is expected. No workflow reads the variable until a pilot switches to it.
+6. To stop one pool (full stop), take its cron out of `wrangler.toml` and run `npx wrangler@4 triggers deploy`.
+   The other pool keeps running.
+   - NOS: remove `"*/10 * * * *"` from `crons`.
+   - macOS: remove `"5,15,25,35,45,55 * * * *"` from `crons`.
+
+   To stop both, set `crons = []`. Put the crons back and run the command again to start. (Not yet tested.)
+   A stopped watchdog does not move a variable back, so hold the variable first (section 6, and section 6 of the macOS runbook).
 
 ## 8. Alerts
 
 All alerts go to the ntfy topic. The topic also carries the smartwatermelon macOS runner's alerts, which start with `macOS runner:`
-(`docs/runbooks/swm-macos-runner.md`).
+(`docs/runbooks/swm-macos-runner.md`, section 7, lists them).
+The list below is the NOS pool. The macOS pool sends the same kinds, with its own texts.
 
 - **down.** The runner failed its checks. `NOS_RUNNER` is now `ubuntu-latest`. Runs stuck on `mimolette` are cancelled and re-run on GitHub.
 - **recovered.** `NOS_RUNNER` is back on `mimolette` after healthy checks.
@@ -213,6 +266,11 @@ The supervisor also sends its own alerts:
   The next tick sends "NOS runner drill: watchdog alert path", then deletes `drill`.
   Read the result with `npx wrangler@4 kv key get drill-result --binding STATE --remote`: `ok` and `tries` (1 to 3).
   KV reads can lag a write by about 2 minutes.
+- Watchdog, macOS pool: the same, with the prefixed keys:
+  `npx wrangler@4 kv key put swm-macos:drill 1 --binding STATE --remote`.
+  The next macOS tick (up to about 10 minutes) sends "macOS runner: drill of the watchdog alert path. No action needed."
+  Read `npx wrangler@4 kv key get swm-macos:drill-result --binding STATE --remote`.
+  The NOS pool must send no new alert. A plain `drill` key belongs to NOS, and the macOS tick does not touch it.
 
 **Recovery backoff.** After repeated outages, recovery waits longer each time:
 20, then 40, then 80, then 160 minutes.
