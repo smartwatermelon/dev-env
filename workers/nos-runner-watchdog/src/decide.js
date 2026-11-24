@@ -29,11 +29,17 @@ const SELF_HOSTED = "mimolette";
  * Pure decision for one watchdog tick.
  * @param {State} prev state saved by the previous tick
  * @param {Observed} observed what this tick saw
+ * @param {{selfHosted: string, fallback: string}} [labels] the pool's labels; defaults to NOS
  * @returns {Decision}
  */
-export function decide(prev, observed) {
+export function decide(
+  prev,
+  observed,
+  labels = { selfHosted: SELF_HOSTED, fallback: FALLBACK },
+) {
+  const { selfHosted, fallback } = labels;
   const unset = !observed.varValue;
-  const current = unset ? FALLBACK : observed.varValue;
+  const current = unset ? fallback : observed.varValue;
   const external = prev.lastVar !== null && current !== prev.lastVar;
   let misses = external ? 0 : (prev.misses ?? 0);
   let goods = external ? 0 : (prev.goods ?? 0);
@@ -54,7 +60,7 @@ export function decide(prev, observed) {
   const sameBusyTicks =
     queued && allBusy && sameNames ? (prev.sameBusyTicks ?? 0) + 1 : 0;
 
-  if (current !== SELF_HOSTED && current !== FALLBACK) {
+  if (current !== selfHosted && current !== fallback) {
     // Manual hold: leave the variable alone, alert once per new value.
     return {
       next: {
@@ -72,7 +78,7 @@ export function decide(prev, observed) {
     };
   }
 
-  if (current !== SELF_HOSTED) healthyStreak = 0;
+  if (current !== selfHosted) healthyStreak = 0;
 
   const unhealthy =
     runners.length === 0 ||
@@ -85,12 +91,12 @@ export function decide(prev, observed) {
     misses += 1;
     goods = 0;
     healthyStreak = 0;
-  } else if (current === FALLBACK && allBusy) {
+  } else if (current === fallback && allBusy) {
     // Neutral: the supervisor keeps idle slots, so all-busy is not recovery.
   } else {
     goods += 1;
     misses = 0;
-    if (current === SELF_HOSTED) healthyStreak += 1;
+    if (current === selfHosted) healthyStreak += 1;
     if (healthyStreak >= STABLE_TICKS) flaps = 0;
   }
 
@@ -99,13 +105,13 @@ export function decide(prev, observed) {
   let setVar = null;
   let notify = null;
   let rerunStuck = false;
-  if (unhealthy && misses >= 2 && current === SELF_HOSTED) {
-    setVar = FALLBACK;
+  if (unhealthy && misses >= 2 && current === selfHosted) {
+    setVar = fallback;
     notify = "down";
     rerunStuck = true;
     flaps += 1;
-  } else if (!unhealthy && goods >= needGoods && current === FALLBACK) {
-    setVar = SELF_HOSTED;
+  } else if (!unhealthy && goods >= needGoods && current === fallback) {
+    setVar = selfHosted;
     notify = unset ? "online" : "recovered";
   }
   if (setVar) {
