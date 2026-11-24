@@ -42,6 +42,8 @@ export TART_HOME
 : "${SWM_UPDATE_POLL_S:=5}"
 # While a runner waits for a job with an update pending: how often to try to end it (DELETE refused while busy).
 : "${SWM_UPDATE_IDLE_CHECK_S:=300}"
+# End a runner with no job this long after its JIT handoff; 0 disables. Checked every SWM_UPDATE_IDLE_CHECK_S.
+: "${SWM_IDLE_MAX_S:=3600}"
 
 # GitHub: org, runner App (swm-runner), and the pf guard's ok files.
 : "${SWM_ORG:=smartwatermelon}"

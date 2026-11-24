@@ -540,6 +540,81 @@ check "gave up: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/
 check_not "gave up: not ended idle" grep -q 'ended idle for the pending update' "${S}/sup.err"
 check_is "gave up: only the teardown DELETE" 1 "$(dels)"
 
+echo "-- idle_max_ends_idle_runner: idle past SWM_IDLE_MAX_S -> runner DELETEd, VM ended"
+reset
+SECONDS=0
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=1 sup once
+rc=$?
+took="${SECONDS}"
+vm="$(vm_name)"
+check "idle max: exit 0" test "${rc}" -eq 0
+check "idle max: ended long before SWM_JOB_MAX_S" test "${took}" -lt 10
+check_is "idle max: runner DELETEd before the VM stop" "tart exec-i|curl DELETE 4242|tart stop|tart delete|" \
+  "$(sed -n '/exec-i/,$p' "${S}/order.log" | tr '\n' '|')"
+check "idle max: VM stopped" grep -qx "stop ${vm}" "${S}/tart.argv"
+check "idle max: VM deleted" grep -qx "delete ${vm}" "${S}/tart.argv"
+check "idle max: logged" grep -qE "runner 4242 idle for [0-9]+ s \(limit 1 s\); ending VM ${vm}\$" "${S}/sup.err"
+check "idle max: not counted logged" grep -q "runner ${vm} ended idle after SWM_IDLE_MAX_S; not counted" "${S}/sup.err"
+check_not "idle max: not the update message" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check_not "idle max: did not reach SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_is "idle max: slot cleared" "//0" "$(slot name)/$(slot id)/$(slot job)"
+
+echo "-- idle_max_not_a_fail: fails and alert unchanged, no alert sent"
+reset
+mkdir -p "${S}/state"
+printf 'name=\nid=\nfails=2\nalert=pf\njob=0\n' >"${S}/state/slot"
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=1 sup once
+check "not a fail: ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+check_is "not a fail: fails unchanged" 2 "$(slot fails)"
+check_is "not a fail: alert= unchanged" pf "$(slot alert)"
+check_is "not a fail: no alert sent" 0 "$(count . "${S}/ntfy.log")"
+
+echo "-- idle_max_delete_422_keeps_vm: busy runner past SWM_IDLE_MAX_S keeps its VM"
+reset
+STUB_JOB_HANG=1 STUB_DELETE_BUSY=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=1 SWM_JOB_MAX_S=4 sup once
+check "idle 422: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "idle 422: not ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+check "idle 422: DELETE tried more than once during the job" test "$(dels)" -ge 3
+check_is "idle 422: refusal logged once per runner" 1 "$(count 'idle past SWM_IDLE_MAX_S but runner 4242 not deleted \(HTTP 422' "${S}/sup.err")"
+check_is "idle 422: VM stopped only after the job exec ended" "tart stop" \
+  "$(sed -n '/exec-i/,$p' "${S}/order.log" | grep -v 'curl DELETE' | sed -n 2p)"
+check_is "idle 422: id= kept for the next sweep" 4242 "$(slot id)"
+check_is "idle 422: not a failure" 0 "$(slot fails)"
+
+echo "-- idle_max_404_keeps_vm: DELETE 404 is not proof of idle"
+reset
+STUB_JOB_HANG=1 STUB_DELETE_GONE=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=1 SWM_JOB_MAX_S=3 sup once
+check "idle 404: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "idle 404: not ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+check "idle 404: logged as not deleted" grep -q 'runner 4242 not deleted (HTTP 404' "${S}/sup.err"
+
+echo "-- idle_max_disabled_at_zero: SWM_IDLE_MAX_S=0 ends no runner"
+reset
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=0 SWM_JOB_MAX_S=3 sup once
+check "idle 0: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "idle 0: not ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+check_is "idle 0: only the teardown DELETE" 1 "$(dels)"
+
+echo "-- idle_max_update_path_unchanged: with an update pending, the update path and its log win"
+reset
+# Limit 3 s: the first check (1 s) sees only the update; integer seconds can read 1.0 s as 2.
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=3 sup once &
+pid=$!
+wait_for "${S}/in-job"
+: >"${PEND}"
+wait "${pid}"
+check "idle+update: update message logged" grep -q 'update pending and runner 4242 idle (DELETE: HTTP 204)' "${S}/sup.err"
+check "idle+update: ended for the update" grep -q 'ended idle for the pending update' "${S}/sup.err"
+check_not "idle+update: no idle-max message" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+/bin/rm -f "${PEND}"
+
+echo "-- idle_max_young_runner_untouched: a runner younger than SWM_IDLE_MAX_S is left alone"
+reset
+STUB_JOB_HANG=1 SWM_UPDATE_IDLE_CHECK_S=1 SWM_IDLE_MAX_S=60 SWM_JOB_MAX_S=3 sup once
+check "idle young: job ran to SWM_JOB_MAX_S" grep -q 'reached SWM_JOB_MAX_S' "${S}/sup.err"
+check_not "idle young: not ended idle" grep -q 'ended idle after SWM_IDLE_MAX_S' "${S}/sup.err"
+check_is "idle young: only the teardown DELETE" 1 "$(dels)"
+
 echo "-- exec not ready in time -> VM deleted, no JIT request"
 reset
 # 2 s, not 1: the deadline has 1 s granularity, so 1 s can allow a single try.
