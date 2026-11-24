@@ -364,12 +364,21 @@ restart_stale_slots() {
     [[ -n "${name}" && -n "${id}" && "${started}" =~ ^[0-9]+$ ]] || continue
     age=$(($(now) - started))
     ((age >= NOS_IDLE_MAX_S)) || continue
-    others_up "${n}" || return 0
+    if ! others_up "${n}"; then
+      # Log once per idle runner: passes run every ~30 s.
+      if [[ "$(cat "${NOS_STATE_DIR}/deferred-${n}" 2>/dev/null || true)" != "${id}" ]]; then
+        echo "${id}" >"${NOS_STATE_DIR}/deferred-${n}"
+        log "slot ${n}: runner ${id} idle for ${age} s; restart deferred, another slot is down"
+      fi
+      return 0
+    fi
     slot_load "${n}"
     runner_idle "${id}" || continue
     delete_runner "${id}" || continue
+    "${RM_BIN}" -f "${NOS_STATE_DIR}/deferred-${n}"
     : >"${NOS_STATE_DIR}/dropped-${n}"
     log "slot ${n}: runner ${id} idle for ${age} s (limit ${NOS_IDLE_MAX_S} s); restarting"
+    # refresh_ls keeps RUNNING accurate for later readers in this pass.
     if stop_slot "${n}"; then refresh_ls; fi
     return 0
   done

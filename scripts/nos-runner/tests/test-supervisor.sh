@@ -535,8 +535,22 @@ age_slot 1
 NOS_IDLE_MAX_S=3600 sup once
 # A restart needs every other slot up, so the freed slot cannot start in the same pass; the proof is an ls after the stop.
 stop_at="$(grep -n '^container stop mimolette-1-' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+check "idle_restart_refreshes_vm_list: slot 1 stopped" test -n "${stop_at}"
 ls_after="$(tail -n +"$((${stop_at:-0} + 1))" "${S}/order.log" | grep -c '^container ls' || true)"
 check "idle_restart_refreshes_vm_list: ls runs again after the stop" test "${ls_after:-0}" -ge 1
+
+echo "-- idle_restart_deferral_logged_once"
+reset
+sup once
+age_slot 1
+age_slot 2
+NOS_IDLE_MAX_S=3600 sup once
+# Hold slot 1 down for two passes by keeping its old runner registered.
+for i in 1 2; do
+  printf 'name=\nid=101\nfails=0\nstarted=0\n' >"${S}/state/slot-1"
+  NOS_IDLE_MAX_S=3600 sup once
+done
+check_eq "idle_restart_deferral_logged_once: one deferral line for slot 2" 1 count 'slot 2: .*restart deferred' "${S}/sup.err"
 
 echo "-- idle_restart_one_slot_per_pass"
 reset
