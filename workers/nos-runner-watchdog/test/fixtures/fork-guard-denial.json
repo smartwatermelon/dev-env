@@ -1,0 +1,65 @@
+{
+  "source": "GET /repos/smartwatermelon/dotfiles/actions/runs/44443375980 and /jobs, captured 2026-11-23, redacted to the fields the predicate reads",
+  "note": "dotfiles#511 fork-PR drill, Bash Tests: the fork guard refused the job in Set up runner.",
+  "run": {
+    "actor": {
+      "login": "smartwatermelon-agent[bot]"
+    },
+    "conclusion": "failure",
+    "event": "pull_request",
+    "head_repository": {
+      "full_name": "nightowlstudiollc/dotfiles"
+    },
+    "id": 44443375980,
+    "repository": {
+      "full_name": "smartwatermelon/dotfiles"
+    },
+    "run_attempt": 1
+  },
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "labels": ["mimolette-macos"],
+      "runner_name": "mimolette-macos-1795054747",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "failure",
+          "name": "Set up runner"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Checkout"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Install bash 5"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Install linters the lint tests exercise"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Clone github-workflows for the upstream config comparison"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Show bash version"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Run bash test suite"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "source": "GET /repos/smartwatermelon/mac-server-setup/actions/runs/44651519680 and /jobs, captured 2026-11-23, redacted to the fields the predicate reads",
+  "note": "A real test failure (Run BATS failed). No failed-step job on mimolette-macos exists yet; this one ran on macos-latest.",
+  "run": {
+    "actor": {
+      "login": "smartwatermelon-agent[bot]"
+    },
+    "conclusion": "failure",
+    "event": "pull_request",
+    "head_repository": {
+      "full_name": "smartwatermelon/mac-server-setup"
+    },
+    "id": 44651519680,
+    "repository": {
+      "full_name": "smartwatermelon/mac-server-setup"
+    },
+    "run_attempt": 1
+  },
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "labels": ["macos-latest"],
+      "runner_name": "GitHub Actions 1000012195",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install test dependencies"
+        },
+        {
+          "conclusion": "success",
+          "name": "Show tool versions"
+        },
+        {
+          "conclusion": "failure",
+          "name": "Run BATS"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "source": "HYPOTHESIS, not captured. Written 2026-11-23 from the plan (decision 8): no real runner-lost job exists yet. The batch's restart drill (step F) replaces this file with a captured one.",
+  "note": "Assumed shape: a same-repo push run whose mimolette-macos job stopped when the runner restarted. The job is failure, but no step is failure: the interrupted step and the later ones have no failure conclusion.",
+  "run": {
+    "actor": {
+      "login": "smartwatermelon"
+    },
+    "conclusion": "failure",
+    "event": "push",
+    "head_repository": {
+      "full_name": "smartwatermelon/dotfiles"
+    },
+    "id": 90000000001,
+    "repository": {
+      "full_name": "smartwatermelon/dotfiles"
+    },
+    "run_attempt": 1
+  },
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "labels": ["mimolette-macos"],
+      "runner_name": "mimolette-macos-1795099999",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Set up runner"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout"
+        },
+        {
+          "conclusion": null,
+          "name": "Run bash test suite"
+        }
+      ]
+    }
+  ]
+}

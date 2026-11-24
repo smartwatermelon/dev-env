@@ -1,6 +1,12 @@
 import { decide } from "./decide.js";
 import * as gh from "./github.js";
 import { APPS, POOLS, poolForCron, appEnv } from "./pools.js";
+import {
+  LOST_WINDOW_MS,
+  lostCandidate,
+  lostRunner,
+  pruneChecked,
+} from "./lost.js";
 
 // Free plan allows 50 subrequests a run; KV calls are counted too, for headroom.
 export const CAP = 40;
@@ -17,6 +23,13 @@ const TOKEN_TTL = 3000;
 const SKIP_ALERT = 3;
 // Sends per alert. A tick sends at most two alerts, so retries fit in the CAP headroom.
 const NTFY_TRIES = 3;
+// Lost-runner phase, per probe: the jobs GET, the lostChecked put, the rerun POST, and the last lostChecked put.
+const PROBE_COST = 4;
+// Left free by the scan on a rerunLost pool: the lostChecked get, one failed-runs list, one probe.
+const LOST_SHARE = 1 + 1 + PROBE_COST;
+// Cron step. Each tick the lost-runner phase starts LOST_STRIDE repos further on; an idle tick lists about 8.
+const TICK_MS = 600000;
+const LOST_STRIDE = 4;
 
 // Logs name the failed call and status only, never a URL, token or topic.
 const describe = (e) =>
@@ -148,7 +161,10 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
     prev.lastVar === null ||
     (prev.misses ?? 0) >= 1;
   const scanReserve =
-    RESERVE_REQUIRED + (skips ? 2 : 0) + (sweepLikely ? OPTIONAL_SHARE : 0);
+    RESERVE_REQUIRED +
+    (skips ? 2 : 0) +
+    (sweepLikely ? OPTIONAL_SHARE : 0) +
+    (pool.rerunLost ? LOST_SHARE : 0);
   let observed;
   let scan;
   let repoOldest;
@@ -319,6 +335,62 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
   }
   for (const p of planned) {
     await optional((t) => gh.cancelRun(t, p.repo, p.runId, fetchFn), 0);
+  }
+
+  // Lost runners, after the cancels so the sweep keeps its budget. NOS has no rerunLost, so its tick ends above.
+  if (!pool.rerunLost || scan.all.length === 0) return;
+  if (stopped || !budget.canAfford(LOST_SHARE)) return;
+  const loaded = parseOr(await kv.get("lostChecked"), {}, "lostChecked");
+  const lostChecked = pruneChecked(loaded, now);
+  let dirty =
+    Object.keys(lostChecked).length !== Object.keys(loaded ?? {}).length;
+  const sinceIso = new Date(now - LOST_WINDOW_MS).toISOString();
+  // Runs the pending list re-runs (a down-sweep run can fail first) are left to it, so no run gets two re-runs.
+  const pendingKeys = new Set([...pending, ...toWrite].map(runKey));
+  // Own rotation over every repo: the scan's cursor moves several repos a tick, so following it would skip repos.
+  const n = scan.all.length;
+  const start = (Math.floor(now / TICK_MS) * LOST_STRIDE) % n;
+  let out = false;
+  for (let i = 0; i < n && !out; i += 1) {
+    const repo = scan.all[(start + i) % n];
+    const list = await optional(
+      (t) => gh.listFailedRuns(t, repo, sinceIso, fetchFn),
+      PROBE_COST,
+    );
+    if (list.skipped) break;
+    if (!list.ok) continue;
+    for (const run of list.value) {
+      const k = `${repo}#${run.id}`;
+      if (k in lostChecked || pendingKeys.has(k) || !lostCandidate(run))
+        continue;
+      const jobs = await optional(
+        (t) => gh.getJobs(t, repo, run.id, fetchFn),
+        PROBE_COST - 1,
+      );
+      if (jobs.skipped) {
+        out = true;
+        break;
+      }
+      // A failed jobs GET is not marked, so a later tick probes the run again.
+      if (!jobs.ok) continue;
+      lostChecked[k] = now;
+      dirty = true;
+      if (!lostRunner(run, jobs.value, pool)) continue;
+      // Marked before the POST: a crash after it can never re-run the run twice.
+      await kv.put("lostChecked", JSON.stringify(lostChecked));
+      dirty = false;
+      const rr = await optional(
+        (t) => gh.rerunFailed(t, repo, run.id, fetchFn),
+        RESERVE_FINAL,
+      );
+      // No alert (plan decision 9): re-runs after a restart are routine.
+      log(
+        rr.ok ? `lost runner re-run: ${k}` : `lost runner re-run failed: ${k}`,
+      );
+    }
+  }
+  if (dirty && budget.canAfford(1)) {
+    await kv.put("lostChecked", JSON.stringify(lostChecked));
   }
 }
 
