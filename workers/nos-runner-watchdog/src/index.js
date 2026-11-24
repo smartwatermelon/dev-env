@@ -1,5 +1,6 @@
 import { decide } from "./decide.js";
 import * as gh from "./github.js";
+import { POOLS, poolForCron, appEnv } from "./pools.js";
 
 // Free plan allows 50 subrequests a run; KV calls are counted too, for headroom.
 export const CAP = 40;
@@ -11,21 +12,11 @@ const RESERVE_FINAL = 1;
 const OPTIONAL_SHARE = 10;
 // A pending run is dropped after this many failed status or rerun calls.
 const MAX_ATTEMPTS = 6;
-const FALLBACK = "ubuntu-latest";
 const TOKEN_TTL = 3000;
 // Skipped ticks in a row (about 30 minutes) before the one "watchdog skipping" alert.
 const SKIP_ALERT = 3;
 // Sends per alert. A tick sends at most two alerts, so retries fit in the CAP headroom.
 const NTFY_TRIES = 3;
-
-const MESSAGES = {
-  down: () =>
-    "NOS runner down: NOS_RUNNER set to ubuntu-latest; stuck runs cancelled for re-run.",
-  recovered: () => "NOS runner recovered: NOS_RUNNER set to mimolette.",
-  online: () => "NOS runner online: NOS_RUNNER was unset, now mimolette.",
-  held: (v) =>
-    `NOS runner held: NOS_RUNNER=${v}; the watchdog leaves it alone.`,
-};
 
 // Logs name the failed call and status only, never a URL, token or topic.
 const describe = (e) =>
@@ -45,25 +36,33 @@ function makeBudget(cap) {
   };
 }
 
-/** One watchdog tick. deps: {fetch, now}. Every fetch and KV call is counted against CAP. */
-export async function runTick(env, { fetch: rawFetch, now }) {
+/** One tick for one pool. deps: {fetch, now, pool}. Every fetch and KV call is counted against CAP. */
+export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
+  // An unconfigured pool touches nothing: no fetch, no KV, not even the skips counter.
+  const app = appEnv(env, pool);
+  if (!app) {
+    log(`pool ${pool.id} not configured: App secrets missing`);
+    return;
+  }
   const budget = makeBudget(CAP);
   const fetchFn = (url, init) => {
     budget.take();
     return rawFetch(url, init);
   };
+  // Every key carries the pool prefix; NOS has none, so its keys are unchanged.
+  const key = (k) => `${pool.prefix}${k}`;
   const kv = {
     get(k) {
       budget.take();
-      return env.STATE.get(k);
+      return env.STATE.get(key(k));
     },
     put(k, v, opts) {
       budget.take();
-      return env.STATE.put(k, v, opts);
+      return env.STATE.put(key(k), v, opts);
     },
     delete(k) {
       budget.take();
-      return env.STATE.delete(k);
+      return env.STATE.delete(key(k));
     },
   };
 
@@ -110,7 +109,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
     const count = (skips?.count ?? 0) + 1;
     let notified = skips?.notified === true;
     if (count >= SKIP_ALERT && !notified) {
-      notified = await notify(`watchdog skipping: ${reasonClass(e)}`);
+      notified = await notify(pool.messages.skip(reasonClass(e)));
     }
     await kv.put("skips", JSON.stringify({ count, notified }));
   };
@@ -118,7 +117,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
   let token = null;
   let cached = false;
   const mint = async () => {
-    token = await gh.appToken(env, fetchFn, now);
+    token = await gh.appToken(app, fetchFn, now);
     cached = false;
     await kv.put("token", token, { expirationTtl: TOKEN_TTL });
   };
@@ -138,7 +137,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
   // Required phase: any failure skips the tick; state, pendingReruns and GitHub stay untouched (the token cache may change).
   const sweepLikely =
     pending.length > 0 ||
-    prev.lastVar === FALLBACK ||
+    prev.lastVar === pool.fallback ||
     prev.lastVar === null ||
     (prev.misses ?? 0) >= 1;
   const scanReserve =
@@ -150,12 +149,12 @@ export async function runTick(env, { fetch: rawFetch, now }) {
     token = await kv.get("token");
     cached = Boolean(token);
     if (!token) await mint();
-    const runners = await withToken((t) => gh.getRunners(t, fetchFn));
-    const varValue = await withToken((t) => gh.getVar(t, fetchFn));
+    const runners = await withToken((t) => gh.getRunners(t, fetchFn, pool));
+    const varValue = await withToken((t) => gh.getVar(t, fetchFn, pool));
     const canFetch = (n) => budget.canAfford(n + scanReserve);
     const cursor = prev.cursor ?? 0;
     scan = await withToken((t) =>
-      gh.scanQueue(t, fetchFn, { cursor, canFetch }),
+      gh.scanQueue(t, fetchFn, { cursor, canFetch }, pool),
     );
     repoOldest = mergeOldest(scan, prev.repoOldest ?? {});
     const times = Object.values(repoOldest);
@@ -170,10 +169,13 @@ export async function runTick(env, { fetch: rawFetch, now }) {
     return;
   }
 
-  const decision = decide(prev, observed);
+  const decision = decide(prev, observed, {
+    selfHosted: pool.label,
+    fallback: pool.fallback,
+  });
   if (decision.setVar) {
     try {
-      await withToken((t) => gh.setVar(t, decision.setVar, fetchFn));
+      await withToken((t) => gh.setVar(t, decision.setVar, fetchFn, pool));
     } catch (e) {
       // State is not saved, so the next tick sees the same variable and decides again.
       await skipTick("tick skipped: var write failed", e);
@@ -181,7 +183,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
     }
   }
   // After a down switch, in_progress mimolette jobs stay in the sweep until the rotation covered every repo.
-  const fallback = decision.next.lastVar === FALLBACK;
+  const fallback = decision.next.lastVar === pool.fallback;
   const prevLeft = fallback ? (prev.downSweepLeft ?? 0) : 0;
   const downSweep = decision.rerunStuck || prevLeft > 0;
   const downSweepLeft = Math.max(
@@ -199,16 +201,14 @@ export async function runTick(env, { fetch: rawFetch, now }) {
     }),
   );
   if (decision.notify) {
-    await notify(MESSAGES[decision.notify](decision.next.lastVar));
+    await notify(pool.messages[decision.notify](decision.next.lastVar));
   }
   if (skips) {
-    if (skips.notified) await notify("watchdog ok: ticks are running again.");
+    if (skips.notified) await notify(pool.messages.ok);
     await kv.delete("skips");
   }
   if (drill !== null) {
-    const ok = await notify(
-      "NOS runner drill: watchdog alert path. No action needed.",
-    );
+    const ok = await notify(pool.messages.drill);
     await kv.put(
       "drill-result",
       JSON.stringify({
@@ -266,7 +266,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
 
   // Plan cancels within the budget: each planned run keeps one call for its cancel.
   const planned = [];
-  if (decision.rerunStuck || decision.next.lastVar === FALLBACK) {
+  if (decision.rerunStuck || decision.next.lastVar === pool.fallback) {
     const statuses = downSweep ? ["queued", "in_progress"] : ["queued"];
     const candidates = [];
     for (const r of scan.repos) {
@@ -288,7 +288,7 @@ export async function runTick(env, { fetch: rawFetch, now }) {
         if (!r.ok) continue;
         jobs = r.value;
       }
-      if (gh.mimoletteJobs(jobs, statuses).length === 0) continue;
+      if (gh.mimoletteJobs(jobs, statuses, pool).length === 0) continue;
       if (!budget.canAfford(RESERVE_FINAL + planned.length + 1)) break;
       planned.push({
         repo: c.repo,
@@ -360,10 +360,17 @@ function mergeOldest(scan, carried) {
 }
 
 export default {
+  // Each cron trigger is one pool, so each pool gets its own invocation and subrequest budget.
   async scheduled(event, env) {
+    const pool = poolForCron(event?.cron);
+    if (!pool) {
+      log(`unknown cron: ${event.cron}`);
+      return;
+    }
     await runTick(env, {
       fetch: (url, init) => fetch(url, init),
       now: event?.scheduledTime ?? Date.now(),
+      pool,
     });
   },
 };

@@ -1,7 +1,6 @@
+import { POOLS } from "./pools.js";
+
 const API = "https://api.github.com";
-const ORG = "nightowlstudiollc";
-const VAR = "NOS_RUNNER";
-const LABEL = "mimolette";
 
 /** Non-2xx from GitHub. `what` names the call; it never holds a token. */
 export class GitHubError extends Error {
@@ -83,30 +82,31 @@ export async function appToken(env, fetchFn, now = Date.now()) {
   return out.token;
 }
 
-/** Online runners that carry the mimolette label, as [{name, busy}]. */
-export async function getRunners(token, fetchFn) {
+/** Online runners that carry the pool's label, as [{name, busy}]. */
+export async function getRunners(token, fetchFn, pool = POOLS.nos) {
   const out = await call(
     token,
     "GET",
-    `/orgs/${ORG}/actions/runners?per_page=100`,
+    `/orgs/${pool.org}/actions/runners?per_page=100`,
     "runners",
     fetchFn,
   );
   return (out.runners ?? [])
     .filter(
       (r) =>
-        r.status === "online" && (r.labels ?? []).some((l) => l.name === LABEL),
+        r.status === "online" &&
+        (r.labels ?? []).some((l) => l.name === pool.label),
     )
     .map((r) => ({ name: r.name, busy: Boolean(r.busy) }));
 }
 
-/** NOS_RUNNER value, or null when the variable does not exist. */
-export async function getVar(token, fetchFn) {
+/** The pool's variable value, or null when the variable does not exist. */
+export async function getVar(token, fetchFn, pool = POOLS.nos) {
   try {
     const out = await call(
       token,
       "GET",
-      `/orgs/${ORG}/actions/variables/${VAR}`,
+      `/orgs/${pool.org}/actions/variables/${pool.variable}`,
       "var get",
       fetchFn,
     );
@@ -117,14 +117,14 @@ export async function getVar(token, fetchFn) {
   }
 }
 
-/** Updates NOS_RUNNER; creates it when the update returns 404. */
-export async function setVar(token, value, fetchFn) {
-  const body = { name: VAR, value, visibility: "private" };
+/** Updates the pool's variable; creates it when the update returns 404. */
+export async function setVar(token, value, fetchFn, pool = POOLS.nos) {
+  const body = { name: pool.variable, value, visibility: pool.visibility };
   try {
     await call(
       token,
       "PATCH",
-      `/orgs/${ORG}/actions/variables/${VAR}`,
+      `/orgs/${pool.org}/actions/variables/${pool.variable}`,
       "var update",
       fetchFn,
       body,
@@ -134,7 +134,7 @@ export async function setVar(token, value, fetchFn) {
     await call(
       token,
       "POST",
-      `/orgs/${ORG}/actions/variables`,
+      `/orgs/${pool.org}/actions/variables`,
       "var create",
       fetchFn,
       body,
@@ -177,10 +177,14 @@ export async function getJobs(token, repo, runId, fetchFn) {
   return out.jobs ?? [];
 }
 
-/** Jobs on a mimolette runner that are still waiting or running. */
-export function mimoletteJobs(jobs, statuses = ["queued", "in_progress"]) {
+/** Jobs for the pool's runner label that are still waiting or running. */
+export function mimoletteJobs(
+  jobs,
+  statuses = ["queued", "in_progress"],
+  pool = POOLS.nos,
+) {
   return jobs.filter(
-    (j) => statuses.includes(j.status) && (j.labels ?? []).includes(LABEL),
+    (j) => statuses.includes(j.status) && (j.labels ?? []).includes(pool.label),
   );
 }
 
@@ -190,7 +194,13 @@ const SCAN_STATUSES = ["queued", "in_progress"];
 export const MAX_JOB_PROBES = 3;
 
 /** One repo: its waiting runs, then jobs run by run until a queued mimolette job. Null when canFetch(n) refuses. */
-export async function scanRepo(token, repo, fetchFn, canFetch = () => true) {
+export async function scanRepo(
+  token,
+  repo,
+  fetchFn,
+  canFetch = () => true,
+  pool = POOLS.nos,
+) {
   // Ask for the worst case (lists + job probes) up front, so a started repo is never dropped half-read.
   if (!canFetch(SCAN_STATUSES.length + MAX_JOB_PROBES)) return null;
   const runs = [];
@@ -206,7 +216,7 @@ export async function scanRepo(token, repo, fetchFn, canFetch = () => true) {
   for (const run of ordered.slice(0, MAX_JOB_PROBES)) {
     const list = await getJobs(token, repo, run.id, fetchFn);
     jobs.set(run.id, list);
-    const queued = mimoletteJobs(list, ["queued"]);
+    const queued = mimoletteJobs(list, ["queued"], pool);
     if (queued.length === 0) continue;
     oldestAt = Math.min(...queued.map((j) => Date.parse(j.created_at)));
     break;
@@ -215,13 +225,24 @@ export async function scanRepo(token, repo, fetchFn, canFetch = () => true) {
 }
 
 /** Scans repos in rotation from cursor until canFetch(n) refuses. oldestAt is epoch ms or null. */
-export async function scanQueue(token, fetchFn, { cursor = 0, canFetch } = {}) {
+export async function scanQueue(
+  token,
+  fetchFn,
+  { cursor = 0, canFetch } = {},
+  pool = POOLS.nos,
+) {
   const all = await listRepos(token, fetchFn);
   const n = all.length;
   const start = n > 0 ? ((cursor % n) + n) % n : 0;
   const repos = [];
   for (let i = 0; i < n; i += 1) {
-    const r = await scanRepo(token, all[(start + i) % n], fetchFn, canFetch);
+    const r = await scanRepo(
+      token,
+      all[(start + i) % n],
+      fetchFn,
+      canFetch,
+      pool,
+    );
     if (!r) break;
     repos.push(r);
   }
