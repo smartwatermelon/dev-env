@@ -338,7 +338,20 @@ delete_runner() {
   log "runner $1: delete failed (HTTP ${API_CODE}); will retry"
   return 1
 }
-# Restart one idle-too-long slot per pass. Delete before stop: a runner that took a job meanwhile gets HTTP 422 and keeps its VM.
+# slot_up N: true when slot N has a VM and a registered runner and is not marked dropped. Clobbers SL_*.
+slot_up() {
+  slot_load "$1"
+  [[ -n "${SL_NAME}" && -n "${SL_ID}" && ! -e "${NOS_STATE_DIR}/dropped-$1" ]]
+}
+# True when every slot except $1 is up. With NOS_SLOTS=1 there is no other slot, so the single slot may restart.
+others_up() {
+  local m
+  for ((m = 1; m <= NOS_SLOTS; m += 1)); do
+    [[ "${m}" -eq "$1" ]] || slot_up "${m}" || return 1
+  done
+  return 0
+}
+# Restart one stale slot per pass. Delete before stop: a job taken meanwhile gets HTTP 422 and keeps its VM.
 # Remaining race: a job assigned before GitHub reports busy=true is lost (accepted 2026-11-18).
 restart_stale_slots() {
   local n id name started age
@@ -351,10 +364,21 @@ restart_stale_slots() {
     [[ -n "${name}" && -n "${id}" && "${started}" =~ ^[0-9]+$ ]] || continue
     age=$(($(now) - started))
     ((age >= NOS_IDLE_MAX_S)) || continue
+    if ! others_up "${n}"; then
+      # Log once per idle runner: passes run every ~30 s.
+      if [[ "$(cat "${NOS_STATE_DIR}/deferred-${n}" 2>/dev/null || true)" != "${id}" ]]; then
+        echo "${id}" >"${NOS_STATE_DIR}/deferred-${n}"
+        log "slot ${n}: runner ${id} idle for ${age} s; restart deferred, another slot is down"
+      fi
+      return 0
+    fi
+    slot_load "${n}"
     runner_idle "${id}" || continue
     delete_runner "${id}" || continue
+    "${RM_BIN}" -f "${NOS_STATE_DIR}/deferred-${n}"
     : >"${NOS_STATE_DIR}/dropped-${n}"
     log "slot ${n}: runner ${id} idle for ${age} s (limit ${NOS_IDLE_MAX_S} s); restarting"
+    # refresh_ls keeps RUNNING accurate for later readers in this pass.
     if stop_slot "${n}"; then refresh_ls; fi
     return 0
   done

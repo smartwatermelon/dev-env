@@ -532,10 +532,25 @@ echo "-- idle_restart_refreshes_vm_list"
 reset
 sup once
 age_slot 1
-# Slot 2 is empty but a stray mimolette VM still shows in the pass's first ls: a stale list blocks the start (2 listed).
-printf 'name=\nid=\nfails=0\nstarted=0\n' >"${S}/state/slot-2"
 NOS_IDLE_MAX_S=3600 sup once
-check_eq "idle_restart_refreshes_vm_list: empty slot 2 starts in the same pass" 1 count '^mimolette-2-' "${S}/running"
+# A restart needs every other slot up, so the freed slot cannot start in the same pass; the proof is an ls after the stop.
+stop_at="$(grep -n '^container stop mimolette-1-' "${S}/order.log" | head -n 1 | cut -d: -f1)"
+check "idle_restart_refreshes_vm_list: slot 1 stopped" test -n "${stop_at}"
+ls_after="$(tail -n +"$((${stop_at:-0} + 1))" "${S}/order.log" | grep -c '^container ls' || true)"
+check "idle_restart_refreshes_vm_list: ls runs again after the stop" test "${ls_after:-0}" -ge 1
+
+echo "-- idle_restart_deferral_logged_once"
+reset
+sup once
+age_slot 1
+age_slot 2
+NOS_IDLE_MAX_S=3600 sup once
+# Hold slot 1 down for two passes by keeping its old runner registered.
+for i in 1 2; do
+  printf 'name=\nid=101\nfails=0\nstarted=0\n' >"${S}/state/slot-1"
+  NOS_IDLE_MAX_S=3600 sup once
+done
+check_eq "idle_restart_deferral_logged_once: one deferral line for slot 2" 1 count 'slot 2: .*restart deferred' "${S}/sup.err"
 
 echo "-- idle_restart_one_slot_per_pass"
 reset
@@ -545,8 +560,29 @@ age_slot 2
 NOS_IDLE_MAX_S=3600 sup once
 check_eq "idle_restart_one_slot_per_pass: one delete this pass" 1 count '^DELETE .*/actions/runners/10[12] ' "${S}/requests.log"
 check_eq "idle_restart_one_slot_per_pass: other slot untouched this pass" 0 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+# Pass B only starts slot 1 again; pass C restarts slot 2.
 NOS_IDLE_MAX_S=3600 sup once
-check_eq "idle_restart_one_slot_per_pass: other slot restarted next pass" 1 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_one_slot_per_pass: other slot restarted once slot 1 is up" 1 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+
+echo "-- idle_restart_waits_for_other_slot"
+reset
+sup once
+age_slot 1
+age_slot 2
+NOS_IDLE_MAX_S=3600 sup once
+# Pass A restarted slot 1 (runner 101 deleted, VM stopped). Slot 1 has no VM until a later pass starts it.
+check_eq "idle_restart_waits_for_other_slot: pass A deletes 101" 1 count '^DELETE .*/actions/runners/101 ' "${S}/requests.log"
+for i in 1 2 3 4; do
+  grep -qE '^name=mimolette-1-' "${S}/state/slot-1" && break
+  NOS_IDLE_MAX_S=3600 sup once
+  # Slot 1 had no VM when this pass began, so slot 2 must not be touched by it.
+  check_eq "idle_restart_waits_for_other_slot: pass ${i}: slot 2 not deleted" 0 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
+  check_not "idle_restart_waits_for_other_slot: pass ${i}: slot 2 not stopped" grep -qE '^stop mimolette-2-' "${S}/container.argv"
+done
+check "idle_restart_waits_for_other_slot: slot 1 got a new VM" grep -qE '^name=mimolette-1-' "${S}/state/slot-1"
+NOS_IDLE_MAX_S=3600 sup once
+check_eq "idle_restart_waits_for_other_slot: slot 2 restarts once slot 1 is up" 1 count '^DELETE .*/actions/runners/102 ' "${S}/requests.log"
 
 echo "-- sigterm_mid_pass_starts_no_vm"
 reset
