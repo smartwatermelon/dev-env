@@ -27,9 +27,8 @@ const NTFY_TRIES = 3;
 const PROBE_COST = 4;
 // Left free by the scan on a rerunLost pool: the lostChecked get, one failed-runs list, one probe.
 const LOST_SHARE = 1 + 1 + PROBE_COST;
-// Cron step. Each tick the lost-runner phase starts LOST_STRIDE repos further on; an idle tick lists about 8.
-const TICK_MS = 600000;
-const LOST_STRIDE = 4;
+// lostChecked also holds the lost-phase repo cursor under this key; a "<repo>#<runId>" key can never equal it.
+const CURSOR_KEY = "_cursor";
 
 // Logs name the failed call and status only, never a URL, token or topic.
 const describe = (e) =>
@@ -341,15 +340,22 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
   if (!pool.rerunLost || scan.all.length === 0) return;
   if (stopped || !budget.canAfford(LOST_SHARE)) return;
   const loaded = parseOr(await kv.get("lostChecked"), {}, "lostChecked");
-  const lostChecked = pruneChecked(loaded, now);
-  let dirty =
-    Object.keys(lostChecked).length !== Object.keys(loaded ?? {}).length;
+  const { [CURSOR_KEY]: savedCursor, ...entries } = loaded ?? {};
+  const lostChecked = pruneChecked(entries, now);
+  let dirty = Object.keys(lostChecked).length !== Object.keys(entries).length;
   const sinceIso = new Date(now - LOST_WINDOW_MS).toISOString();
   // Runs the pending list re-runs (a down-sweep run can fail first) are left to it, so no run gets two re-runs.
   const pendingKeys = new Set([...pending, ...toWrite].map(runKey));
-  // Own rotation over every repo: the scan's cursor moves several repos a tick, so following it would skip repos.
+  // Own cursor: the next tick starts after the last repo listed. Mod n, so a changed repo count is safe.
   const n = scan.all.length;
-  const start = (Math.floor(now / TICK_MS) * LOST_STRIDE) % n;
+  const prevCursor = Number.isInteger(savedCursor) ? savedCursor : 0;
+  const start = ((prevCursor % n) + n) % n;
+  let cursor = start;
+  const save = () =>
+    kv.put(
+      "lostChecked",
+      JSON.stringify({ ...lostChecked, [CURSOR_KEY]: cursor }),
+    );
   let out = false;
   for (let i = 0; i < n && !out; i += 1) {
     const repo = scan.all[(start + i) % n];
@@ -358,6 +364,8 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
       PROBE_COST,
     );
     if (list.skipped) break;
+    // Listed (or failed): the next tick starts after this repo, even if its probes are cut short.
+    cursor = (start + i + 1) % n;
     if (!list.ok) continue;
     for (const run of list.value) {
       const k = `${repo}#${run.id}`;
@@ -377,7 +385,7 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
       dirty = true;
       if (!lostRunner(run, jobs.value, pool)) continue;
       // Marked before the POST: a crash after it can never re-run the run twice.
-      await kv.put("lostChecked", JSON.stringify(lostChecked));
+      await save();
       dirty = false;
       const rr = await optional(
         (t) => gh.rerunFailed(t, repo, run.id, fetchFn),
@@ -389,9 +397,7 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
       );
     }
   }
-  if (dirty && budget.canAfford(1)) {
-    await kv.put("lostChecked", JSON.stringify(lostChecked));
-  }
+  if ((dirty || cursor !== prevCursor) && budget.canAfford(1)) await save();
 }
 
 // A run we cancelled is re-run; a failure only when the down sweep cancelled it (a hung job can fail first).

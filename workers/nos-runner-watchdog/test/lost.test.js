@@ -57,8 +57,12 @@ const healthyKv = (over = {}) => ({
   [keyOf(MAC, "state")]: st(MAC),
   ...over,
 });
-const checked = (s) =>
-  JSON.parse(s.store.map.get(keyOf(MAC, "lostChecked")) ?? "{}");
+// lostChecked entries without the repo cursor it also holds.
+const checked = (s) => {
+  const all = JSON.parse(s.store.map.get(keyOf(MAC, "lostChecked")) ?? "{}");
+  delete all._cursor;
+  return all;
+};
 
 async function tickWith(failed, kv = healthyKv(), now = NOW, store = null) {
   const s = setupFor(MAC, worldFor(MAC, { failed, now }), kv, {}, store);
@@ -375,4 +379,58 @@ test("lost_any_repo_rerun_within_rotation", async () => {
     }
     assert.ok(done && ticks <= 9, `repo r${j}: ${ticks} ticks`);
   }
+});
+
+test("lost_cursor_reaches_every_repo_on_busy_ticks", async () => {
+  // 34 always-busy repos (20 new runs to probe): 1 list a tick. Every repo, odd ones too, is listed in 34 ticks.
+  const n = 34;
+  const names = Array.from({ length: n }, (_, r) => `r${r}`);
+  const busy = (t) =>
+    Object.fromEntries(
+      names.map((r, i) => [
+        r,
+        Array.from({ length: 20 }, (_, k) =>
+          asRun(fixture.realFailure, r, 1e6 + t * 1e4 + i * 100 + k),
+        ),
+      ]),
+    );
+  const store = fakeKV(healthyKv());
+  const listed = new Set();
+  const perTick = new Set();
+  for (let t = 0; t < n; t += 1) {
+    const now = NOW + t * 10 * 60000;
+    const s = setupFor(
+      MAC,
+      worldFor(MAC, { failed: busy(t), now }),
+      {},
+      {},
+      store,
+    );
+    const opsBefore = store.ops.length;
+    await s.tick(now);
+    assert.deepEqual(s.f.unexpected, []);
+    const used = s.f.calls.length + store.ops.length - opsBefore;
+    assert.ok(used <= CAP, `subrequests ${used}`);
+    const lists = s.f.calls
+      .filter((c) => c.url.includes("status=failure"))
+      .map((c) => c.url.split("/repos/smartwatermelon/")[1].split("/")[0]);
+    perTick.add(lists.length);
+    for (const r of lists) listed.add(r);
+  }
+  assert.ok(Math.max(...perTick) <= 2, `lists a tick: ${[...perTick]}`);
+  assert.deepEqual(
+    names.filter((r) => !listed.has(r)),
+    [],
+  );
+});
+
+test("lost_cursor_past_repo_count_is_safe", async () => {
+  // The installation lost repos since the cursor was saved: start again inside the list.
+  const kv = healthyKv({
+    [keyOf(MAC, "lostChecked")]: JSON.stringify({ _cursor: 99 }),
+  });
+  const s = await tickWith({ dotfiles: [fixture.hypothesis] }, kv);
+  assert.equal(reruns(s).length, 1);
+  const saved = JSON.parse(s.store.map.get(keyOf(MAC, "lostChecked")));
+  assert.equal(saved._cursor, 0);
 });
