@@ -1,4 +1,4 @@
-// Runner pools the watchdog manages. NOS is the live pool; swmMacos is added dormant (no cron yet in wrangler.toml).
+// Runner pools the watchdog manages. Each pool has its own cron in wrangler.toml; scheduled() picks the pool by cron.
 
 export const APPS = {
   nos: {
@@ -13,7 +13,7 @@ export const APPS = {
   },
 };
 
-// NOS texts are copies of index.js MESSAGES; pool_nos_messages_unchanged pins them. Task 2 switches index.js to these.
+// NOS texts are the live alert texts, byte for byte; pool_nos_messages_unchanged and the index tests pin them.
 const NOS_MESSAGES = {
   down: () =>
     "NOS runner down: NOS_RUNNER set to ubuntu-latest; stuck runs cancelled for re-run.",
@@ -65,6 +65,8 @@ export const POOLS = {
     prefix: "swm-macos:",
     cron: "5,15,25,35,45,55 * * * *",
     rerunLost: true,
+    // Optional: with any App secret missing the tick goes quiet. NOS is not optional, so a lost secret stays loud.
+    optional: true,
     messages: MACOS_MESSAGES,
   },
 };

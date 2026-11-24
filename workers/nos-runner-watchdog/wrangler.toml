@@ -5,11 +5,11 @@ compatibility_date = "2026-11-01"
 workers_dev = false
 
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 * * * *", "5,15,25,35,45,55 * * * *"]
 
 # Namespace nos-runner-watchdog-state, created 2026-11-12 on the nightowlstudio account.
 [[kv_namespaces]]
 binding = "STATE"
 id = "ddbff24fed0048d8b3cdce120f846bb9"
 
-# Secrets, set at deploy: APP_ID, INSTALLATION_ID, APP_KEY_PKCS8, NTFY_TOPIC.
+# Secrets: NTFY_TOPIC; NOS APP_ID, INSTALLATION_ID, APP_KEY_PKCS8; macOS SWM_APP_ID, SWM_INSTALLATION_ID, SWM_APP_KEY_PKCS8.

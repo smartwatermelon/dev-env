@@ -104,6 +104,6 @@ test("pool_wrangler_crons_match", () => {
   const m = toml.match(/^crons\s*=\s*\[([^\]]*)\]/m);
   assert.ok(m, "crons array present");
   const crons = [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]);
-  assert.ok(crons.length > 0);
-  for (const c of crons) assert.notEqual(poolForCron(c), null, c);
+  const want = Object.values(POOLS).map((p) => p.cron);
+  assert.deepEqual([...crons].sort(), [...want].sort());
 });
