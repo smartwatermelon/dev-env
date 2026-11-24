@@ -1,16 +1,20 @@
 # smartwatermelon macOS runner: install, operate, undo
 
 smartwatermelon macOS CI jobs run on MIMOLETTE, in one Tart VM per job, one job at a time.
-A workflow opts in with `runs-on: ${{ vars.SWM_MACOS_RUNNER || 'macos-latest' }}`.
+A workflow opts in with the routing `runs-on` expression (section 9). It sends fork and Dependabot runs to GitHub-hosted runners.
 The `SWM_MACOS_RUNNER` org variable picks the runner label:
 
 | Value | Where jobs run |
 |---|---|
-| unset | GitHub-hosted `macos-latest` (the fail-safe) |
+| unset | GitHub-hosted `macos-latest`. The watchdog sets it to `mimolette-macos` when the runner is healthy, so unset is not a hold |
+| `macos-latest` | GitHub-hosted. This is the watchdog's failover value. The watchdog moves it back to `mimolette-macos` when the runner is healthy, so it is not a hold |
 | `mimolette-macos` | This runner |
 | `macos-26` | GitHub-hosted `macos-26`. This is the hold value (section 6) |
 
-The supervisor never writes `SWM_MACOS_RUNNER`. You set it by hand.
+The watchdog Worker writes `SWM_MACOS_RUNNER`. The supervisor never does. Any value other than the three above, `macos-latest` or unset counts as a hold.
+The watchdog is the same Worker as the NOS one: `docs/runbooks/nos-runner.md`, section 7. It checks every 10 minutes
+(cron `5,15,25,35,45,55 * * * *`), moves the variable to `macos-latest` after two checks with no healthy runner,
+and back to `mimolette-macos` after healthy checks. You can still set the variable by hand (section 6).
 Design: `docs/superpowers/specs/2026-11-17-swm-macos-tart-runner-design.md`.
 
 Run every step in a terminal on MIMOLETTE, in a GUI login session.
@@ -22,6 +26,7 @@ launchd starts the supervisor in `gui/<uid>`, so Tart runs there too, never thro
   It is already installed on smartwatermelon.
 - Its key is in the MIMOLETTE login Keychain: service `swm-runner-app-key`, account `smartwatermelon`.
   The item holds the PEM as base64 text on one line.
+- The watchdog has its own App, `swm-runner-watchdog` (section 10). It is not the App above.
 - Check the key. This prints nothing when it is a valid private key:
 
   ```bash
@@ -155,29 +160,46 @@ Until someone clicks **Allow**, a launchd job hangs with no log line. The prompt
 gh variable set SWM_MACOS_RUNNER --org smartwatermelon --visibility all --body macos-26
 ```
 
+The watchdog sends one `held` alert and then leaves the variable alone. A hold is the only value it never changes.
+
 **Release.** Send jobs to this runner:
 
 ```bash
 gh variable set SWM_MACOS_RUNNER --org smartwatermelon --visibility all --body mimolette-macos
 ```
 
-Unset the variable to go back to `macos-latest`:
+Or set it to `macos-latest`, and the watchdog moves it to `mimolette-macos` after healthy checks.
+Unsetting the variable no longer sends jobs to `macos-latest` for long: the watchdog creates it again as `mimolette-macos`
+(an `online` alert) about 20 minutes later. To keep jobs hosted, hold.
 
-```bash
-gh variable delete SWM_MACOS_RUNNER --org smartwatermelon
-```
+**After a manual fix.** After you repair the runner by hand, do not wait for the watchdog to recover. Do this:
 
-**Full stop.** Hold first, so no job waits for a runner that is gone. Then stop the job:
+1. Confirm the runner is up. The supervisor log shows `runner ... handed its JIT config`,
+   or the org runners page lists an idle `mimolette-macos` runner.
+2. Run this in your own terminal. Agents cannot write org variables:
+
+   ```bash
+   gh variable set SWM_MACOS_RUNNER --org smartwatermelon --visibility all --body mimolette-macos
+   ```
+
+3. Expect no "recovered" alert, because the watchdog sees a change it did not make and resets its miss and good counts.
+   If the runner is unhealthy, the watchdog fails over again after 2 bad checks (about 20 minutes).
+
+**Full stop.** Hold first, so no job waits for a runner that is gone, and so the watchdog does not start a failover or move it back.
+Set `SWM_MACOS_RUNNER=macos-26` (the Hold command above). Then stop the job:
 
 ```bash
 launchctl bootout gui/$(id -u)/com.smartwatermelon.swm-macos-runner
 ```
 
-A running job finishes its teardown first (up to about 230 s). The plist stays, so a login or `install.sh` starts it again.
+A running job finishes its teardown first (up to about 230 s; dev-env#312 is open on a worst case of about 330 s, over the plist's `ExitTimeOut` of 300 s). The plist stays, so a login or `install.sh` starts it again.
 To remove it for good, delete `~/Library/LaunchAgents/com.smartwatermelon.swm-macos-runner.plist` after the bootout.
 Stop the updater too (section 3a): the next time it installs new code, `install.sh` loads the supervisor again.
 
-There is no watchdog for this runner yet. If the supervisor is down while the variable says `mimolette-macos`, jobs wait. Hold first.
+If the supervisor is down while the variable says `mimolette-macos`, jobs wait until the watchdog sees two checks with no runner
+(about 20 to 30 minutes) and sets `macos-latest`. A hold avoids that wait. The watchdog also moves the variable back to
+`mimolette-macos` once the runner is healthy again, so a hold is the only lasting way to keep jobs hosted. To stop the watchdog
+for this pool, see "To stop one pool" in `docs/runbooks/nos-runner.md`, section 7.
 
 ## 7. Alerts and logs
 
@@ -188,6 +210,37 @@ All alerts go to the NOS ntfy topic and start with `macOS runner:`:
 - `image build failed: ...`. See section 4.
 - `tart is hung (...)`. See section 5.
 - `N starts failed in a row; last: ...`. Three failed starts in a row. Read the log.
+
+The watchdog Worker sends these, from the same ntfy topic. Each one starts with `macOS runner:`:
+
+- `down. SWM_MACOS_RUNNER set to macos-latest; stuck runs cancelled for re-run.` Two checks in a row found no healthy runner.
+- `recovered. SWM_MACOS_RUNNER set to mimolette-macos.` The runner is healthy again.
+- `online. SWM_MACOS_RUNNER was unset, now mimolette-macos.` The variable did not exist, and the watchdog created it.
+- `held. SWM_MACOS_RUNNER=<value>; the watchdog leaves it alone.` A hold. Sent once.
+- `watchdog skipping: <cause>`. Three ticks in a row were skipped. The variable is left alone.
+- `watchdog ok: ticks are running again.` after a skipping alert.
+- `drill of the watchdog alert path. No action needed.` A drill (`docs/runbooks/nos-runner.md`, section 8).
+
+**An image rebuild sends a `down` and a `recovered` alert.** This is expected. The runner has one slot, and it is offline
+while the image builds (about 15 minutes) or while an update waits (up to 900 s). Two checks 10 minutes apart can both find
+no runner, so the watchdog fails over to `macos-latest`, then moves back after the runner returns. Between the two alerts
+new jobs run on GitHub-hosted runners, and a queued job is cancelled and re-run there. A gap between jobs
+(teardown, clone, boot) is shorter than 10 minutes and does not trigger it. Treat a `down` that follows an
+`image ... is missing; building it` log line as this, not as a fault.
+
+**Lost-run re-runs.** A restart of the supervisor (an update, `kickstart`, a logout) stops the job on the runner.
+The watchdog finds such a run and re-runs its failed jobs once. It sends no alert: a re-run after a restart is routine
+and the restart is already visible. The Worker logs `lost runner re-run: <repo>#<run id>` (and `... re-run failed: ...`).
+A run counts as lost when all of these hold:
+
+- It is attempt 1, ended in `failure`, ran in the same repo as its head (not a fork), and its actor is not `dependabot[bot]`.
+- A job on the `mimolette-macos` label failed with no failed step. A real test failure has a failed step and is not re-run.
+  A cancelled run, and a job that the fork guard denied, are not re-run either.
+
+At most one re-run per run: attempt 2 is never re-run. The watchdog looks 6 hours back, a few repos per tick.
+It keeps its checked runs in the KV key `swm-macos:lostChecked`, with a `_cursor` field (the repo rotation cursor).
+Entries are dropped after 6 hours. To see a re-run, read the Worker's logs, or look for attempt 2 on the run.
+This rule was written from a guess about how GitHub marks a stopped job, and the restart drill is its first proof.
 
 The log is `~/Library/Logs/swm-macos-runner.log`. Key lines:
 
@@ -224,3 +277,45 @@ TART_HOME="$HOME/.tart" tart delete <name>
 
 Delete the spike files with `rm` on the names `ls` printed, then remove the empty folder with `rmdir`.
 The supervisor's own images are in `/Volumes/extra-vieille/Caches/tart`. Do not touch them.
+
+## 9. Routing
+
+A workflow that runs on this pool uses this `runs-on`, word for word. Forks and Dependabot go to GitHub-hosted runners.
+Everything else uses the pool variable, then GitHub-hosted:
+
+```yaml
+runs-on: ${{ (((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || github.actor == 'dependabot[bot]' || github.event.pull_request.user.login == 'dependabot[bot]') && 'macos-latest') || vars.SWM_MACOS_RUNNER || 'macos-latest' }}
+```
+
+Why each part is there:
+
+- **`github.event_name == 'pull_request' && head.repo.full_name != github.repository`.** A pull request from a fork must not run
+  code on MIMOLETTE. The event-name test keeps a `push` (which has no PR head) from reading as a fork.
+- **A deleted fork.** When the fork is gone, `head.repo` is null. It compares unequal, so the run goes hosted. That is the safe side.
+- **`github.actor == 'dependabot[bot]'`.** Dependabot runs go hosted. `github.actor` stays the same on a re-run,
+  so a re-run of a Dependabot run stays hosted too.
+- **`github.event.pull_request.user.login == 'dependabot[bot]'`.** This catches the case that `actor` misses:
+  Andrew pushing to a Dependabot branch. Each of the two tests catches a case the other misses.
+  The same pair is in `github-workflows/.github/workflows/dependabot-auto-merge.yml`.
+- **`&& 'macos-latest'`.** When any of the above holds, the run is hosted, whatever the variable says.
+- **`|| vars.SWM_MACOS_RUNNER`.** Otherwise the variable picks the runner, so a failover or a hold works with no workflow change.
+- **`|| 'macos-latest'`.** The variable is unset: hosted. This is the fail-safe.
+
+Do not use this expression in a workflow that triggers on `pull_request_target` or `workflow_run`. In those events
+`github.event.pull_request` is not the fork's head, so the test is not a safe guard. The fork-guard hook on the VM
+(`scripts/swm-macos-runner/guest/`) is a second layer and does not replace it.
+
+## 10. The watchdog App
+
+The Worker uses its own GitHub App for this pool, `swm-runner-watchdog`, so a leaked key reaches only its permissions.
+Andrew creates it in the GitHub UI (smartwatermelon org, Settings, Developer settings, GitHub Apps):
+
+1. Name `swm-runner-watchdog`. Webhook off. "Only on this account".
+2. Permissions, and nothing else: Organization **Self-hosted runners: Read**, Organization **Variables: Read and write**,
+   Repository **Actions: Read and write** (Metadata read is automatic).
+   There is no Checks read: the lost-run test uses the jobs API only.
+3. Install it on smartwatermelon, **All repositories**. A smaller selection gives fewer repos and no error.
+4. Note the App ID and the installation ID (from the installation URL), generate a private key, then follow
+   `docs/runbooks/nos-runner.md` section 3 (convert the key) and section 7 (the three `SWM_*` secrets).
+
+Check the key by minting a token only through the Worker. Never read `swm-macos:token`: it holds a live installation token.
