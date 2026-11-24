@@ -194,6 +194,7 @@ The log is `~/Library/Logs/swm-macos-runner.log`. Key lines:
 - `runner ... handed its JIT config`: the runner may be idle or busy; it is waiting for a job or running one (`job=1`).
 - `update pending; waiting ...` / `update installed or withdrawn` / `update still pending after ...`: the supervisor held a pass for the updater.
 - `update pending and runner N idle ...` / `runner ... ended idle for the pending update`: an idle runner made way for an update.
+- `runner N idle for S s (limit L s); ending VM ...` / `runner ... ended idle after SWM_IDLE_MAX_S`: a runner waited `SWM_IDLE_MAX_S` (default 3600, `0` disables) after its JIT handoff with no job, so the supervisor deregistered it and starts a fresh VM. Not a failure. `idle past SWM_IDLE_MAX_S but runner N not deleted (HTTP 422 ...)` means it was running a job and keeps it; that line shows once per runner. The limit is checked every `SWM_UPDATE_IDLE_CHECK_S`, so `SWM_UPDATE_IDLE_CHECK_S=0` turns it off too.
 - `runner ... finished its job`: a job ended.
 - `pass failed (<kind>, try N): ...`: a failed pass and why.
 - `fails in a row; next pass in N s`: the supervisor is backing off.

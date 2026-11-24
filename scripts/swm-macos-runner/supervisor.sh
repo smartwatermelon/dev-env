@@ -56,8 +56,12 @@ SLEEP_PID=""
 API_CODE=000
 # 1 once this pass's update_wait gave up: the update is stuck, so do not end idle runners for it.
 UPDATE_GAVE_UP=0
-# 1 when bounded_check ended an idle runner for a pending update.
+# 1 when bounded_check ended an idle runner; IDLE_WHY says why (update or idle-max).
 IDLE_ENDED=0
+IDLE_WHY=""
+# When this runner got its JIT config, and whether its SWM_IDLE_MAX_S refusal is already logged.
+JIT_AT=0
+IDLE_REFUSAL_LOGGED=0
 
 running() { [[ "${STOP}" -eq 0 ]]; }
 now() { date +%s; }
@@ -284,19 +288,40 @@ start_vm() {
     set_fail pf "IPv6 ok file ${SWM_PF_OK_FILE_V6} not renewed within ${SWM_V6_LIMIT_S} s of the VM start" || return 1
 }
 
-# bounded_check: with an update pending, DELETE the runner (422 if busy). 0 = 2xx: end the VM. 404 can mean no access.
+# bounded_check: update pending or SWM_IDLE_MAX_S passed: DELETE the runner (422 if busy). 0 = 2xx: end the VM.
 bounded_check() {
-  [[ -e "${UPDATE_PENDING}" && "${UPDATE_GAVE_UP}" -eq 0 && -n "${SL_ID}" ]] || return 1
+  local why age=0
+  [[ -n "${SL_ID}" ]] || return 1
+  if [[ -e "${UPDATE_PENDING}" && "${UPDATE_GAVE_UP}" -eq 0 ]]; then
+    why=update
+  else
+    [[ "${SWM_IDLE_MAX_S}" =~ ^[0-9]+$ && "${SWM_IDLE_MAX_S}" -gt 0 && "${JIT_AT}" -gt 0 ]] || return 1
+    age=$(($(now) - JIT_AT))
+    [[ "${age}" -ge "${SWM_IDLE_MAX_S}" ]] || return 1
+    why=idle-max
+  fi
   running || return 1
   API_CODE=000
+  # 404 can mean no access, so it is not proof of idle. One slot: no others_up guard as in nos-runner.
   if delete_runner "${SL_ID}" && [[ "${API_CODE}" != 404 ]]; then
-    log "update pending and runner ${SL_ID} idle (DELETE: HTTP ${API_CODE}); ending VM ${VM} so the update installs"
+    if [[ "${why}" == update ]]; then
+      log "update pending and runner ${SL_ID} idle (DELETE: HTTP ${API_CODE}); ending VM ${VM} so the update installs"
+    else
+      log "runner ${SL_ID} idle for ${age} s (limit ${SWM_IDLE_MAX_S} s); ending VM ${VM}"
+    fi
     SL_ID=""
     slot_save
     IDLE_ENDED=1
+    IDLE_WHY="${why}"
     return 0
   fi
-  log "update pending but runner ${SL_ID} not deleted (HTTP ${API_CODE}; 422 = it runs a job); waiting for the job"
+  if [[ "${why}" == update ]]; then
+    log "update pending but runner ${SL_ID} not deleted (HTTP ${API_CODE}; 422 = it runs a job); waiting for the job"
+  elif [[ "${IDLE_REFUSAL_LOGGED}" -eq 0 ]]; then
+    # Log once per runner: a busy runner refuses every SWM_UPDATE_IDLE_CHECK_S until its job ends.
+    log "idle past SWM_IDLE_MAX_S but runner ${SL_ID} not deleted (HTTP ${API_CODE}; 422 = it runs a job); waiting for the job"
+    IDLE_REFUSAL_LOGGED=1
+  fi
   return 1
 }
 
@@ -326,16 +351,27 @@ run_job() {
   jit=""
   ABORT_OK=1
   IDLE_ENDED=0
+  IDLE_WHY=""
+  IDLE_REFUSAL_LOGGED=0
+  JIT_AT="$(now)"
+  if [[ ! "${SWM_IDLE_MAX_S}" =~ ^[0-9]+$ ]]; then
+    log "SWM_IDLE_MAX_S='${SWM_IDLE_MAX_S}' is not whole seconds; no idle limit for runner ${VM}"
+  fi
   running && BOUNDED_CHECK_S="${SWM_UPDATE_IDLE_CHECK_S}" SWM_IN=/dev/fd/3 \
     bounded "${SWM_JOB_MAX_S}" "${TART_BIN}" exec -i "${VM}" /bin/bash "${GUEST_JOB}" || rc=$?
   ABORT_OK=0
   exec 3<&-
+  JIT_AT=0
   SL_JOB=0
   slot_save
   if [[ "${STOP}" -eq 1 ]]; then return 1; fi
-  # Ended idle for a pending update: neutral, like the SWM_JOB_MAX_S case below.
+  # Ended idle (pending update or SWM_IDLE_MAX_S): neutral, like the SWM_JOB_MAX_S case below.
   if [[ "${IDLE_ENDED}" -eq 1 ]]; then
-    log "runner ${VM} ended idle for the pending update; not counted"
+    if [[ "${IDLE_WHY}" == update ]]; then
+      log "runner ${VM} ended idle for the pending update; not counted"
+    else
+      log "runner ${VM} ended idle after SWM_IDLE_MAX_S; not counted"
+    fi
     return 0
   fi
   # An idle JIT runner reaches SWM_JOB_MAX_S every 6 h: neutral, so it never counts as a fail or a recovery.
