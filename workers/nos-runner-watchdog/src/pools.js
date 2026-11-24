@@ -65,6 +65,8 @@ export const POOLS = {
     prefix: "swm-macos:",
     cron: "5,15,25,35,45,55 * * * *",
     rerunLost: true,
+    // Optional: with any App secret missing the tick goes quiet. NOS is not optional, so a lost secret stays loud.
+    optional: true,
     messages: MACOS_MESSAGES,
   },
 };

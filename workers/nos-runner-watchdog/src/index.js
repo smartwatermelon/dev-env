@@ -1,6 +1,6 @@
 import { decide } from "./decide.js";
 import * as gh from "./github.js";
-import { POOLS, poolForCron, appEnv } from "./pools.js";
+import { APPS, POOLS, poolForCron, appEnv } from "./pools.js";
 
 // Free plan allows 50 subrequests a run; KV calls are counted too, for headroom.
 export const CAP = 40;
@@ -38,12 +38,19 @@ function makeBudget(cap) {
 
 /** One tick for one pool. deps: {fetch, now, pool}. Every fetch and KV call is counted against CAP. */
 export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
-  // An unconfigured pool touches nothing: no fetch, no KV, not even the skips counter.
+  // An optional pool without its App secrets touches nothing: no fetch, no KV, not even the skips counter.
   const app = appEnv(env, pool);
-  if (!app) {
+  if (!app && pool.optional) {
     log(`pool ${pool.id} not configured: App secrets missing`);
     return;
   }
+  // Other pools mint from their own App's raw values, so a missing secret fails the mint and goes through skipTick.
+  const a = APPS[pool.app];
+  const creds = app ?? {
+    APP_ID: env[a.idKey],
+    INSTALLATION_ID: env[a.installKey],
+    APP_KEY_PKCS8: env[a.keyKey],
+  };
   const budget = makeBudget(CAP);
   const fetchFn = (url, init) => {
     budget.take();
@@ -117,7 +124,7 @@ export async function runTick(env, { fetch: rawFetch, now, pool = POOLS.nos }) {
   let token = null;
   let cached = false;
   const mint = async () => {
-    token = await gh.appToken(app, fetchFn, now);
+    token = await gh.appToken(creds, fetchFn, now);
     cached = false;
     await kv.put("token", token, { expirationTtl: TOKEN_TTL });
   };

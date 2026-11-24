@@ -161,6 +161,46 @@ test("pool_tokens_not_shared", async () => {
   }
 });
 
+// NOS is not optional: a lost secret must stay loud (skips counter, skip alert), exactly as before pools existed.
+test("pool_nos_missing_secret_keeps_old_path", async () => {
+  const noToken = setupFor(NOS, worldFor(NOS), {
+    state: st(NOS),
+    skips: JSON.stringify({ count: 2, notified: false }),
+  });
+  delete noToken.env.APP_KEY_PKCS8;
+  await noToken.tick();
+  assert.deepEqual(noToken.store.ops, [
+    "get state",
+    "get pendingReruns",
+    "get skips",
+    "get drill",
+    "get token",
+    "put skips",
+  ]);
+  assert.deepEqual(JSON.parse(noToken.store.map.get("skips")), {
+    count: 3,
+    notified: true,
+  });
+  assert.deepEqual(
+    noToken.f.calls.map((c) => [c.key, c.init.body]),
+    [[NTFY, "watchdog skipping: network"]],
+  );
+
+  // With a cached token the tick still runs in full.
+  const cached = setupFor(NOS, worldFor(NOS), {
+    token: "ghs_nos",
+    state: st(NOS),
+  });
+  delete cached.env.APP_KEY_PKCS8;
+  await cached.tick();
+  assert.deepEqual(cached.f.unexpected, []);
+  assert.ok(cached.f.calls.length > 0);
+  assert.deepEqual(
+    cached.store.puts.map((p) => p.key),
+    ["state"],
+  );
+});
+
 test("pool_macos_unconfigured_does_nothing", async () => {
   const s = setupFor(MAC, worldFor(MAC, { runners: [] }), {
     [keyOf(MAC, "token")]: "ghs_swm",
